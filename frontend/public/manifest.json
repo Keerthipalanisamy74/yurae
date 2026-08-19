@@ -1,0 +1,71 @@
+{
+  "name": "Yurae Beauty — The Origin of Skincare",
+  "short_name": "Yurae",
+  "description": "Luxury Korean-inspired botanical skincare rituals, Mulberry silk fashion, and handcrafted minimalist jewelry.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FDF4F7",
+  "theme_color": "#D84B7E",
+  "orientation": "portrait-primary",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["shopping", "lifestyle", "beauty"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Skincare Collection",
+      "short_name": "Skincare",
+      "description": "Botanical skincare rituals & serums",
+      "url": "/skincare",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Fashion Apparel",
+      "short_name": "Fashion",
+      "description": "Luxury silk & dress apparel",
+      "url": "/fashion",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Accessories",
+      "short_name": "Accessories",
+      "description": "Handcrafted minimalist fine jewelry",
+      "url": "/accessories",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Beauty Bag",
+      "short_name": "Cart",
+      "description": "View shopping bag and checkout",
+      "url": "/cart",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

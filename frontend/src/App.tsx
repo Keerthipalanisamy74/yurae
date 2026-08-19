@@ -10,6 +10,7 @@ import { Navbar } from './components/common/Navbar';
 import { MobileNav } from './components/common/MobileNav';
 import { CartDrawer } from './components/common/CartDrawer';
 import { Footer } from './components/common/Footer';
+import { InstallAppPrompt } from './components/common/InstallAppPrompt';
 
 import { Home } from './pages/Home';
 import { Shop } from './pages/Shop';
@@ -61,6 +62,7 @@ export const App: React.FC = () => {
                   </main>
                   <Footer />
                   <MobileNav />
+                  <InstallAppPrompt />
                 </div>
               </WishlistProvider>
             </CartProvider>

@@ -51,21 +51,21 @@ export const Login: React.FC = () => {
 
         {/* Demo Credentials Helper Pill */}
         <div className="p-3 bg-[#FCE7F0] rounded-2xl border border-[#F1BCCE] space-y-1.5 text-center">
-          <span className="text-[10px] uppercase font-bold text-[#D84B7E] block">Quick Demo Login</span>
+          <span className="text-[10px] uppercase font-bold text-[#D84B7E] block">Login</span>
           <div className="flex justify-center gap-2">
             <button
               type="button"
               onClick={() => handleQuickDemoFill('customer')}
               className="px-3 py-1 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer"
             >
-              Demo Customer
+              User
             </button>
             <button
               type="button"
               onClick={() => handleQuickDemoFill('admin')}
               className="px-3 py-1 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer text-[#D84B7E]"
             >
-              Demo Admin
+              Admin
             </button>
           </div>
         </div>

@@ -125,6 +125,18 @@ export const Footer: React.FC = () => {
                   Track Your Order
                 </Link>
               </li>
+              <li>
+                <button
+                  onClick={() => {
+                    const promptEl = document.querySelector('[data-pwa-install]');
+                    if (promptEl) (promptEl as HTMLElement).click();
+                    else showToast('To install: On iPhone tap Share > "Add to Home Screen". On Android tap browser menu > "Install app".', 'info');
+                  }}
+                  className="hover:text-[#F8A4C4] transition-colors cursor-pointer text-left font-medium text-[#F8A4C4]"
+                >
+                  📱 Install Mobile App
+                </button>
+              </li>
             </ul>
           </div>
 

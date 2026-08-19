@@ -153,14 +153,21 @@ export const CartDrawer: React.FC = () => {
 
             {/* Footer Summary & Checkout */}
             {cart && cart.items.length > 0 && (
-              <div className="p-6 border-t border-[#F1BCCE] bg-[#FFF8FA] space-y-4">
-                <div className="flex justify-between items-center text-sm">
+              <div className="p-6 border-t border-[#F1BCCE] bg-[#FFF8FA] space-y-3">
+                <div className="p-2.5 bg-[#FCE7F0] border border-[#F1BCCE] rounded-xl flex items-center justify-between text-xs">
+                  <span className="text-[#D84B7E] font-bold flex items-center gap-1.5">
+                    ✨ Have a coupon?
+                  </span>
+                  <span className="text-[11px] text-gray-600">Apply on Checkout</span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm pt-1">
                   <span className="text-gray-600">Subtotal ({currentCurrencyInfo.code})</span>
                   <span className="font-serif text-lg font-bold text-[#111111]">
                     {formatPrice(subtotalInINR)}
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-400 text-center">Taxes and regional shipping calculated at checkout.</p>
+                <p className="text-[11px] text-gray-400 text-center">Taxes, discounts, and regional shipping calculated at checkout.</p>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <Link

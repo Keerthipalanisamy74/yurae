@@ -146,6 +146,11 @@ export const ProductDetails: React.FC = () => {
     ? (product.sale_price || product.price) + selectedVariant.additional_price
     : (product.sale_price || product.price);
 
+  const categorySlug = product.category?.slug?.toLowerCase() || '';
+  const categoryName = product.category?.name?.toLowerCase() || '';
+  const isFashion = categorySlug === 'fashion' || categoryName.includes('fashion') || categoryName.includes('dress') || categoryName.includes('apparel') || categoryName.includes('kurti') || categoryName.includes('saree') || categoryName.includes('clothing');
+  const isAccessories = categorySlug === 'accessories' || categoryName.includes('accessories') || categoryName.includes('jewelry') || categoryName.includes('bag') || categoryName.includes('pendant') || categoryName.includes('ring') || categoryName.includes('earring');
+
   return (
     <div className="pb-24 pt-8 bg-[#FDF4F7]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -205,7 +210,7 @@ export const ProductDetails: React.FC = () => {
             
             <div className="space-y-3 pb-6 border-b border-[#F1BCCE]">
               <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">
-                {product.category?.name || 'Skincare'}
+                {product.category?.name || 'Collection'}
               </span>
               <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#111111]">
                 {product.name}
@@ -298,7 +303,7 @@ export const ProductDetails: React.FC = () => {
                   className="flex-1 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  Add to Beauty Bag
+                  {isFashion ? 'Add to Bag' : isAccessories ? 'Add to Bag' : 'Add to Beauty Bag'}
                 </button>
               </div>
 
@@ -345,24 +350,38 @@ export const ProductDetails: React.FC = () => {
                   onClick={() => toggleAccordion('description')}
                   className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
                 >
-                  Description & Formulations
+                  {isFashion
+                    ? 'Description & Fit Details'
+                    : isAccessories
+                    ? 'Description & Craftsmanship'
+                    : 'Description & Formulations'}
                   {openAccordions.description ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {openAccordions.description && (
                   <div className="px-6 pb-6 text-sm text-gray-700 font-normal leading-relaxed border-t border-[#F1BCCE]">
-                    <p>{product.description || 'Crafted with potent botanical extracts to restore, hydrate, and maintain skin resilience.'}</p>
+                    <p>
+                      {product.description || (isFashion
+                        ? 'Designed with premium luxury fabrics, comfortable tailoring, and refined silhouettes by Yurae.'
+                        : isAccessories
+                        ? 'Artisanal luxury accessory handcrafted with fine materials and delicate details by Yurae.'
+                        : 'Crafted with potent botanical extracts to restore, hydrate, and maintain skin resilience.')}
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Ingredients */}
-              {product.ingredients && (
+              {/* Ingredients / Fabric / Material */}
+              {product.ingredients && product.ingredients.trim() && (
                 <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
                   <button
                     onClick={() => toggleAccordion('ingredients')}
                     className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
                   >
-                    Hero Ingredients & Actives
+                    {isFashion
+                      ? 'Fabric & Material Composition'
+                      : isAccessories
+                      ? 'Material & Finish Details'
+                      : 'Hero Ingredients & Actives'}
                     {openAccordions.ingredients ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                   </button>
                   {openAccordions.ingredients && (
@@ -373,14 +392,18 @@ export const ProductDetails: React.FC = () => {
                 </div>
               )}
 
-              {/* How to Use */}
-              {product.how_to_use && (
+              {/* How to Use / Garment Care Guide */}
+              {product.how_to_use && product.how_to_use.trim() && (
                 <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
                   <button
                     onClick={() => toggleAccordion('how_to_use')}
                     className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
                   >
-                    Ritual & Application Guide
+                    {isFashion
+                      ? 'Garment Care & Sizing Guide'
+                      : isAccessories
+                      ? 'Jewelry Care & Preservation'
+                      : 'Ritual & Application Guide'}
                     {openAccordions.how_to_use ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                   </button>
                   {openAccordions.how_to_use && (
@@ -420,7 +443,9 @@ export const ProductDetails: React.FC = () => {
           <div className="max-w-3xl mx-auto space-y-8">
             <div className="text-center space-y-2">
               <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Feedback</span>
-              <h2 className="font-serif text-3xl font-bold text-[#111111]">Ritual Reviews</h2>
+              <h2 className="font-serif text-3xl font-bold text-[#111111]">
+                {isFashion || isAccessories ? 'Client Reviews' : 'Ritual Reviews'}
+              </h2>
             </div>
 
             {/* Submit Review Box */}
@@ -449,7 +474,13 @@ export const ProductDetails: React.FC = () => {
                     rows={3}
                     value={reviewText}
                     onChange={(e) => setReviewText(e.target.value)}
-                    placeholder="Describe how this product felt, texture, scent, and results..."
+                    placeholder={
+                      isFashion
+                        ? 'Describe fabric comfort, quality, sizing fit, and elegance...'
+                        : isAccessories
+                        ? 'Describe material finish, shine, craftsmanship, and styling...'
+                        : 'Describe formulation texture, hydration, scent, and results...'
+                    }
                     className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
                     required
                   />

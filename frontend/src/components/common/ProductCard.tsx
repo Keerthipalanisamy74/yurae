@@ -25,6 +25,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onDelete }) =
   const primaryImage = product.images[0]?.image_url || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80';
   const secondaryImage = product.images[1]?.image_url || primaryImage;
 
+  const categorySlug = product.category?.slug?.toLowerCase() || '';
+  const categoryName = product.category?.name?.toLowerCase() || '';
+  const isFashion = categorySlug === 'fashion' || categoryName.includes('fashion') || categoryName.includes('dress') || categoryName.includes('apparel') || categoryName.includes('kurti') || categoryName.includes('saree') || categoryName.includes('clothing');
+  const isAccessories = categorySlug === 'accessories' || categoryName.includes('accessories') || categoryName.includes('jewelry') || categoryName.includes('bag') || categoryName.includes('pendant') || categoryName.includes('ring') || categoryName.includes('earring');
+
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -75,7 +80,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onDelete }) =
           )}
           {product.featured && (
             <span className="px-2.5 py-1 bg-[#D84B7E] text-[#FDF4F7] text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs">
-              Hero Ritual
+              {isFashion || isAccessories ? 'Featured' : 'Hero Ritual'}
             </span>
           )}
           {product.sale_price && (
@@ -150,9 +155,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onDelete }) =
             )}
           </div>
 
-          {product.skin_type && (
+          {product.skin_type && !isFashion && !isAccessories && (
             <span className="text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-2 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
               {product.skin_type.split(',')[0]}
+            </span>
+          )}
+          {isFashion && (
+            <span className="text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-2 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
+              Apparel
+            </span>
+          )}
+          {isAccessories && (
+            <span className="text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-2 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
+              Fine Jewelry
             </span>
           )}
         </div>

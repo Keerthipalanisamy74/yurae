@@ -797,7 +797,13 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                   rows={3}
                   value={newProdDesc}
                   onChange={(e) => setNewProdDesc(e.target.value)}
-                  placeholder="Detailed product story, care instructions, and ritual guide..."
+                  placeholder={
+                    targetUploadCategory === 'fashion'
+                      ? 'Detailed garment story, styling advice, and fit information...'
+                      : targetUploadCategory === 'accessories'
+                      ? 'Detailed accessory story, craftsmanship, and styling notes...'
+                      : 'Detailed product story, botanical benefits, and ritual guide...'
+                  }
                   className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111]"
                 />
               </div>

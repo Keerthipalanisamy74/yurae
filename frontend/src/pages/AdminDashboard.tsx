@@ -46,6 +46,7 @@ export const AdminDashboard: React.FC = () => {
   const [newCouponMinOrder, setNewCouponMinOrder] = useState<number>(1000);
   const [newCouponDurationOption, setNewCouponDurationOption] = useState<string>('7'); // default 7 days
   const [newCouponCustomDays, setNewCouponCustomDays] = useState<number>(14);
+  const [newCouponSpecificDate, setNewCouponSpecificDate] = useState<string>('');
   const [newCouponUsageLimit, setNewCouponUsageLimit] = useState<number>(100);
   const [newCouponActive, setNewCouponActive] = useState<boolean>(true);
   const [isSubmittingCoupon, setIsSubmittingCoupon] = useState<boolean>(false);
@@ -58,6 +59,7 @@ export const AdminDashboard: React.FC = () => {
   const [editCouponMinOrder, setEditCouponMinOrder] = useState<number>(1000);
   const [editCouponDurationOption, setEditCouponDurationOption] = useState<string>('keep');
   const [editCouponCustomDays, setEditCouponCustomDays] = useState<number>(7);
+  const [editCouponSpecificDate, setEditCouponSpecificDate] = useState<string>('');
   const [editCouponUsageLimit, setEditCouponUsageLimit] = useState<number>(100);
   const [editCouponActive, setEditCouponActive] = useState<boolean>(true);
   const [isUpdatingCoupon, setIsUpdatingCoupon] = useState<boolean>(false);
@@ -141,8 +143,13 @@ export const AdminDashboard: React.FC = () => {
 
   // --- COUPON ACTIONS ---
 
-  const calculateExpiryPreview = (option: string, customDays: number) => {
+  const calculateExpiryPreview = (option: string, customDays: number, specificDate?: string) => {
     if (option === 'no_expiry') return 'Never (Permanent Offer)';
+    if (option === 'date') {
+      if (!specificDate) return 'Select a date below';
+      const d = new Date(specificDate);
+      return `Expires on ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    }
     const days = option === 'custom' ? customDays : Number(option);
     if (isNaN(days) || days <= 0) return 'Never (Permanent Offer)';
     const d = new Date();
@@ -195,9 +202,20 @@ export const AdminDashboard: React.FC = () => {
 
     try {
       setIsSubmittingCoupon(true);
-      const durationDays = newCouponDurationOption === 'no_expiry'
-        ? undefined
-        : (newCouponDurationOption === 'custom' ? newCouponCustomDays : Number(newCouponDurationOption));
+      let durationDays: number | undefined = undefined;
+      let specificExpiry: string | undefined = undefined;
+
+      if (newCouponDurationOption === 'no_expiry') {
+        durationDays = undefined;
+      } else if (newCouponDurationOption === 'custom') {
+        durationDays = newCouponCustomDays;
+      } else if (newCouponDurationOption === 'date') {
+        if (newCouponSpecificDate) {
+          specificExpiry = new Date(newCouponSpecificDate + 'T23:59:59').toISOString();
+        }
+      } else {
+        durationDays = Number(newCouponDurationOption);
+      }
 
       const res = await api.post('/coupons', {
         code: newCouponCode.trim().toUpperCase(),
@@ -205,6 +223,7 @@ export const AdminDashboard: React.FC = () => {
         discount_value: newCouponVal,
         minimum_order_amount: newCouponMinOrder,
         duration_days: durationDays,
+        expiry_date: specificExpiry,
         usage_limit: newCouponUsageLimit,
         active: newCouponActive,
       });
@@ -231,6 +250,11 @@ export const AdminDashboard: React.FC = () => {
     setEditCouponMinOrder(c.minimum_order_amount);
     setEditCouponDurationOption('keep');
     setEditCouponCustomDays(7);
+    if (c.expiry_date) {
+      setEditCouponSpecificDate(new Date(c.expiry_date).toISOString().split('T')[0]);
+    } else {
+      setEditCouponSpecificDate('');
+    }
     setEditCouponUsageLimit(c.usage_limit);
     setEditCouponActive(c.active);
   };
@@ -242,12 +266,20 @@ export const AdminDashboard: React.FC = () => {
     try {
       setIsUpdatingCoupon(true);
       let durationPayload: number | undefined = undefined;
-      if (editCouponDurationOption === 'no_expiry') {
+      let specificExpiryPayload: string | undefined = undefined;
+
+      if (editCouponDurationOption === 'keep') {
+        durationPayload = undefined;
+      } else if (editCouponDurationOption === 'no_expiry') {
         durationPayload = 0; // zero indicates remove expiry
       } else if (editCouponDurationOption === 'custom') {
         durationPayload = editCouponCustomDays;
-      } else if (editCouponDurationOption.startsWith('extend_')) {
-        durationPayload = Number(editCouponDurationOption.replace('extend_', ''));
+      } else if (editCouponDurationOption === 'date') {
+        if (editCouponSpecificDate) {
+          specificExpiryPayload = new Date(editCouponSpecificDate + 'T23:59:59').toISOString();
+        }
+      } else {
+        durationPayload = Number(editCouponDurationOption);
       }
 
       const res = await api.put(`/coupons/${editingCoupon.id}`, {
@@ -256,12 +288,13 @@ export const AdminDashboard: React.FC = () => {
         discount_value: editCouponVal,
         minimum_order_amount: editCouponMinOrder,
         duration_days: durationPayload,
+        expiry_date: specificExpiryPayload,
         usage_limit: editCouponUsageLimit,
         active: editCouponActive,
       });
 
       showToast(`Coupon "${res.data.code}" updated successfully!`, 'success');
-      setCoupons(coupons.map((c) => (c.id === res.data.id ? res.data : c)));
+      setCoupons((prev) => prev.map((c) => (c.id === res.data.id ? res.data : c)));
       setEditingCoupon(null);
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Failed to update coupon';
@@ -512,7 +545,7 @@ export const AdminDashboard: React.FC = () => {
                         Offer Time Limit & Deal Duration:
                       </span>
                       <span className="text-[11px] font-bold text-[#D84B7E] bg-white px-3 py-1 rounded-full border border-[#F1BCCE]">
-                        ⏳ Expiry: {calculateExpiryPreview(newCouponDurationOption, newCouponCustomDays)}
+                        ⏳ Expiry: {calculateExpiryPreview(newCouponDurationOption, newCouponCustomDays, newCouponSpecificDate)}
                       </span>
                     </div>
 
@@ -526,6 +559,7 @@ export const AdminDashboard: React.FC = () => {
                         { id: '30', label: '30 Days (1 Month)' },
                         { id: '90', label: '90 Days (Quarterly)' },
                         { id: 'custom', label: 'Custom Days' },
+                        { id: 'date', label: '📅 Pick Expiry Date' },
                       ].map((opt) => (
                         <button
                           key={opt.id}
@@ -553,7 +587,19 @@ export const AdminDashboard: React.FC = () => {
                           onChange={(e) => setNewCouponCustomDays(Number(e.target.value))}
                           className="w-32 p-2 bg-white border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none"
                         />
-                        <span className="text-xs text-gray-600 font-medium">days active from today</span>
+                        <span className="text-xs text-gray-600 font-medium">days active starting from today</span>
+                      </div>
+                    )}
+
+                    {newCouponDurationOption === 'date' && (
+                      <div className="flex items-center gap-3 pt-2">
+                        <label className="font-bold text-[#111111] text-xs">Choose Expiration Date:</label>
+                        <input
+                          type="date"
+                          value={newCouponSpecificDate}
+                          onChange={(e) => setNewCouponSpecificDate(e.target.value)}
+                          className="p-2 bg-white border border-[#F1BCCE] rounded-xl font-bold text-xs outline-none cursor-pointer"
+                        />
                       </div>
                     )}
                   </div>
@@ -779,7 +825,9 @@ export const AdminDashboard: React.FC = () => {
                       Update Time Limit / Offer Duration:
                     </span>
                     <span className="text-[11px] font-bold text-[#D84B7E] bg-white px-2.5 py-0.5 rounded-full border border-[#F1BCCE]">
-                      Current: {editingCoupon.expiry_date ? new Date(editingCoupon.expiry_date).toLocaleDateString() : 'No Expiry'}
+                      {editCouponDurationOption === 'keep'
+                        ? `Current: ${editingCoupon.expiry_date ? new Date(editingCoupon.expiry_date).toLocaleDateString() : 'No Expiry'}`
+                        : `New Expiry: ${calculateExpiryPreview(editCouponDurationOption, editCouponCustomDays, editCouponSpecificDate)}`}
                     </span>
                   </div>
 
@@ -787,11 +835,14 @@ export const AdminDashboard: React.FC = () => {
                     {[
                       { id: 'keep', label: 'Keep Current Expiry' },
                       { id: 'no_expiry', label: '♾️ Set No Expiry' },
-                      { id: 'extend_3', label: '+3 Days' },
-                      { id: 'extend_7', label: '+7 Days (1 Week)' },
-                      { id: 'extend_14', label: '+14 Days' },
-                      { id: 'extend_30', label: '+30 Days (1 Month)' },
+                      { id: '1', label: '1 Day (24 Hours)' },
+                      { id: '3', label: '3 Days' },
+                      { id: '7', label: '7 Days (1 Week)' },
+                      { id: '14', label: '14 Days (2 Weeks)' },
+                      { id: '30', label: '30 Days (1 Month)' },
+                      { id: '90', label: '90 Days' },
                       { id: 'custom', label: 'Custom Days' },
+                      { id: 'date', label: '📅 Pick Expiry Date' },
                     ].map((opt) => (
                       <button
                         key={opt.id}
@@ -819,7 +870,19 @@ export const AdminDashboard: React.FC = () => {
                         onChange={(e) => setEditCouponCustomDays(Number(e.target.value))}
                         className="w-32 p-2 bg-white border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none"
                       />
-                      <span className="text-xs text-gray-600 font-medium">days active from today</span>
+                      <span className="text-xs text-gray-600 font-medium">days active starting from today</span>
+                    </div>
+                  )}
+
+                  {editCouponDurationOption === 'date' && (
+                    <div className="flex items-center gap-3 pt-2">
+                      <label className="font-bold text-[#111111] text-xs">Choose Expiration Date:</label>
+                      <input
+                        type="date"
+                        value={editCouponSpecificDate}
+                        onChange={(e) => setEditCouponSpecificDate(e.target.value)}
+                        className="p-2 bg-white border border-[#F1BCCE] rounded-xl font-bold text-xs outline-none cursor-pointer"
+                      />
                     </div>
                   )}
                 </div>

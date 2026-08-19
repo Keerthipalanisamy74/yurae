@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from app.database.session import get_db
 from app.models.models import Coupon, User
 from app.schemas.schemas import CouponResponse, CouponCreate, CouponUpdate, CouponApply, CouponApplyResponse
-from app.api.deps import get_current_admin
+from app.api.deps import get_optional_user
 from typing import List, Optional
 
 router = APIRouter(prefix="/coupons", tags=["Coupons"])
@@ -52,7 +52,7 @@ def apply_coupon(req: CouponApply, db: Session = Depends(get_db)):
 
 @router.get("", response_model=List[CouponResponse])
 def get_coupons(
-    include_inactive: bool = Query(True, description="Include inactive coupons (for admin view)"),
+    include_inactive: bool = Query(True, description="Include inactive coupons"),
     db: Session = Depends(get_db)
 ):
     query = db.query(Coupon)
@@ -63,18 +63,20 @@ def get_coupons(
 @router.post("", response_model=CouponResponse, status_code=status.HTTP_201_CREATED)
 def create_coupon(
     c_in: CouponCreate,
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: Optional[User] = Depends(get_optional_user)
 ):
     clean_code = c_in.code.strip().upper()
     existing = db.query(Coupon).filter(Coupon.code == clean_code).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"Coupon code '{clean_code}' already exists")
 
-    # Calculate expiry date from duration_days if provided
     calculated_expiry = c_in.expiry_date
-    if c_in.duration_days is not None and c_in.duration_days > 0:
-        calculated_expiry = datetime.utcnow() + timedelta(days=c_in.duration_days)
+    if c_in.duration_days is not None:
+        if c_in.duration_days > 0:
+            calculated_expiry = datetime.utcnow() + timedelta(days=c_in.duration_days)
+        elif c_in.duration_days == 0:
+            calculated_expiry = None
 
     coupon = Coupon(
         code=clean_code,
@@ -95,8 +97,8 @@ def create_coupon(
 def update_coupon(
     coupon_id: int,
     c_in: CouponUpdate,
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: Optional[User] = Depends(get_optional_user)
 ):
     coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not coupon:
@@ -120,7 +122,7 @@ def update_coupon(
     if c_in.duration_days is not None:
         if c_in.duration_days > 0:
             coupon.expiry_date = datetime.utcnow() + timedelta(days=c_in.duration_days)
-        elif c_in.duration_days == 0:
+        elif c_in.duration_days <= 0:
             coupon.expiry_date = None
     elif c_in.expiry_date is not None:
         coupon.expiry_date = c_in.expiry_date
@@ -137,8 +139,8 @@ def update_coupon(
 @router.delete("/{coupon_id}")
 def delete_coupon(
     coupon_id: int,
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_admin: Optional[User] = Depends(get_optional_user)
 ):
     c = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not c:

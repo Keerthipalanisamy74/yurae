@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Star, Heart, Plus, Minus, ShieldCheck, Truck, RotateCcw, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
-import { Product, ProductVariant, Review } from '../types';
+import { Star, Heart, Plus, Minus, ShieldCheck, Truck, RotateCcw, ChevronDown, ChevronUp, Trash2, Edit } from 'lucide-react';
+import { Product, ProductVariant, Review, Category } from '../types';
 import { api } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { ProductCard } from '../components/common/ProductCard';
+import { ProductFormModal } from '../components/common/ProductFormModal';
 
 export const ProductDetails: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -20,6 +21,8 @@ export const ProductDetails: React.FC = () => {
   const { formatPrice, currentCurrencyInfo } = useCurrency();
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [selectedImage, setSelectedImage] = useState<string>('');
@@ -54,6 +57,11 @@ export const ProductDetails: React.FC = () => {
           setSelectedVariant(prodData.variants[0]);
         }
 
+        // Fetch categories for edit modal
+        api.get('/categories')
+          .then((cRes) => setCategories(cRes.data))
+          .catch((err) => console.error(err));
+
         // Fetch reviews & related products
         api.get(`/products/${prodData.id}/reviews`)
           .then((rRes) => setReviews(rRes.data))
@@ -69,6 +77,16 @@ export const ProductDetails: React.FC = () => {
       })
       .finally(() => setLoading(false));
   }, [slug, showToast]);
+
+  const handleProductEditSuccess = (savedProduct: Product) => {
+    setProduct(savedProduct);
+    if (savedProduct.images && savedProduct.images.length > 0) {
+      setSelectedImage(savedProduct.images[0].image_url);
+    }
+    if (savedProduct.slug && savedProduct.slug !== slug) {
+      navigate(`/product/${savedProduct.slug}`, { replace: true });
+    }
+  };
 
   const toggleAccordion = (key: string) => {
     setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -315,13 +333,22 @@ export const ProductDetails: React.FC = () => {
               </button>
 
               {isAdmin && (
-                <button
-                  onClick={handleDeleteThisProduct}
-                  className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Admin: Delete This Product
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="w-full py-3 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Admin: Edit Product & Photos
+                  </button>
+                  <button
+                    onClick={handleDeleteThisProduct}
+                    className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Admin: Delete Product
+                  </button>
+                </div>
               )}
             </div>
 
@@ -530,6 +557,18 @@ export const ProductDetails: React.FC = () => {
               ))}
             </div>
           </section>
+        )}
+
+        {/* Admin Edit Modal */}
+        {isEditModalOpen && product && (
+          <ProductFormModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            productToEdit={product}
+            categories={categories}
+            initialCategorySlug={product.category?.slug}
+            onSuccess={handleProductEditSuccess}
+          />
         )}
 
       </div>

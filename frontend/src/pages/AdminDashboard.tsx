@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  TrendingUp, ShoppingCart, Users, AlertTriangle, Plus, Trash2, Tag, X, Globe, RefreshCw
+  TrendingUp, ShoppingCart, Users, AlertTriangle, Plus, Trash2, Tag, Globe, RefreshCw, Edit
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
 import { AdminDashboardStats, Product, Order, User as CustomerUser, Coupon, Category, CurrencyInfo } from '../types';
+import { ProductFormModal } from '../components/common/ProductFormModal';
 
 export const AdminDashboard: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -32,44 +33,9 @@ export const AdminDashboard: React.FC = () => {
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // New Product Modal State
+  // New & Edit Product Modal State
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
-  const [newProdName, setNewProdName] = useState('');
-  const [newProdSlug, setNewProdSlug] = useState('');
-  const [newProdCatId, setNewProdCatId] = useState<number>(1);
-  const [newProdPrice, setNewProdPrice] = useState<number>(1290);
-  const [newProdSalePrice, setNewProdSalePrice] = useState<number | undefined>(1090);
-  const [newProdStock, setNewProdStock] = useState<number>(50);
-  const [newProdSkinType, setNewProdSkinType] = useState('Sensitive, Combination');
-  const [newProdDesc, setNewProdDesc] = useState('');
-  const [newProdShortDesc, setNewProdShortDesc] = useState('');
-  const [newProdIngredients, setNewProdIngredients] = useState('');
-  const [newProdImgUrl, setNewProdImgUrl] = useState('');
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
-  const [newProdDressType, setNewProdDressType] = useState('Maxi & Midi Dresses');
-  const [newProdAccessoryType, setNewProdAccessoryType] = useState('Ring');
-
-  const availableFashionSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
-
-  const dressCategories = [
-    'Maxi & Midi Dresses',
-    'Mini & Cocktail Dresses',
-    'Silk Robes & Kimonos',
-    'Co-ord Sets & Jumpsuits',
-    'Evening & Party Gowns',
-    'Summer & Casual Dresses',
-    'Tops & Blouses',
-    'Skirts & Bottoms',
-    'Loungewear & Nightwear',
-    'Ethnic & Fusion Wear',
-  ];
-
-  const accessoryCategories = [
-    'Ring',
-    'Necklace',
-    'Bracelet',
-    'Earrings',
-  ];
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Coupon Creation State
   const [newCouponCode, setNewCouponCode] = useState('');
@@ -126,101 +92,6 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setIsRefreshingRates(false);
     }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (reader.result) {
-          setNewProdImgUrl(reader.result as string);
-          showToast('Product image loaded successfully!', 'success');
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleCreateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const slugVal = newProdSlug || newProdName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const defaultImg = newProdImgUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1000&q=80';
-
-      const selectedCat = categories.find((c) => c.id === newProdCatId);
-      const isFashionCat = selectedCat?.slug === 'fashion' || selectedCat?.name?.toLowerCase().includes('fashion');
-
-      const variantsPayload = isFashionCat && selectedSizes.length > 0
-        ? selectedSizes.map((size) => ({
-            variant_name: 'Size',
-            variant_value: size,
-            additional_price: 0,
-            stock_quantity: Math.max(1, Math.floor(newProdStock / selectedSizes.length)),
-          }))
-        : [];
-
-      const skinTypeVal = isFashionCat
-        ? (selectedSizes.length > 0 ? `Sizes: ${selectedSizes.join(', ')}` : (newProdSkinType || 'Standard Fit'))
-        : (newProdSkinType || 'All');
-
-      const isAccessoryCat = selectedCat?.slug === 'accessories' || selectedCat?.name?.toLowerCase().includes('accessories');
-
-      const shortDescVal = newProdShortDesc || (
-        isFashionCat ? `${newProdDressType} • Premium Fashion` :
-        isAccessoryCat ? `${newProdAccessoryType} • Luxury Accessories` :
-        newProdName
-      );
-
-      const descVal = newProdDesc || (
-        isFashionCat ? `Handcrafted luxury silhouette designed for effortless elegance. Style: ${newProdDressType}.` :
-        isAccessoryCat ? `Artisanal minimal jewelry crafted with delicate craftsmanship. Category: ${newProdAccessoryType}.` :
-        'Botanical formulation designed to nourish and balance skin.'
-      );
-
-      const ingredientsVal = newProdIngredients || (
-        isFashionCat ? '100% Mulberry Silk / Pure Linen Weave' :
-        isAccessoryCat ? '18K Gold Vermeil, Freshwater Pearl, Sterling Silver 925' :
-        'Madagascar Centella Asiatica, Hyaluronic Acid, Niacinamide'
-      );
-
-      await api.post('/products', {
-        category_id: newProdCatId,
-        name: newProdName,
-        slug: slugVal,
-        price: newProdPrice,
-        sale_price: newProdSalePrice || null,
-        stock_quantity: newProdStock,
-        skin_type: skinTypeVal,
-        short_description: shortDescVal,
-        description: descVal,
-        ingredients: ingredientsVal,
-        how_to_use: isFashionCat ? 'Dry clean or gentle hand wash cold with mild silk detergent.' : isAccessoryCat ? 'Store in dry velvet pouch. Avoid direct contact with perfume.' : 'Apply 2-3 drops after cleansing.',
-        images: [defaultImg],
-        variants: variantsPayload,
-      });
-
-      showToast('Product published successfully!', 'success');
-      setIsAddProductOpen(false);
-      resetProductForm();
-      loadAdminData();
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to create product';
-      showToast(msg, 'error');
-    }
-  };
-
-  const resetProductForm = () => {
-    setNewProdName('');
-    setNewProdSlug('');
-    setNewProdPrice(1290);
-    setNewProdSalePrice(1090);
-    setNewProdStock(50);
-    setNewProdDesc('');
-    setNewProdShortDesc('');
-    setNewProdIngredients('');
-    setNewProdImgUrl('');
-    setSelectedSizes(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
   };
 
   const handleDeleteProduct = async (productId: number) => {
@@ -488,12 +359,22 @@ export const AdminDashboard: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-3">
-                        <button
-                          onClick={() => handleDeleteProduct(p.id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setEditingProduct(p)}
+                            className="p-1.5 text-gray-700 hover:text-[#D84B7E] hover:bg-[#FCE7F0] rounded-lg transition-colors cursor-pointer"
+                            title="Edit product & photos"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(p.id)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -637,205 +518,30 @@ export const AdminDashboard: React.FC = () => {
 
       </div>
 
-      {/* ADD PRODUCT MODAL */}
-      {isAddProductOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#FFF8FA] border border-[#D84B7E] rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-[#F1BCCE] pb-4">
-              <h2 className="font-serif text-2xl font-bold text-[#111111]">Upload New Product</h2>
-              <button onClick={() => setIsAddProductOpen(false)} className="text-gray-400 hover:text-black font-bold p-1 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateProduct} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="font-bold text-[#111111] block mb-1">Product Name *</label>
-                  <input
-                    type="text"
-                    value={newProdName}
-                    onChange={(e) => setNewProdName(e.target.value)}
-                    required
-                    placeholder="e.g. Silk Evening Gown or Hydrating Cleanser"
-                    className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-[#111111] block mb-1">Category *</label>
-                  <select
-                    value={newProdCatId}
-                    onChange={(e) => setNewProdCatId(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E] cursor-pointer"
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-[#111111] block mb-1">Base Price in INR (₹) *</label>
-                  <input
-                    type="number"
-                    value={newProdPrice}
-                    onChange={(e) => setNewProdPrice(Number(e.target.value))}
-                    required
-                    className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-[#111111] block mb-1">Sale / Offer Price in INR (₹)</label>
-                  <input
-                    type="number"
-                    value={newProdSalePrice || ''}
-                    onChange={(e) => setNewProdSalePrice(e.target.value ? Number(e.target.value) : undefined)}
-                    placeholder="Optional discounted price"
-                    className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="font-bold text-[#111111] block mb-1">Total Stock Quantity *</label>
-                  <input
-                    type="number"
-                    value={newProdStock}
-                    onChange={(e) => setNewProdStock(Number(e.target.value))}
-                    required
-                    className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-              </div>
-
-              {/* Dynamic Subcategories */}
-              {categories.find((c) => c.id === newProdCatId)?.slug === 'fashion' && (
-                <div className="space-y-3 p-4 bg-[#FCE7F0]/70 border border-[#F1BCCE] rounded-2xl">
-                  <div>
-                    <label className="font-bold text-[#111111] block mb-1">Dress / Apparel Category *</label>
-                    <select
-                      value={newProdDressType}
-                      onChange={(e) => setNewProdDressType(e.target.value)}
-                      className="w-full p-2.5 bg-white border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none cursor-pointer"
-                    >
-                      {dressCategories.map((dc) => (
-                        <option key={dc} value={dc}>{dc}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#111111] block mb-1.5">Available Size Options</label>
-                    <div className="flex flex-wrap gap-2">
-                      {availableFashionSizes.map((size) => {
-                        const isSelected = selectedSizes.includes(size);
-                        return (
-                          <button
-                            type="button"
-                            key={size}
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedSizes(selectedSizes.filter((s) => s !== size));
-                              } else {
-                                setSelectedSizes([...selectedSizes, size]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              isSelected ? 'bg-[#D84B7E] text-white shadow-xs' : 'bg-white border border-[#F1BCCE] text-gray-700'
-                            }`}
-                          >
-                            {size}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {categories.find((c) => c.id === newProdCatId)?.slug === 'skincare' && (
-                <div>
-                  <label className="font-bold text-[#111111] block mb-1">Target Skin Type</label>
-                  <input
-                    type="text"
-                    value={newProdSkinType}
-                    onChange={(e) => setNewProdSkinType(e.target.value)}
-                    placeholder="e.g. Sensitive, Dry, Combination, All"
-                    className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-              )}
-
-              {categories.find((c) => c.id === newProdCatId)?.slug === 'accessories' && (
-                <div className="p-4 bg-[#FCE7F0]/70 border border-[#F1BCCE] rounded-2xl">
-                  <label className="font-bold text-[#111111] block mb-1">Accessory Category *</label>
-                  <select
-                    value={newProdAccessoryType}
-                    onChange={(e) => setNewProdAccessoryType(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none cursor-pointer"
-                  >
-                    {accessoryCategories.map((ac) => (
-                      <option key={ac} value={ac}>{ac}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="font-bold text-[#111111] block mb-1">Short Description (Optional)</label>
-                <input
-                  type="text"
-                  value={newProdShortDesc}
-                  onChange={(e) => setNewProdShortDesc(e.target.value)}
-                  placeholder="Brief 1-line product highlight..."
-                  className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E]"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-[#111111] block mb-1">Full Description (Optional)</label>
-                <textarea
-                  rows={2}
-                  value={newProdDesc}
-                  onChange={(e) => setNewProdDesc(e.target.value)}
-                  placeholder="Detailed product story, care instructions, and ritual guide..."
-                  className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl font-bold text-sm outline-none focus:border-[#D84B7E]"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-[#111111] block mb-1">Product Photo</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="w-full p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl cursor-pointer"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-[#F1BCCE]">
-                <button
-                  type="button"
-                  onClick={() => setIsAddProductOpen(false)}
-                  className="px-6 py-2.5 border border-[#111111] text-[#111111] uppercase font-bold rounded-full hover:bg-gray-100 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-8 py-2.5 bg-[#D84B7E] text-white uppercase font-bold rounded-full hover:bg-[#111111] shadow-md cursor-pointer"
-                >
-                  Publish Product
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* PRODUCT CREATE / EDIT MODAL */}
+      {(isAddProductOpen || !!editingProduct) && (
+        <ProductFormModal
+          isOpen={isAddProductOpen || !!editingProduct}
+          onClose={() => {
+            setIsAddProductOpen(false);
+            setEditingProduct(null);
+          }}
+          productToEdit={editingProduct}
+          categories={categories}
+          onSuccess={(savedProduct, isNew) => {
+            if (isNew) {
+              setProducts((prev) => [savedProduct, ...prev]);
+            } else {
+              setProducts((prev) => prev.map((p) => (p.id === savedProduct.id ? savedProduct : p)));
+            }
+            setIsAddProductOpen(false);
+            setEditingProduct(null);
+            loadAdminData();
+          }}
+        />
       )}
 
     </div>
   );
 };
+

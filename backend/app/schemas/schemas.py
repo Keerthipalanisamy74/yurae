@@ -162,6 +162,8 @@ class ProductUpdate(BaseModel):
     skin_type: Optional[str] = None
     status: Optional[str] = None
     featured: Optional[bool] = None
+    images: Optional[List[str]] = None
+    variants: Optional[List[ProductVariantBase]] = None
 
 class ProductResponse(ProductBase):
     id: int

@@ -223,11 +223,45 @@ def update_product(
         raise HTTPException(status_code=404, detail="Product not found")
 
     update_data = prod_in.model_dump(exclude_unset=True) if hasattr(prod_in, "model_dump") else prod_in.dict(exclude_unset=True)
+
+    # Handle images update
+    if "images" in update_data:
+        images_list = update_data.pop("images")
+        if images_list is not None:
+            db.query(ProductImage).filter(ProductImage.product_id == product_id).delete()
+            for idx, img_url in enumerate(images_list):
+                if img_url and str(img_url).strip():
+                    img = ProductImage(product_id=prod.id, image_url=str(img_url).strip(), sort_order=idx)
+                    db.add(img)
+
+    # Handle variants update
+    if "variants" in update_data:
+        variants_list = update_data.pop("variants")
+        if variants_list is not None:
+            db.query(ProductVariant).filter(ProductVariant.product_id == product_id).delete()
+            for v in variants_list:
+                v_dict = v if isinstance(v, dict) else (v.model_dump() if hasattr(v, "model_dump") else v.dict())
+                if v_dict.get("variant_value"):
+                    variant_obj = ProductVariant(
+                        product_id=prod.id,
+                        variant_name=v_dict.get("variant_name") or "Size",
+                        variant_value=v_dict.get("variant_value"),
+                        additional_price=float(v_dict.get("additional_price") or 0.0),
+                        stock_quantity=int(v_dict.get("stock_quantity") or prod.stock_quantity)
+                    )
+                    db.add(variant_obj)
+
+    # Regenerate slug if name changed and slug not given
+    if "name" in update_data and update_data["name"] and "slug" not in update_data:
+        update_data["slug"] = generate_unique_slug(update_data["name"], db, current_id=prod.id)
+
     for field, val in update_data.items():
         setattr(prod, field, val)
 
     db.commit()
     db.refresh(prod)
+    return format_product_response(prod, db)
+
 @router.delete("/clear/all")
 def clear_all_products_endpoint(
     current_admin: User = Depends(get_current_admin),

@@ -1,25 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Star, Plus, Trash2 } from 'lucide-react';
-import { Product } from '../../types';
+import { Heart, Star, Plus, Trash2, Edit } from 'lucide-react';
+import { Product, Category } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { ProductFormModal } from './ProductFormModal';
 
 interface ProductCardProps {
   product: Product;
+  categories?: Category[];
   onDelete?: (productId: number) => void;
+  onUpdate?: (updatedProduct: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onDelete }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product: initialProduct, categories = [], onDelete, onUpdate }) => {
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const { formatPrice } = useCurrency();
+
+  const [product, setProduct] = useState<Product>(initialProduct);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Sync if initialProduct prop updates
+  React.useEffect(() => {
+    setProduct(initialProduct);
+  }, [initialProduct]);
 
   const isSaved = isInWishlist(product.id);
   const primaryImage = product.images[0]?.image_url || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80';
@@ -49,40 +60,64 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onDelete }) =
     }
   };
 
-  return (
-    <div className="group relative flex flex-col bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl overflow-hidden luxury-card shadow-xs">
-      {/* Image Container */}
-      <div className="relative aspect-4/5 w-full bg-[#F8D7E3] overflow-hidden">
-        <Link to={`/product/${product.slug}`} className="block w-full h-full">
-          <img
-            src={primaryImage}
-            alt={product.name}
-            className="w-full h-full object-cover transition-opacity duration-500 group-hover:opacity-0"
-          />
-          <img
-            src={secondaryImage}
-            alt={`${product.name} alternate view`}
-            className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-hover:scale-105 transform duration-700"
-          />
-        </Link>
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsEditModalOpen(true);
+  };
 
-        {/* Featured / Sale Badge & Admin Delete */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-          {isAdmin && (
-            <button
-              onClick={handleDelete}
-              className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-md flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
-              title="Delete this wrongly uploaded product"
-            >
-              <Trash2 className="w-3 h-3" />
-              Delete
-            </button>
-          )}
-          {product.featured && (
-            <span className="px-2.5 py-1 bg-[#D84B7E] text-[#FDF4F7] text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs">
-              {isFashion || isAccessories ? 'Featured' : 'Hero Ritual'}
-            </span>
-          )}
+  const handleEditSuccess = (savedProduct: Product) => {
+    setProduct(savedProduct);
+    if (onUpdate) {
+      onUpdate(savedProduct);
+    }
+  };
+
+  return (
+    <>
+      <div className="group relative flex flex-col bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl overflow-hidden luxury-card shadow-xs">
+        {/* Image Container */}
+        <div className="relative aspect-4/5 w-full bg-[#F8D7E3] overflow-hidden">
+          <Link to={`/product/${product.slug}`} className="block w-full h-full">
+            <img
+              src={primaryImage}
+              alt={product.name}
+              className="w-full h-full object-cover transition-opacity duration-500 group-hover:opacity-0"
+            />
+            <img
+              src={secondaryImage}
+              alt={`${product.name} alternate view`}
+              className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-hover:scale-105 transform duration-700"
+            />
+          </Link>
+
+          {/* Featured / Sale Badge & Admin Controls */}
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+            {isAdmin && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleEditClick}
+                  className="px-2.5 py-1 bg-[#111111] hover:bg-[#D84B7E] text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-md flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
+                  title="Edit product details, price, or photos"
+                >
+                  <Edit className="w-3 h-3" />
+                  Edit
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-md flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
+                  title="Delete this product"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Delete
+                </button>
+              </div>
+            )}
+            {product.featured && (
+              <span className="px-2.5 py-1 bg-[#D84B7E] text-[#FDF4F7] text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs w-fit">
+                {isFashion || isAccessories ? 'Featured' : 'Hero Ritual'}
+              </span>
+            )}
           {product.sale_price && (
             <span className="px-2.5 py-1 bg-[#111111] text-[#FDF4F7] text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs">
               Offer
@@ -173,5 +208,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onDelete }) =
         </div>
       </div>
     </div>
+
+      {/* Admin Edit Modal */}
+      {isEditModalOpen && (
+        <ProductFormModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          productToEdit={product}
+          categories={categories}
+          initialCategorySlug={product.category?.slug}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+    </>
   );
 };

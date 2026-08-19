@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.database.session import get_db
 from app.models.models import Coupon, User
-from app.schemas.schemas import CouponResponse, CouponCreate, CouponApply, CouponApplyResponse
+from app.schemas.schemas import CouponResponse, CouponCreate, CouponUpdate, CouponApply, CouponApplyResponse
 from app.api.deps import get_current_admin
-from typing import List
+from typing import List, Optional
 
 router = APIRouter(prefix="/coupons", tags=["Coupons"])
 
@@ -15,25 +15,25 @@ def apply_coupon(req: CouponApply, db: Session = Depends(get_db)):
     if not coupon:
         return CouponApplyResponse(
             valid=False, code=req.code, discount_type="", discount_value=0.0, discount_amount=0.0,
-            message="Invalid or expired coupon code."
+            message="Invalid or inactive coupon code."
         )
 
     if coupon.expiry_date and coupon.expiry_date < datetime.utcnow():
         return CouponApplyResponse(
             valid=False, code=req.code, discount_type="", discount_value=0.0, discount_amount=0.0,
-            message="This coupon has expired."
+            message=f"This coupon expired on {coupon.expiry_date.strftime('%d %b %Y')}."
         )
 
     if coupon.times_used >= coupon.usage_limit:
         return CouponApplyResponse(
             valid=False, code=req.code, discount_type="", discount_value=0.0, discount_amount=0.0,
-            message="Coupon usage limit reached."
+            message="Coupon usage limit has been reached."
         )
 
     if req.subtotal < coupon.minimum_order_amount:
         return CouponApplyResponse(
             valid=False, code=req.code, discount_type="", discount_value=0.0, discount_amount=0.0,
-            message=f"Minimum order amount for this coupon is ₹{coupon.minimum_order_amount:.2f}."
+            message=f"Minimum order amount for code {coupon.code} is ₹{coupon.minimum_order_amount:.2f}."
         )
 
     if coupon.discount_type == "PERCENTAGE":
@@ -47,12 +47,18 @@ def apply_coupon(req: CouponApply, db: Session = Depends(get_db)):
         discount_type=coupon.discount_type,
         discount_value=coupon.discount_value,
         discount_amount=round(discount_amount, 2),
-        message="Coupon applied successfully!"
+        message=f"Coupon {coupon.code} applied successfully!"
     )
 
 @router.get("", response_model=List[CouponResponse])
-def get_coupons(db: Session = Depends(get_db)):
-    return db.query(Coupon).filter(Coupon.active == True).all()
+def get_coupons(
+    include_inactive: bool = Query(True, description="Include inactive coupons (for admin view)"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Coupon)
+    if not include_inactive:
+        query = query.filter(Coupon.active == True)
+    return query.order_by(Coupon.id.desc()).all()
 
 @router.post("", response_model=CouponResponse, status_code=status.HTTP_201_CREATED)
 def create_coupon(
@@ -60,20 +66,70 @@ def create_coupon(
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    existing = db.query(Coupon).filter(Coupon.code == c_in.code.upper()).first()
+    clean_code = c_in.code.strip().upper()
+    existing = db.query(Coupon).filter(Coupon.code == clean_code).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Coupon code already exists")
+        raise HTTPException(status_code=400, detail=f"Coupon code '{clean_code}' already exists")
+
+    # Calculate expiry date from duration_days if provided
+    calculated_expiry = c_in.expiry_date
+    if c_in.duration_days is not None and c_in.duration_days > 0:
+        calculated_expiry = datetime.utcnow() + timedelta(days=c_in.duration_days)
 
     coupon = Coupon(
-        code=c_in.code.upper(),
+        code=clean_code,
         discount_type=c_in.discount_type,
         discount_value=c_in.discount_value,
         minimum_order_amount=c_in.minimum_order_amount,
-        expiry_date=c_in.expiry_date,
+        expiry_date=calculated_expiry,
         usage_limit=c_in.usage_limit,
+        times_used=0,
         active=c_in.active
     )
     db.add(coupon)
+    db.commit()
+    db.refresh(coupon)
+    return coupon
+
+@router.put("/{coupon_id}", response_model=CouponResponse)
+def update_coupon(
+    coupon_id: int,
+    c_in: CouponUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+
+    if c_in.code is not None:
+        clean_code = c_in.code.strip().upper()
+        existing = db.query(Coupon).filter(Coupon.code == clean_code, Coupon.id != coupon_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Another coupon with code '{clean_code}' already exists")
+        coupon.code = clean_code
+
+    if c_in.discount_type is not None:
+        coupon.discount_type = c_in.discount_type
+    if c_in.discount_value is not None:
+        coupon.discount_value = c_in.discount_value
+    if c_in.minimum_order_amount is not None:
+        coupon.minimum_order_amount = c_in.minimum_order_amount
+
+    # Handle duration_days vs explicit expiry_date
+    if c_in.duration_days is not None:
+        if c_in.duration_days > 0:
+            coupon.expiry_date = datetime.utcnow() + timedelta(days=c_in.duration_days)
+        elif c_in.duration_days == 0:
+            coupon.expiry_date = None
+    elif c_in.expiry_date is not None:
+        coupon.expiry_date = c_in.expiry_date
+
+    if c_in.usage_limit is not None:
+        coupon.usage_limit = c_in.usage_limit
+    if c_in.active is not None:
+        coupon.active = c_in.active
+
     db.commit()
     db.refresh(coupon)
     return coupon
@@ -87,6 +143,7 @@ def delete_coupon(
     c = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Coupon not found")
+    code = c.code
     db.delete(c)
     db.commit()
-    return {"message": "Coupon deleted"}
+    return {"message": f"Coupon '{code}' deleted successfully"}

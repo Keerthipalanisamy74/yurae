@@ -325,12 +325,30 @@ class CouponCreate(BaseModel):
     discount_value: float
     minimum_order_amount: float = 0.0
     expiry_date: Optional[datetime] = None
+    duration_days: Optional[int] = None
     usage_limit: int = 100
     active: bool = True
 
-class CouponResponse(CouponCreate):
+class CouponUpdate(BaseModel):
+    code: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    minimum_order_amount: Optional[float] = None
+    expiry_date: Optional[datetime] = None
+    duration_days: Optional[int] = None
+    usage_limit: Optional[int] = None
+    active: Optional[bool] = None
+
+class CouponResponse(BaseModel):
     id: int
+    code: str
+    discount_type: str
+    discount_value: float
+    minimum_order_amount: float
+    expiry_date: Optional[datetime] = None
+    usage_limit: int
     times_used: int
+    active: bool
 
     class Config:
         from_attributes = True

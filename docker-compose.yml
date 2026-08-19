@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: yurae_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: yuraedb
+      MYSQL_USER: yuraeuser
+      MYSQL_PASSWORD: yuraepassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: yurae_backend
+    restart: always
+    environment:
+      - DATABASE_URL=mysql+pymysql://yuraeuser:yuraepassword@mysql:3306/yuraedb
+      - SECRET_KEY=yurae_super_secret_jwt_key_2026_luxury_skincare_brand_origin
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: yurae_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

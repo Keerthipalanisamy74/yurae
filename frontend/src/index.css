@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-serif: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #FDF4F7; /* Soft Luxury Rose Milk Pink */
+    color: #111111; /* Deep Charcoal Black */
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, .font-serif {
+    font-family: var(--font-serif);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FDF4F7;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #F1BCCE;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D84B7E;
+}
+
+/* Luxury Pink Glassmorphism */
+.glass-panel {
+  background: rgba(253, 244, 247, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(241, 188, 206, 0.8);
+}
+
+.glass-nav {
+  background: rgba(253, 244, 247, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(241, 188, 206, 0.9);
+}
+
+.luxury-card {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.luxury-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -15px rgba(216, 75, 126, 0.25);
+}
+
+/* Pink Utility Accent Classes */
+.text-pink-accent {
+  color: #D84B7E;
+}
+
+.bg-pink-accent {
+  background-color: #D84B7E;
+}
+
+.border-pink-accent {
+  border-color: #F1BCCE;
+}

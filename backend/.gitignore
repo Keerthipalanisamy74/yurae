@@ -1,0 +1,21 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Databases & local files
+*.db
+*.sqlite
+*.sqlite3
+yurae.db
+
+# Logs
+*.log

@@ -130,9 +130,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose })
                           className="group flex gap-4 p-3 bg-[#FFF8FA] border border-[#F1BCCE] hover:border-[#D84B7E] rounded-xl transition-all shadow-xs"
                         >
                           <img
-                            src={product.images[0]?.image_url || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=400&q=80'}
+                            src={product.images?.[0]?.image_url || ''}
                             alt={product.name}
-                            className="w-16 h-20 object-cover rounded-lg shrink-0"
+                            className="w-16 h-20 object-cover rounded-lg shrink-0 bg-[#FCE7F0]"
                           />
                           <div className="flex flex-col justify-center">
                             <span className="text-[10px] uppercase tracking-widest text-[#D84B7E] font-bold">

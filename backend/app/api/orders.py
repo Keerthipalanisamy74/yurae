@@ -107,6 +107,7 @@ def create_order(
         items_to_create.append({
             "product": product,
             "product_name": product.name,
+            "variant": item.variant,
             "variant_info": variant_info_str,
             "quantity": item.quantity,
             "price": converted_unit_price
@@ -207,7 +208,7 @@ def create_order(
     db.commit()
     db.refresh(new_order)
 
-    # 9. Create Order Items & decrement inventory stock
+    # 9. Create Order Items & decrement inventory stock automatically
     for item_data in items_to_create:
         o_item = OrderItem(
             order_id=new_order.id,
@@ -218,7 +219,14 @@ def create_order(
             price=item_data["price"]
         )
         db.add(o_item)
-        item_data["product"].stock_quantity = max(0, item_data["product"].stock_quantity - item_data["quantity"])
+        
+        product = item_data["product"]
+        ordered_qty = item_data["quantity"]
+        product.stock_quantity = max(0, product.stock_quantity - ordered_qty)
+        
+        variant = item_data.get("variant")
+        if variant:
+            variant.stock_quantity = max(0, variant.stock_quantity - ordered_qty)
 
     # 10. Create Payment record
     pay_record = Payment(
@@ -239,6 +247,7 @@ def create_order(
 
     # 12. Automatic Indian Shipping & Order Fulfillment (Shiprocket)
     # Trigger shipment pipeline for paid prepaid orders and COD orders
+    # 12. Automatic Indian Shipping & Order Fulfillment (Shiprocket)
     if is_cod or order_payment_status.upper() == "PAID":
         try:
             ShippingService.execute_automated_shipping_flow(new_order.id, db)
@@ -246,6 +255,14 @@ def create_order(
         except Exception as e:
             # Crucial: Order is already safely created in DB. Do not fail the checkout response if shipping provider encounters network latency.
             print(f"Warning: Async shipping pipeline deferred for Order #{new_order.order_number}: {e}")
+
+    # 13. Dispatch Luxury Order Confirmation Email & Admin Alert
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_order_confirmation_email(new_order, current_user)
+        EmailService.send_admin_new_order_alert_email(new_order, current_user)
+    except Exception as email_err:
+        print(f"Warning: Could not send order notification emails: {email_err}")
 
     return new_order
 
@@ -268,6 +285,118 @@ def get_order_by_id_or_number(identifier: str, current_user: User = Depends(get_
 
     return order
 
+@router.get("/{identifier}/invoice")
+def get_order_invoice(identifier: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Returns structured tax invoice data for printing or client-side PDF rendering.
+    """
+    if identifier.isdigit():
+        order = db.query(Order).filter(Order.id == int(identifier)).first()
+    else:
+        order = db.query(Order).filter(Order.order_number == identifier).first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.user_id != current_user.id and current_user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Not authorized to view this invoice")
+
+    addr = order.address
+    buyer_user = order.user
+    buyer_name = addr.name if addr else (f"{buyer_user.first_name} {buyer_user.last_name}" if buyer_user else "Valued Patron")
+    buyer_email = buyer_user.email if buyer_user else "customer@yuraebeauty.com"
+    buyer_phone = addr.phone if addr else (buyer_user.phone if buyer_user and buyer_user.phone else "N/A")
+    payment_method = order.payments[0].payment_method if order.payments else ("Cash on Delivery (COD)" if order.is_cod else "Prepaid Online")
+
+    invoice_data = {
+        "invoice_number": f"INV-{order.order_number}",
+        "invoice_date": order.created_at.strftime("%d %B %Y") if order.created_at else "Today",
+        "seller": {
+            "company_name": "Yurae Beauty & Luxury Apparel Private Limited",
+            "gstin": "33AAECY8721M1Z8",
+            "address": "74, Avenue Montaigne Botanical Complex, Anna Salai",
+            "city": "Chennai",
+            "state": "Tamil Nadu",
+            "postal_code": "600002",
+            "country": "India",
+            "email": "concierge@yuraebeauty.com",
+            "phone": "+91 98765 43210"
+        },
+        "buyer": {
+            "name": buyer_name,
+            "email": buyer_email,
+            "phone": buyer_phone,
+            "address_line1": addr.address_line1 if addr else "Standard Delivery Address",
+            "address_line2": addr.address_line2 if addr else "",
+            "city": addr.city if addr else "Chennai",
+            "state": addr.state if addr else "Tamil Nadu",
+            "postal_code": addr.postal_code if addr else "600001",
+            "country": addr.country if addr else "India"
+        },
+        "order_details": {
+            "order_number": order.order_number,
+            "order_date": order.created_at.strftime("%d %b %Y, %I:%M %p") if order.created_at else "Recent",
+            "payment_method": payment_method,
+            "payment_status": order.payment_status,
+            "currency": order.currency,
+            "subtotal": order.subtotal,
+            "discount": order.discount or 0.0,
+            "shipping": order.shipping_fee or 0.0,
+            "total": order.total_amount,
+            "cgst": round((order.tax or 0.0) / 2, 2),
+            "sgst": round((order.tax or 0.0) / 2, 2),
+            "items": [
+                {
+                    "product_name": item.product_name,
+                    "variant": item.variant_info,
+                    "quantity": item.quantity,
+                    "unit_price": item.price,
+                    "total_price": item.price * item.quantity,
+                    "hsn_code": "330499" if "wash" in item.product_name.lower() or "serum" in item.product_name.lower() or "balm" in item.product_name.lower() else "620443"
+                }
+                for item in order.items
+            ]
+        }
+    }
+    return invoice_data
+
+@router.get("/{identifier}/pdf")
+@router.get("/{identifier}/invoice/pdf")
+def download_order_invoice_pdf(
+    identifier: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generates and returns the exact binary PDF stream of the Tax Invoice.
+    """
+    from fastapi.responses import Response
+
+    if identifier.isdigit():
+        order = db.query(Order).filter(Order.id == int(identifier)).first()
+    else:
+        order = db.query(Order).filter(Order.order_number == identifier).first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.user_id != current_user.id and current_user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Not authorized to view this invoice")
+
+    from app.services.invoice_pdf_service import InvoicePdfService
+    pdf_bytes = InvoicePdfService.generate_order_invoice_pdf(order)
+
+    filename = f"Yurae-Tax-Invoice-{order.order_number}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
+
 # Admin operations
 @router.put("/{order_id}/status", response_model=OrderResponse)
 def update_order_status(
@@ -279,6 +408,16 @@ def update_order_status(
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+
+    old_status = (order.order_status or "").upper()
+    new_status = (status_in.order_status or "").upper() if status_in.order_status else None
+
+    # If status transitioned to Cancelled, restore product inventory
+    if new_status in ["CANCELLED", "CANCELED"] and old_status not in ["CANCELLED", "CANCELED"]:
+        for o_item in order.items:
+            prod = db.query(Product).filter(Product.id == o_item.product_id).first()
+            if prod:
+                prod.stock_quantity += o_item.quantity
 
     if status_in.order_status:
         order.order_status = status_in.order_status

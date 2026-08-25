@@ -21,7 +21,11 @@ import { WishlistPage } from './pages/WishlistPage';
 import { AccountPage } from './pages/AccountPage';
 import { Login, Register, ForgotPassword } from './pages/AuthPages';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { AboutPage, ContactPage, FAQPage } from './pages/InfoPages';
+import { AboutPage, ContactPage } from './pages/InfoPages';
+import {
+  ReturnRefundPolicyPage, ShippingPolicyPage, PrivacyPolicyPage,
+  TermsConditionsPage, FAQHelpPage, PoliciesHubPage
+} from './pages/PolicyPages';
 import { TrackingPage } from './pages/TrackingPage';
 
 export const App: React.FC = () => {
@@ -55,11 +59,19 @@ export const App: React.FC = () => {
                       <Route path="/admin" element={<AdminDashboard />} />
                       <Route path="/about" element={<AboutPage />} />
                       <Route path="/contact" element={<ContactPage />} />
-                      <Route path="/faq" element={<FAQPage />} />
-                      <Route path="/shipping" element={<FAQPage />} />
-                      <Route path="/returns" element={<FAQPage />} />
-                      <Route path="/privacy" element={<AboutPage />} />
-                      <Route path="/terms" element={<AboutPage />} />
+                      <Route path="/faq" element={<FAQHelpPage />} />
+                      <Route path="/help" element={<FAQHelpPage />} />
+                      <Route path="/policies" element={<PoliciesHubPage />} />
+                      <Route path="/legal" element={<PoliciesHubPage />} />
+                      <Route path="/shipping" element={<ShippingPolicyPage />} />
+                      <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+                      <Route path="/returns" element={<ReturnRefundPolicyPage />} />
+                      <Route path="/return-policy" element={<ReturnRefundPolicyPage />} />
+                      <Route path="/refund-policy" element={<ReturnRefundPolicyPage />} />
+                      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/terms" element={<TermsConditionsPage />} />
+                      <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
                       <Route path="*" element={<Home />} />
                     </Routes>
                   </main>

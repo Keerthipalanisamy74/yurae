@@ -29,9 +29,9 @@ def create_category(
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    existing = db.query(Category).filter(Category.slug == cat_in.slug).first()
+    existing = db.query(Category).filter(Category.slug == cat_in.slug.lower()).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Category slug already exists")
+        return existing
 
     cat = Category(
         name=cat_in.name,

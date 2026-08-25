@@ -3,14 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   CheckCircle2, Lock, CreditCard, Smartphone, Building2, Wallet, ArrowRight,
   Globe, Tag, Sparkles, X, ChevronDown, ChevronUp, Check, MessageSquare, Send, Heart,
-  Truck, ShieldCheck, AlertTriangle, Loader2, Navigation
+  Truck, ShieldCheck, AlertTriangle, Loader2, Navigation, FileText, Home, Users, MapPin, Plus, Edit
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../services/api';
-import { Order, Coupon, CouponApplyResult, ServiceabilityResult } from '../types';
+import { Order, Coupon, CouponApplyResult, ServiceabilityResult, Address } from '../types';
+import { InvoiceModal } from '../components/common/InvoiceModal';
 
 export const CheckoutPage: React.FC = () => {
   const { cart, fetchCart } = useCart();
@@ -22,7 +23,17 @@ export const CheckoutPage: React.FC = () => {
 
   const [step, setStep] = useState<number>(1);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Saved Addresses for Multi-Address 1-Click Selection
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
+  const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
+  const [isSavingAddressInline, setIsSavingAddressInline] = useState(false);
+  const [saveAddressToAccount, setSaveAddressToAccount] = useState(true);
+  const [addressType, setAddressType] = useState<string>('Home');
 
   // Address Form State
   const [name, setName] = useState(user ? `${user.first_name} ${user.last_name}` : 'Elena Rao');
@@ -137,6 +148,126 @@ export const CheckoutPage: React.FC = () => {
       navigate('/login?redirect=/checkout');
     }
   }, [isAuthenticated, navigate, showToast]);
+
+  const applyAddressToForm = (addr: Address) => {
+    setSelectedAddressId(addr.id);
+    setEditingAddressId(null);
+    setName(addr.name || '');
+    setPhone(addr.phone || '');
+    setBuildingOrFlat(addr.building_or_flat || '');
+    setAddressLine1(addr.address_line1 || '');
+    setLandmark(addr.landmark || '');
+    setCity(addr.city || '');
+    setState(addr.state || 'Karnataka');
+    setPostalCode(addr.postal_code || '');
+    setCountry(addr.country || 'India');
+    setAddressType(addr.address_type || 'Home');
+    setIsAddingNewAddress(false);
+  };
+
+  const handleStartEditSavedAddress = (addr: Address, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingAddressId(addr.id);
+    setSelectedAddressId(addr.id);
+    setName(addr.name || '');
+    setPhone(addr.phone || '');
+    setBuildingOrFlat(addr.building_or_flat || '');
+    setAddressLine1(addr.address_line1 || '');
+    setLandmark(addr.landmark || '');
+    setCity(addr.city || '');
+    setState(addr.state || 'Karnataka');
+    setPostalCode(addr.postal_code || '');
+    setCountry(addr.country || 'India');
+    setAddressType(addr.address_type || 'Home');
+    setIsAddingNewAddress(true);
+  };
+
+  const handleFinishAddressDone = async () => {
+    const finalName = name.trim() || (user ? `${user.first_name} ${user.last_name}` : 'Customer');
+    const finalPhone = phone.trim() || user?.phone || '+91 98765 43210';
+    const finalAddress1 = addressLine1.trim();
+    const finalCity = city.trim();
+    const finalState = state.trim() || 'Karnataka';
+    const finalPostal = postalCode.trim();
+
+    if (!finalName || !finalPhone || !finalAddress1 || !finalCity || !finalPostal) {
+      showToast('Please fill in all required address fields (Name, Phone, Street, City, PIN Code)', 'error');
+      return;
+    }
+
+    const payload = {
+      address_type: addressType,
+      name: finalName,
+      phone: finalPhone,
+      building_or_flat: buildingOrFlat.trim() || undefined,
+      address_line1: finalAddress1,
+      address_line2: landmark.trim() || undefined,
+      landmark: landmark.trim() || undefined,
+      city: finalCity,
+      state: finalState,
+      postal_code: finalPostal,
+      country: country || 'India',
+      is_default: false,
+    };
+
+    try {
+      setIsSavingAddressInline(true);
+      if (editingAddressId && isAuthenticated) {
+        const res = await api.put(`/auth/addresses/${editingAddressId}`, payload);
+        setSavedAddresses((prev) =>
+          prev.map((a) => (a.id === editingAddressId ? res.data : a))
+        );
+        setSelectedAddressId(editingAddressId);
+        showToast('✓ Address updated & selected for delivery!', 'success');
+      } else if (saveAddressToAccount && isAuthenticated) {
+        const res = await api.post('/auth/addresses', payload);
+        setSavedAddresses((prev) => [...prev, res.data]);
+        setSelectedAddressId(res.data.id);
+        showToast('✓ New address saved & selected for delivery!', 'success');
+      } else {
+        showToast('✓ Delivery coordinates saved for this order!', 'success');
+      }
+      setEditingAddressId(null);
+      setIsAddingNewAddress(false);
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Failed to save address';
+      showToast(msg, 'error');
+    } finally {
+      setIsSavingAddressInline(false);
+    }
+  };
+
+  const handleCancelAddressEdit = () => {
+    setEditingAddressId(null);
+    if (savedAddresses.length > 0) {
+      const target = savedAddresses.find((a) => a.id === selectedAddressId) || savedAddresses[0];
+      applyAddressToForm(target);
+    } else {
+      setIsAddingNewAddress(false);
+    }
+  };
+
+  // Fetch saved customer addresses
+  useEffect(() => {
+    if (isAuthenticated) {
+      api.get('/auth/addresses')
+        .then((res) => {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            setSavedAddresses(res.data);
+            const defaultAddr = res.data.find((a: Address) => a.is_default) || res.data[0];
+            if (defaultAddr) {
+              applyAddressToForm(defaultAddr);
+            }
+          } else {
+            setIsAddingNewAddress(true);
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not fetch saved addresses:', err);
+          setIsAddingNewAddress(true);
+        });
+    }
+  }, [isAuthenticated]);
 
   // Load active public coupons
   useEffect(() => {
@@ -333,6 +464,28 @@ export const CheckoutPage: React.FC = () => {
       });
 
       setCreatedOrder(res.data);
+
+      if (isAddingNewAddress && saveAddressToAccount && isAuthenticated) {
+        try {
+          await api.post('/auth/addresses', {
+            address_type: addressType,
+            name: finalName,
+            phone: finalPhone,
+            building_or_flat: finalBuilding || undefined,
+            address_line1: finalAddress1,
+            address_line2: finalLandmark || undefined,
+            landmark: finalLandmark || undefined,
+            city: finalCity,
+            state: finalState,
+            postal_code: finalPostal,
+            country,
+            is_default: false,
+          });
+        } catch (e) {
+          // non-blocking
+        }
+      }
+
       setStep(5); // Confirmation step
       await fetchCart();
 
@@ -606,20 +759,38 @@ export const CheckoutPage: React.FC = () => {
           )}
         </div>
 
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-3.5">
           <button
+            type="button"
+            onClick={() => setShowInvoiceModal(true)}
+            className="px-7 py-3.5 bg-white border border-[#D84B7E] text-[#D84B7E] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#FCE7F0] transition-colors cursor-pointer shadow-md flex items-center gap-2"
+          >
+            <FileText className="w-4 h-4" /> Download Tax Invoice (PDF)
+          </button>
+          <button
+            type="button"
             onClick={() => navigate(`/account?tab=orders&order=${createdOrder.order_number}`)}
-            className="px-8 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-md flex items-center gap-2"
+            className="px-7 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-md flex items-center gap-2"
           >
             <Truck className="w-4 h-4" /> Track Shipment Live
           </button>
           <button
+            type="button"
             onClick={() => navigate('/shop')}
-            className="px-8 py-3.5 bg-[#FFF8FA] border border-[#111111] text-[#111111] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#F8D7E3] transition-colors cursor-pointer"
+            className="px-7 py-3.5 bg-[#FFF8FA] border border-[#111111] text-[#111111] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#F8D7E3] transition-colors cursor-pointer"
           >
             Continue Shopping
           </button>
         </div>
+
+        {/* Invoice Modal for Immediate Download */}
+        {showInvoiceModal && (
+          <InvoiceModal
+            isOpen={showInvoiceModal}
+            onClose={() => setShowInvoiceModal(false)}
+            orderIdentifier={createdOrder.order_number || createdOrder.id}
+          />
+        )}
       </div>
     );
   }
@@ -658,7 +829,9 @@ export const CheckoutPage: React.FC = () => {
                   <h2 className="font-serif text-2xl font-bold text-[#111111] flex items-center gap-2">
                     <Truck className="w-5 h-5 text-[#D84B7E]" /> Shipping & Delivery Address
                   </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Please provide accurate domestic delivery coordinates for Indian courier fulfillment</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Select a saved destination or add a new delivery location
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -673,139 +846,323 @@ export const CheckoutPage: React.FC = () => {
                   </span>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Full Recipient Name *</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Recipient's legal full name"
-                    required
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
 
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Contact Mobile Number *</label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 98765 43210 (10 digits)"
-                    required
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Contact Email Address</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="For courier dispatch updates"
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Country / Region</label>
-                  <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] cursor-pointer"
-                  >
-                    {countriesList.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.flag} {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Flat / House No., Apartment, Building *</label>
-                  <input
-                    type="text"
-                    value={buildingOrFlat}
-                    onChange={(e) => setBuildingOrFlat(e.target.value)}
-                    placeholder="e.g. Flat 4B, Lotus Luxury Residency"
-                    required
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Street Address, Colony, Sector *</label>
-                  <input
-                    type="text"
-                    value={addressLine1}
-                    onChange={(e) => setAddressLine1(e.target.value)}
-                    placeholder="e.g. MG Road, Near Botanical Garden, Whitefield"
-                    required
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Prominent Landmark (Optional)</label>
-                  <input
-                    type="text"
-                    value={landmark}
-                    onChange={(e) => setLandmark(e.target.value)}
-                    placeholder="e.g. Opposite Metro Pillar 140, Behind Grand Hotel"
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">City / District *</label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    required
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">State / Province *</label>
-                  <input
-                    type="text"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    required
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="text-xs uppercase tracking-widest text-gray-600 font-bold">
-                      Postal / 6-Digit PIN Code *
+              {/* Saved Addresses 1-Click Selector */}
+              {savedAddresses.length > 0 && (
+                <div className="space-y-3 pb-2 border-b border-[#F1BCCE]">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs uppercase tracking-widest text-[#111111] font-bold block">
+                      Saved Delivery Locations ({savedAddresses.length})
                     </label>
-                    {isCheckingServiceability && (
-                      <span className="text-[11px] text-[#D84B7E] font-bold flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Verifying Courier Network...
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingNewAddress(!isAddingNewAddress);
+                        if (!isAddingNewAddress) {
+                          setSelectedAddressId(null);
+                        }
+                      }}
+                      className="text-xs text-[#D84B7E] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      {isAddingNewAddress ? '✕ Choose From Saved Addresses' : '+ Deliver to a New Address'}
+                    </button>
+                  </div>
+
+                  {!isAddingNewAddress && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {savedAddresses.map((addr) => {
+                        const isSelected = selectedAddressId === addr.id;
+                        const typeLabel = addr.address_type || 'Home';
+                        const typeIcon = typeLabel === 'Office' ? '🏢' : typeLabel === 'Parents' ? '👨‍👩‍👧' : typeLabel === 'Other' ? '📍' : '🏠';
+
+                        return (
+                          <div
+                            key={addr.id}
+                            onClick={() => applyAddressToForm(addr)}
+                            className={`p-4 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-2.5 ${
+                              isSelected
+                                ? 'bg-white border-[#D84B7E] ring-2 ring-[#F1BCCE] shadow-sm'
+                                : 'bg-[#FDF4F7] border-[#F1BCCE] hover:border-[#D84B7E]/60'
+                            }`}
+                          >
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between items-center">
+                                <span className="px-2.5 py-0.5 bg-white border border-[#F1BCCE] rounded-full text-[11px] font-bold text-[#111111] flex items-center gap-1 shadow-2xs">
+                                  <span>{typeIcon}</span>
+                                  <span>{typeLabel}</span>
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  {addr.is_default && (
+                                    <span className="px-2 py-0.5 bg-[#D84B7E] text-white text-[9px] uppercase font-bold rounded-full">
+                                      Default
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleStartEditSavedAddress(addr, e)}
+                                    className="px-2 py-0.5 bg-white hover:bg-[#FCE7F0] text-gray-700 hover:text-[#D84B7E] border border-[#F1BCCE] rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                  >
+                                    <Edit className="w-2.5 h-2.5" /> Edit
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <h4 className="font-serif text-sm font-bold text-[#111111] flex items-center gap-1.5">
+                                  {addr.name}
+                                  {isSelected && <Check className="w-3.5 h-3.5 text-[#D84B7E]" />}
+                                </h4>
+                                <p className="text-[11px] text-gray-500 font-mono">{addr.phone}</p>
+                              </div>
+
+                              <p className="text-xs text-gray-700 line-clamp-2 leading-relaxed">
+                                {addr.building_or_flat ? `${addr.building_or_flat}, ` : ''}
+                                {addr.address_line1}, {addr.city} - {addr.postal_code}
+                              </p>
+                            </div>
+
+                            <div className="pt-2 border-t border-[#F1BCCE]/50 flex justify-between items-center text-[10px]">
+                              <span className="text-gray-500 font-bold uppercase">{addr.country}</span>
+                              <span className={`font-bold ${isSelected ? 'text-[#D84B7E]' : 'text-gray-400'}`}>
+                                {isSelected ? '✓ 1-Click Selected' : 'Click to Select'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Address Input Form (Shown when Adding New or Editing) */}
+              {(isAddingNewAddress || savedAddresses.length === 0) && (
+                <div className="space-y-4 pt-1">
+                  {/* Form Header */}
+                  <div className="flex justify-between items-center bg-[#FCE7F0] px-4 py-2.5 rounded-2xl border border-[#F1BCCE]">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-[#D84B7E]" />
+                      <span className="text-xs font-bold text-[#111111]">
+                        {editingAddressId ? `Editing Address (${addressType})` : 'Add New Delivery Destination'}
                       </span>
+                    </div>
+                    {savedAddresses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleCancelAddressEdit}
+                        className="text-[11px] text-gray-600 hover:text-black font-bold cursor-pointer underline"
+                      >
+                        Cancel & Return
+                      </button>
                     )}
                   </div>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="6-digit Indian PIN (e.g. 560001, 110001)"
-                    required
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm font-mono outline-none focus:border-[#D84B7E]"
-                  />
 
-                  {/* Live PIN Code Serviceability Banner */}
-                  {country.toLowerCase() === 'india' && postalCode.length === 6 && serviceability && (
-                    <div className={`mt-2.5 p-3 rounded-xl border text-xs flex items-start gap-2.5 transition-all ${
+                  {/* Address Label Selector */}
+                  <div>
+                    <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-2">
+                      Address Label *
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { type: 'Home', icon: '🏠' },
+                        { type: 'Office', icon: '🏢' },
+                        { type: 'Parents', icon: '👨‍👩‍👧' },
+                        { type: 'Other', icon: '📍' },
+                      ].map((item) => (
+                        <button
+                          key={item.type}
+                          type="button"
+                          onClick={() => setAddressType(item.type)}
+                          className={`py-2 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                            addressType === item.type
+                              ? 'bg-[#D84B7E] text-white border-[#D84B7E] shadow-sm'
+                              : 'bg-white border-[#F1BCCE] text-[#111111] hover:border-[#D84B7E]'
+                          }`}
+                        >
+                          <span>{item.icon}</span>
+                          <span>{item.type}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Full Recipient Name *</label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Recipient's legal full name"
+                        required
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Contact Mobile Number *</label>
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+91 98765 43210 (10 digits)"
+                        required
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Contact Email Address</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="For courier dispatch updates"
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Country / Region</label>
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] cursor-pointer"
+                      >
+                        {countriesList.map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.flag} {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Flat / House No., Apartment, Building *</label>
+                      <input
+                        type="text"
+                        value={buildingOrFlat}
+                        onChange={(e) => setBuildingOrFlat(e.target.value)}
+                        placeholder="e.g. Flat 4B, Lotus Luxury Residency"
+                        required
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Street Address, Colony, Sector *</label>
+                      <input
+                        type="text"
+                        value={addressLine1}
+                        onChange={(e) => setAddressLine1(e.target.value)}
+                        placeholder="e.g. MG Road, Near Botanical Garden, Whitefield"
+                        required
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Prominent Landmark (Optional)</label>
+                      <input
+                        type="text"
+                        value={landmark}
+                        onChange={(e) => setLandmark(e.target.value)}
+                        placeholder="e.g. Opposite Metro Pillar 140, Behind Grand Hotel"
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">City / District *</label>
+                      <input
+                        type="text"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        required
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">State / Province *</label>
+                      <input
+                        type="text"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        required
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs uppercase tracking-widest text-gray-600 font-bold">
+                          Postal / 6-Digit PIN Code *
+                        </label>
+                        {isCheckingServiceability && (
+                          <span className="text-[11px] text-[#D84B7E] font-bold flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Verifying Courier Network...
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="6-digit Indian PIN (e.g. 560001, 110001)"
+                        required
+                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm font-mono outline-none focus:border-[#D84B7E]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Save to Account Checkbox */}
+                  {isAuthenticated && !editingAddressId && (
+                    <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={saveAddressToAccount}
+                        onChange={(e) => setSaveAddressToAccount(e.target.checked)}
+                        className="w-4 h-4 text-[#D84B7E] accent-[#D84B7E] rounded cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-800 font-bold">
+                        Save this address to my account for 1-click checkout next time
+                      </span>
+                    </label>
+                  )}
+
+                  {/* Done / Finish Address Button */}
+                  <div className="pt-3 border-t border-[#F1BCCE] flex flex-col sm:flex-row justify-end items-center gap-3">
+                    {savedAddresses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleCancelAddressEdit}
+                        className="w-full sm:w-auto px-6 py-2.5 bg-white border border-[#F1BCCE] text-gray-700 text-xs uppercase tracking-wider font-bold rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isSavingAddressInline}
+                      onClick={handleFinishAddressDone}
+                      className="w-full sm:w-auto px-8 py-3 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <Check className="w-4 h-4" />
+                      {isSavingAddressInline
+                        ? 'Saving Address...'
+                        : editingAddressId
+                        ? 'Done — Update Address'
+                        : 'Done & Deliver to this Address'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Live PIN Code Serviceability Banner */}
+              {country.toLowerCase() === 'india' && postalCode.length === 6 && serviceability && (
+                <div className={`mt-2.5 p-3 rounded-xl border text-xs flex items-start gap-2.5 transition-all ${
                       serviceability.is_serviceable
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                         : 'bg-rose-50 border-rose-300 text-rose-900'
@@ -832,8 +1189,6 @@ export const CheckoutPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
             </div>
 
             {/* Step 3: Shipping Method Selection */}

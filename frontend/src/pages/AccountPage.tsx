@@ -3,13 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 import {
   User, Package, MapPin, Key, LogOut, Star, X, CheckCircle2,
   MessageSquare, Truck, Copy, ExternalLink, Clock, ChevronRight,
-  Calendar, Check, ShieldCheck, Loader2
+  Calendar, Check, ShieldCheck, Loader2, FileText, Plus, Trash2, Edit, Home, Building2, Users,
+  Camera, Upload, Sparkles, Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
 import { Order, Address, TrackingResponse } from '../types';
 import { useToast } from '../context/ToastContext';
+import { InvoiceModal } from '../components/common/InvoiceModal';
 
 export const AccountPage: React.FC = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -20,6 +22,24 @@ export const AccountPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'addresses' | 'password'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<string | number | null>(null);
+
+  // Address Modal State
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
+  const [addrType, setAddrType] = useState<string>('Home');
+  const [addrName, setAddrName] = useState('');
+  const [addrPhone, setAddrPhone] = useState('');
+  const [addrBuilding, setAddrBuilding] = useState('');
+  const [addrLine1, setAddrLine1] = useState('');
+  const [addrLine2, setAddrLine2] = useState('');
+  const [addrLandmark, setAddrLandmark] = useState('');
+  const [addrCity, setAddrCity] = useState('');
+  const [addrState, setAddrState] = useState('Karnataka');
+  const [addrPostalCode, setAddrPostalCode] = useState('');
+  const [addrCountry, setAddrCountry] = useState('India');
+  const [addrIsDefault, setAddrIsDefault] = useState(false);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
 
   // Tracking Modal State
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
@@ -30,6 +50,8 @@ export const AccountPage: React.FC = () => {
   const [reviewingItem, setReviewingItem] = useState<{ productId: number; productName: string; orderId: number } | null>(null);
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [reviewText, setReviewText] = useState<string>('');
+  const [reviewPhotoUrl, setReviewPhotoUrl] = useState<string>('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
   const [reviewedProductIds, setReviewedProductIds] = useState<number[]>([]);
 
@@ -121,19 +143,164 @@ export const AccountPage: React.FC = () => {
     }
   };
 
+  const handleOpenAddAddress = () => {
+    setEditingAddressId(null);
+    setAddrType('Home');
+    setAddrName(user ? `${user.first_name} ${user.last_name}` : '');
+    setAddrPhone(user?.phone || '');
+    setAddrBuilding('');
+    setAddrLine1('');
+    setAddrLine2('');
+    setAddrLandmark('');
+    setAddrCity('');
+    setAddrState('Karnataka');
+    setAddrPostalCode('');
+    setAddrCountry('India');
+    setAddrIsDefault(addresses.length === 0);
+    setIsAddressModalOpen(true);
+  };
+
+  const handleOpenEditAddress = (addr: Address) => {
+    setEditingAddressId(addr.id);
+    setAddrType(addr.address_type || 'Home');
+    setAddrName(addr.name);
+    setAddrPhone(addr.phone);
+    setAddrBuilding(addr.building_or_flat || '');
+    setAddrLine1(addr.address_line1);
+    setAddrLine2(addr.address_line2 || '');
+    setAddrLandmark(addr.landmark || '');
+    setAddrCity(addr.city);
+    setAddrState(addr.state || 'Karnataka');
+    setAddrPostalCode(addr.postal_code);
+    setAddrCountry(addr.country || 'India');
+    setAddrIsDefault(addr.is_default);
+    setIsAddressModalOpen(true);
+  };
+
+  const handleSetDefaultAddress = async (addrId: number) => {
+    try {
+      await api.put(`/auth/addresses/${addrId}/set-default`);
+      setAddresses((prev) =>
+        prev
+          .map((a) => ({ ...a, is_default: a.id === addrId }))
+          .sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
+      );
+      showToast('Default delivery address updated', 'success');
+    } catch {
+      showToast('Failed to set default address', 'error');
+    }
+  };
+
+  const handleDeleteAddress = async (addrId: number) => {
+    if (window.confirm('Are you sure you want to remove this saved address?')) {
+      try {
+        await api.delete(`/auth/addresses/${addrId}`);
+        setAddresses((prev) => prev.filter((a) => a.id !== addrId));
+        showToast('Address removed successfully', 'success');
+      } catch {
+        showToast('Failed to delete address', 'error');
+      }
+    }
+  };
+
+  const handleSaveAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addrName.trim() || !addrPhone.trim() || !addrLine1.trim() || !addrCity.trim() || !addrPostalCode.trim()) {
+      showToast('Please fill in all mandatory address fields', 'error');
+      return;
+    }
+
+    const payload = {
+      address_type: addrType,
+      name: addrName.trim(),
+      phone: addrPhone.trim(),
+      building_or_flat: addrBuilding.trim() || undefined,
+      address_line1: addrLine1.trim(),
+      address_line2: addrLine2.trim() || undefined,
+      landmark: addrLandmark.trim() || undefined,
+      city: addrCity.trim(),
+      state: addrState.trim() || 'Karnataka',
+      postal_code: addrPostalCode.trim(),
+      country: addrCountry.trim() || 'India',
+      is_default: addrIsDefault,
+    };
+
+    try {
+      setIsSavingAddress(true);
+      if (editingAddressId) {
+        const res = await api.put(`/auth/addresses/${editingAddressId}`, payload);
+        setAddresses((prev) =>
+          prev
+            .map((a) => (a.id === editingAddressId ? res.data : addrIsDefault ? { ...a, is_default: false } : a))
+            .sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
+        );
+        showToast('Address updated successfully', 'success');
+      } else {
+        const res = await api.post('/auth/addresses', payload);
+        setAddresses((prev) =>
+          addrIsDefault
+            ? [res.data, ...prev.map((a) => ({ ...a, is_default: false }))]
+            : [...prev, res.data]
+        );
+        showToast('New address saved to your address book', 'success');
+      }
+      setIsAddressModalOpen(false);
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Failed to save address';
+      showToast(msg, 'error');
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
   const handleOpenReviewModal = async (item: { product_id: number; product_name: string }, orderId: number) => {
     setReviewingItem({ productId: item.product_id, productName: item.product_name, orderId });
     setReviewRating(5);
     setReviewText('');
+    setReviewPhotoUrl('');
 
     try {
       const res = await api.get(`/products/${item.product_id}/review-eligibility`);
       if (res.data.existing_review) {
         setReviewRating(res.data.existing_review.rating);
         setReviewText(res.data.existing_review.review);
+        if (res.data.existing_review.photo_url) {
+          setReviewPhotoUrl(res.data.existing_review.photo_url);
+        }
       }
     } catch {
       // use defaults
+    }
+  };
+
+  const handleAccountPhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Photo must be under 5MB', 'error');
+      return;
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/reviews/upload-photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setReviewPhotoUrl(res.data.photo_url);
+      showToast('📸 Glow / Look photo attached successfully!', 'success');
+    } catch (err: any) {
+      console.warn('File upload fallback to data URL:', err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReviewPhotoUrl(reader.result as string);
+        showToast('📸 Photo attached successfully!', 'success');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
 
@@ -148,14 +315,16 @@ export const AccountPage: React.FC = () => {
     try {
       setIsSubmittingReview(true);
       await api.post(`/products/${reviewingItem.productId}/reviews`, {
+        product_id: reviewingItem.productId,
         rating: reviewRating,
         review: reviewText.trim(),
+        photo_url: reviewPhotoUrl || undefined,
       });
-      showToast(`Thank you for reviewing ${reviewingItem.productName}!`, 'success');
+      showToast(`✨ Thank you! Your review for ${reviewingItem.productName} has been published.`, 'success');
       setReviewedProductIds((prev) => [...prev, reviewingItem.productId]);
       setReviewingItem(null);
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to submit review. Reviews are eligible only once delivered.';
+      const msg = err.response?.data?.detail || 'Failed to submit review. Please try again.';
       showToast(msg, 'error');
     } finally {
       setIsSubmittingReview(false);
@@ -257,6 +426,25 @@ export const AccountPage: React.FC = () => {
                     </a>
                   )}
                 </div>
+
+                {/* Delivered Order Review & Feedback Prompt Banner */}
+                {orders.some((o) => o.order_status?.toLowerCase() === 'delivered') && (
+                  <div className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-white rounded-xl text-[#D84B7E] shadow-2xs">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-serif text-sm font-bold text-[#111111]">
+                          Share Your Skincare Glow & Fashion Styling!
+                        </h4>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          Your delivered items are ready for verified reviews. Upload photos of your glow or look to inspire fellow shoppers.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {orders.length === 0 ? (
                   <div className="p-12 text-center bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-3 shadow-xs">
@@ -302,20 +490,14 @@ export const AccountPage: React.FC = () => {
                                   </div>
 
                                   <div className="flex items-center gap-2">
-                                    {isDelivered ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleOpenReviewModal(item, ord.id)}
-                                        className="px-3.5 py-1.5 bg-[#D84B7E] text-white font-bold rounded-full hover:bg-[#111111] transition-all flex items-center gap-1.5 cursor-pointer text-xs shadow-2xs"
-                                      >
-                                        <Star className="w-3.5 h-3.5 fill-white" />
-                                        {hasReviewed ? 'Edit Your Review' : 'Write Product Review'}
-                                      </button>
-                                    ) : (
-                                      <span className="text-[11px] text-gray-500 italic bg-white/60 px-2.5 py-1 rounded-full border border-[#F1BCCE]/50">
-                                        Review unlocks once delivered
-                                      </span>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenReviewModal(item, ord.id)}
+                                      className="px-3.5 py-1.5 bg-[#D84B7E] text-white font-bold rounded-full hover:bg-[#111111] transition-all flex items-center gap-1.5 cursor-pointer text-xs shadow-2xs"
+                                    >
+                                      <Star className="w-3.5 h-3.5 fill-white" />
+                                      {hasReviewed ? 'Edit Your Review' : 'Write Product Review'}
+                                    </button>
                                   </div>
                                 </div>
                               );
@@ -344,13 +526,23 @@ export const AccountPage: React.FC = () => {
                               </div>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => handleOpenTracking(ord)}
-                              className="px-4 py-1.5 bg-[#D84B7E] text-white font-bold text-xs uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
-                            >
-                              <Truck className="w-3.5 h-3.5" /> Track Shipment
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedInvoiceOrder(ord.order_number || ord.id)}
+                                className="px-3.5 py-1.5 bg-white border border-[#D84B7E] text-[#D84B7E] font-bold text-xs uppercase tracking-wider rounded-full hover:bg-[#FCE7F0] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                                title="Download Official Tax Invoice PDF"
+                              >
+                                <FileText className="w-3.5 h-3.5" /> Download Invoice (PDF)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenTracking(ord)}
+                                className="px-4 py-1.5 bg-[#D84B7E] text-white font-bold text-xs uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                              >
+                                <Truck className="w-3.5 h-3.5" /> Track Shipment
+                              </button>
+                            </div>
                           </div>
 
                           <div className="pt-3 border-t border-[#F1BCCE] flex justify-between items-center text-sm">
@@ -437,23 +629,109 @@ export const AccountPage: React.FC = () => {
             {/* ADDRESSES TAB */}
             {activeTab === 'addresses' && (
               <div className="space-y-6">
-                <h2 className="font-serif text-2xl font-bold text-[#111111]">Saved Addresses</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {addresses.map((addr) => (
-                    <div key={addr.id} className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-2 relative shadow-xs">
-                      {addr.is_default && (
-                        <span className="px-2.5 py-0.5 bg-[#D84B7E] text-white text-[9px] uppercase font-bold rounded-full">
-                          Default Address
-                        </span>
-                      )}
-                      <h4 className="font-serif text-base font-bold text-[#111111]">{addr.name}</h4>
-                      <p className="text-xs text-gray-700 font-normal">{addr.address_line1}, {addr.address_line2}</p>
-                      <p className="text-xs text-gray-700 font-normal">{addr.city}, {addr.state} - {addr.postal_code}</p>
-                      <p className="text-xs text-gray-700 font-semibold">{addr.country}</p>
-                      <p className="text-xs text-gray-500 font-mono">{addr.phone}</p>
-                    </div>
-                  ))}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold text-[#111111]">Saved Delivery Addresses</h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Manage your multi-destination address book (Home, Office, Parents) for seamless 1-click checkout.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddAddress}
+                    className="px-5 py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-sm cursor-pointer flex items-center gap-1.5 shrink-0"
+                  >
+                    <Plus className="w-4 h-4" /> Add New Address
+                  </button>
                 </div>
+
+                {addresses.length === 0 ? (
+                  <div className="p-12 text-center bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4">
+                    <MapPin className="w-8 h-8 text-[#D84B7E] mx-auto opacity-50" />
+                    <h3 className="font-serif text-lg font-bold text-[#111111]">No Saved Addresses Yet</h3>
+                    <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                      Save your primary delivery locations to speed up your luxury orders.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenAddAddress}
+                      className="px-6 py-2.5 bg-[#D84B7E] text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-all cursor-pointer shadow-sm"
+                    >
+                      Add Your First Address
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {addresses.map((addr) => {
+                      const typeLabel = addr.address_type || 'Home';
+                      const typeIcon = typeLabel === 'Office' ? '🏢' : typeLabel === 'Parents' ? '👨‍👩‍👧' : typeLabel === 'Other' ? '📍' : '🏠';
+
+                      return (
+                        <div
+                          key={addr.id}
+                          className={`p-6 bg-[#FFF8FA] border rounded-3xl space-y-4 relative shadow-2xs transition-all flex flex-col justify-between ${
+                            addr.is_default ? 'border-[#D84B7E] ring-1 ring-[#F1BCCE]' : 'border-[#F1BCCE] hover:border-[#D84B7E]/60'
+                          }`}
+                        >
+                          <div className="space-y-2.5">
+                            <div className="flex justify-between items-start">
+                              <span className="px-3 py-1 bg-white border border-[#F1BCCE] rounded-full text-xs font-bold text-[#111111] flex items-center gap-1.5 shadow-2xs">
+                                <span>{typeIcon}</span>
+                                <span>{typeLabel}</span>
+                              </span>
+
+                              {addr.is_default ? (
+                                <span className="px-3 py-1 bg-[#D84B7E] text-white text-[10px] uppercase tracking-wider font-bold rounded-full flex items-center gap-1 shadow-2xs">
+                                  <Check className="w-3 h-3" /> Default Address
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetDefaultAddress(addr.id)}
+                                  className="text-[11px] text-gray-500 hover:text-[#D84B7E] font-bold underline cursor-pointer"
+                                >
+                                  Set as Default
+                                </button>
+                              )}
+                            </div>
+
+                            <div>
+                              <h4 className="font-serif text-base font-bold text-[#111111]">{addr.name}</h4>
+                              <p className="text-xs text-gray-500 font-mono mt-0.5">{addr.phone}</p>
+                            </div>
+
+                            <div className="text-xs text-gray-700 leading-relaxed">
+                              {addr.building_or_flat && <p className="font-medium">{addr.building_or_flat}</p>}
+                              <p>{addr.address_line1}{addr.address_line2 ? `, ${addr.address_line2}` : ''}</p>
+                              {addr.landmark && <p className="text-gray-500 italic">Landmark: {addr.landmark}</p>}
+                              <p className="font-semibold text-[#111111] pt-1">
+                                {addr.city}, {addr.state} - {addr.postal_code}
+                              </p>
+                              <p className="text-gray-600 uppercase text-[10px] font-bold">{addr.country}</p>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-[#F1BCCE]/60 flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditAddress(addr)}
+                              className="px-3.5 py-1.5 bg-white border border-[#F1BCCE] text-[#111111] hover:border-[#D84B7E] hover:text-[#D84B7E] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                            >
+                              <Edit className="w-3.5 h-3.5" /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAddress(addr.id)}
+                              className="px-3.5 py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -784,6 +1062,364 @@ export const AccountPage: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Official Tax Invoice Modal */}
+      {selectedInvoiceOrder && (
+        <InvoiceModal
+          isOpen={!!selectedInvoiceOrder}
+          onClose={() => setSelectedInvoiceOrder(null)}
+          orderIdentifier={selectedInvoiceOrder}
+        />
+      )}
+
+      {/* Add / Edit Saved Address Modal */}
+      {isAddressModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-[#F1BCCE] pb-4">
+              <div>
+                <span className="text-[10px] uppercase tracking-widest text-[#D84B7E] font-bold block">
+                  Delivery Destination
+                </span>
+                <h3 className="font-serif text-xl font-bold text-[#111111] mt-0.5">
+                  {editingAddressId ? 'Edit Saved Address' : 'Add New Saved Address'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddressModalOpen(false)}
+                className="p-1.5 text-gray-500 hover:text-black rounded-full hover:bg-[#FCE7F0] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAddress} className="space-y-4">
+              {/* Address Type Pill Selector */}
+              <div>
+                <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-2">
+                  Address Label *
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { type: 'Home', icon: '🏠' },
+                    { type: 'Office', icon: '🏢' },
+                    { type: 'Parents', icon: '👨‍👩‍👧' },
+                    { type: 'Other', icon: '📍' },
+                  ].map((item) => (
+                    <button
+                      key={item.type}
+                      type="button"
+                      onClick={() => setAddrType(item.type)}
+                      className={`py-2 px-3 rounded-2xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        addrType === item.type
+                          ? 'bg-[#D84B7E] text-white border-[#D84B7E] shadow-sm'
+                          : 'bg-white border-[#F1BCCE] text-[#111111] hover:border-[#D84B7E]'
+                      }`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.type}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                    Contact Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={addrName}
+                    onChange={(e) => setAddrName(e.target.value)}
+                    required
+                    placeholder="Recipient Name"
+                    className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={addrPhone}
+                    onChange={(e) => setAddrPhone(e.target.value)}
+                    required
+                    placeholder="+91 98765 43210"
+                    className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                  />
+                </div>
+              </div>
+
+              {/* Building & Street */}
+              <div>
+                <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                  Flat / House / Building Name
+                </label>
+                <input
+                  type="text"
+                  value={addrBuilding}
+                  onChange={(e) => setAddrBuilding(e.target.value)}
+                  placeholder="e.g. Villa 12, Palm Meadows"
+                  className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                  Street Address / Area *
+                </label>
+                <input
+                  type="text"
+                  value={addrLine1}
+                  onChange={(e) => setAddrLine1(e.target.value)}
+                  required
+                  placeholder="Street name, Sector, Cross"
+                  className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                />
+              </div>
+
+              {/* Landmark */}
+              <div>
+                <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                  Landmark (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={addrLandmark}
+                  onChange={(e) => setAddrLandmark(e.target.value)}
+                  placeholder="e.g. Near Botanical Garden"
+                  className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                />
+              </div>
+
+              {/* City, State & Pincode */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    value={addrCity}
+                    onChange={(e) => setAddrCity(e.target.value)}
+                    required
+                    placeholder="Bengaluru"
+                    className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                    State *
+                  </label>
+                  <input
+                    type="text"
+                    value={addrState}
+                    onChange={(e) => setAddrState(e.target.value)}
+                    required
+                    placeholder="Karnataka"
+                    className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                    Pincode / Postal *
+                  </label>
+                  <input
+                    type="text"
+                    value={addrPostalCode}
+                    onChange={(e) => setAddrPostalCode(e.target.value)}
+                    required
+                    placeholder="560001"
+                    className="w-full bg-white border border-[#F1BCCE] rounded-xl p-2.5 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                  />
+                </div>
+              </div>
+
+              {/* Country & Default Checkbox */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={addrIsDefault}
+                    onChange={(e) => setAddrIsDefault(e.target.checked)}
+                    className="w-4 h-4 text-[#D84B7E] accent-[#D84B7E] rounded cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-800 font-bold">Set as Default Delivery Address</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#F1BCCE]">
+                <button
+                  type="button"
+                  onClick={() => setIsAddressModalOpen(false)}
+                  className="px-6 py-2.5 bg-white border border-[#F1BCCE] text-gray-700 text-xs uppercase tracking-wider font-bold rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingAddress}
+                  className="px-8 py-2.5 bg-[#D84B7E] text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  {isSavingAddress ? 'Saving...' : editingAddressId ? 'Done — Update Address' : 'Done — Save Address'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Product Review & Glow / Look Photo Modal */}
+      {reviewingItem && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-[#F1BCCE] pb-4">
+              <div>
+                <span className="text-[10px] uppercase tracking-widest text-[#D84B7E] font-bold block">
+                  Delivered Order Verified Review
+                </span>
+                <h3 className="font-serif text-xl font-bold text-[#111111] mt-0.5">
+                  {reviewingItem.productName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewingItem(null)}
+                className="p-1.5 text-gray-500 hover:text-black rounded-full hover:bg-[#FCE7F0] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReview} className="space-y-4">
+              {/* Star Rating */}
+              <div>
+                <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1.5">
+                  Your Overall Rating *
+                </label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                    >
+                      <Star
+                        className={`w-7 h-7 ${
+                          star <= reviewRating ? 'fill-[#D84B7E] text-[#D84B7E]' : 'text-gray-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs font-bold text-gray-700 ml-2">
+                    {reviewRating === 5
+                      ? 'Exceptional (5/5)'
+                      : reviewRating === 4
+                      ? 'Great (4/5)'
+                      : reviewRating === 3
+                      ? 'Good (3/5)'
+                      : reviewRating === 2
+                      ? 'Fair (2/5)'
+                      : 'Poor (1/5)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Review */}
+              <div>
+                <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                  Review *
+                </label>
+                <textarea
+                  rows={4}
+                  value={reviewText}
+                  onChange={(e) => setReviewText(e.target.value)}
+                  placeholder="Share details about formulation results, skincare glow, fabric elegance, or styling..."
+                  className="w-full bg-white border border-[#F1BCCE] rounded-xl p-3 text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                  required
+                />
+              </div>
+
+              {/* Upload Glow / Look Photo */}
+              <div>
+                <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-[#D84B7E]" />
+                    Upload Skincare Glow / Fashion Look Photo (Optional)
+                  </span>
+                  {isUploadingPhoto && (
+                    <span className="text-[10px] text-[#D84B7E] font-bold animate-pulse">
+                      Uploading photo...
+                    </span>
+                  )}
+                </label>
+
+                {reviewPhotoUrl ? (
+                  <div className="flex items-center gap-3 p-3 bg-white border border-[#F1BCCE] rounded-2xl">
+                    <div className="relative group">
+                      <img
+                        src={reviewPhotoUrl}
+                        alt="Look Preview"
+                        className="w-16 h-16 rounded-xl object-cover border border-[#F1BCCE]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReviewPhotoUrl('')}
+                        className="absolute -top-1.5 -right-1.5 p-1 bg-[#D84B7E] text-white rounded-full hover:bg-black transition-colors cursor-pointer shadow-xs"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="flex-1 text-xs">
+                      <p className="font-bold text-gray-800">📸 Photo Attached</p>
+                      <p className="text-[11px] text-gray-500">
+                        Your photo will be showcased in the verified client review gallery.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center gap-2 p-3 bg-white border border-dashed border-[#F1BCCE] hover:border-[#D84B7E] rounded-2xl cursor-pointer transition-colors text-xs font-bold text-gray-700">
+                    <Upload className="w-4 h-4 text-[#D84B7E]" />
+                    <span>Upload photo of your glow or look</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAccountPhotoFileChange}
+                      className="hidden"
+                      disabled={isUploadingPhoto}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#F1BCCE]">
+                <button
+                  type="button"
+                  onClick={() => setReviewingItem(null)}
+                  className="px-6 py-2.5 bg-white border border-[#F1BCCE] text-gray-700 text-xs uppercase tracking-wider font-bold rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReview || isUploadingPhoto}
+                  className="px-8 py-2.5 bg-[#D84B7E] text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {isSubmittingReview ? 'Publishing...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

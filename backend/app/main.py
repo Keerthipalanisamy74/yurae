@@ -1,8 +1,11 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.database.session import engine, Base
-from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping
+import app.models.models  # Register all models with Base.metadata
+from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo
 
 # Create tables automatically
 Base.metadata.create_all(bind=engine)
@@ -14,6 +17,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Static Files for Review Glow/Look Photo Uploads
+uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+os.makedirs(os.path.join(uploads_dir, "reviews"), exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # CORS setup
 app.add_middleware(
@@ -37,6 +45,7 @@ app.include_router(coupons.router, prefix=settings.API_V1_STR)
 app.include_router(reviews.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(contact.router, prefix=settings.API_V1_STR)
+app.include_router(seo.router)
 
 # Generic Webhook Route Alias
 from app.api.shipping import shiprocket_webhook

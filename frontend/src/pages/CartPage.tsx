@@ -89,9 +89,9 @@ export const CartPage: React.FC = () => {
             {cart.items.map((item) => (
               <div key={item.id} className="p-4 sm:p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl flex gap-4 sm:gap-6 shadow-xs">
                 <img
-                  src={item.product.images[0]?.image_url || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=400&q=80'}
+                  src={item.product.images?.[0]?.image_url || ''}
                   alt={item.product.name}
-                  className="w-24 h-28 sm:w-28 sm:h-32 object-cover rounded-xl shrink-0"
+                  className="w-24 h-28 sm:w-28 sm:h-32 object-cover rounded-xl shrink-0 bg-[#FCE7F0]"
                 />
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
@@ -115,6 +115,11 @@ export const CartPage: React.FC = () => {
                     {item.variant && (
                       <p className="text-xs text-gray-500 mt-1">
                         {item.variant.variant_name}: {item.variant.variant_value}
+                      </p>
+                    )}
+                    {item.product.stock_quantity !== undefined && item.product.stock_quantity > 0 && item.product.stock_quantity < 5 && (
+                      <p className="text-xs text-amber-700 font-bold mt-1.5 flex items-center gap-1">
+                        <span>⚡ Low Stock Alert: Only {item.product.stock_quantity} left in stock!</span>
                       </p>
                     )}
                   </div>

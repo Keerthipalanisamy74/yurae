@@ -4,6 +4,52 @@ import { Product, Category } from '../../types';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
+// Helper to compress client-side images before uploading
+const compressImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_DIM = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(readerEvent.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        // Use high-quality JPEG for crisp luxury skincare product presentation
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(dataUrl);
+      };
+      img.onerror = () => {
+        resolve(readerEvent.target?.result as string);
+      };
+      img.src = readerEvent.target?.result as string;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+};
+
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,19 +64,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
   onClose,
   productToEdit,
-  categories,
+  categories: initialCategories = [],
   initialCategorySlug = 'skincare',
-  allowCategorySelection = false,
+  allowCategorySelection = true,
   onSuccess,
 }) => {
   const { showToast } = useToast();
   const isEditMode = !!productToEdit;
 
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [targetCategory, setTargetCategory] = useState<string>(initialCategorySlug);
   const [name, setName] = useState('');
-  const [price, setPrice] = useState<number>(1290);
-  const [salePrice, setSalePrice] = useState<number | undefined>(undefined);
-  const [stock, setStock] = useState<number>(50);
+  const [price, setPrice] = useState<number | string>('');
+  const [salePrice, setSalePrice] = useState<number | string>('');
+  const [stock, setStock] = useState<number | string>(50);
+  const [weight, setWeight] = useState<string>('50g');
   const [images, setImages] = useState<string[]>([]);
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [desc, setDesc] = useState('');
@@ -39,9 +87,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [skinType, setSkinType] = useState('All');
   const [subCategory, setSubCategory] = useState('Maxi & Midi Dresses');
   const [selectedSizes, setSelectedSizes] = useState<string[]>(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
+  const [selectedSkincareSizes, setSelectedSkincareSizes] = useState<string[]>(['50g', '100g']);
+  const [customSkincareSizeInput, setCustomSkincareSizeInput] = useState<string>('');
+  const [sizeStocks, setSizeStocks] = useState<Record<string, number | string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+
+  // Sync / fetch categories if empty
+  useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) {
+      setCategories(initialCategories);
+    } else if (isOpen) {
+      api.get('/categories')
+        .then((res) => setCategories(res.data))
+        .catch((err) => console.warn('Could not load categories:', err));
+    }
+  }, [initialCategories, isOpen]);
 
   const availableFashionSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  const availableSkincareSizes = ['30g', '50g', '75g', '100g', '150g', '200g', '250g', '500g', '30ml', '50ml', '100ml', '150ml', '200ml'];
 
   const dressCategories = [
     'T-Shirts & Tops',
@@ -81,9 +145,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   useEffect(() => {
     if (productToEdit) {
       setName(productToEdit.name || '');
-      setPrice(productToEdit.price || 0);
-      setSalePrice(productToEdit.sale_price || undefined);
-      setStock(productToEdit.stock_quantity || 0);
+      setPrice(productToEdit.price !== undefined && productToEdit.price !== null ? productToEdit.price : '');
+      setSalePrice(productToEdit.sale_price !== undefined && productToEdit.sale_price !== null ? productToEdit.sale_price : '');
+      setStock(productToEdit.stock_quantity !== undefined && productToEdit.stock_quantity !== null ? productToEdit.stock_quantity : '');
+      setWeight(productToEdit.weight || '');
       setDesc(productToEdit.description || '');
       setShortDesc(productToEdit.short_description || '');
       setIngredients(productToEdit.ingredients || '');
@@ -100,21 +165,41 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         setImages([]);
       }
 
-      // Sizes / Variants
+      // Sizes & Per-Size Stocks
       if (productToEdit.variants && productToEdit.variants.length > 0) {
+        const stockMap: Record<string, number | string> = {};
         const sizes = productToEdit.variants
           .filter((v) => v.variant_name?.toLowerCase() === 'size')
-          .map((v) => v.variant_value);
+          .map((v) => {
+            stockMap[v.variant_value] = v.stock_quantity !== undefined ? v.stock_quantity : '';
+            return v.variant_value;
+          });
+        setSizeStocks(stockMap);
         if (sizes.length > 0) {
-          setSelectedSizes(sizes);
+          if (catSlug === 'skincare') {
+            setSelectedSkincareSizes(sizes);
+          } else {
+            setSelectedSizes(sizes);
+          }
+        }
+      } else if (productToEdit.weight) {
+        const splitWeights = productToEdit.weight.split(',').map((s) => s.trim()).filter(Boolean);
+        if (splitWeights.length > 0) {
+          setSelectedSkincareSizes(splitWeights);
+          const stockMap: Record<string, number | string> = {};
+          splitWeights.forEach((w) => {
+            stockMap[w] = Math.max(1, Math.floor(Number(productToEdit.stock_quantity || 50) / splitWeights.length));
+          });
+          setSizeStocks(stockMap);
         }
       }
     } else {
       // Reset to create defaults
       setName('');
-      setPrice(1290);
-      setSalePrice(undefined);
+      setPrice('');
+      setSalePrice('');
       setStock(50);
+      setWeight(initialCategorySlug === 'skincare' ? '50g' : '');
       setImages([]);
       setImageUrlInput('');
       setDesc('');
@@ -124,27 +209,57 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setSkinType(initialCategorySlug === 'fashion' ? 'Standard Fit' : 'All');
       setSubCategory(initialCategorySlug === 'fashion' ? 'Maxi & Midi Dresses' : skincareCategories[0]);
       setSelectedSizes(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
+      setSelectedSkincareSizes(['50g', '100g']);
+      setCustomSkincareSizeInput('');
+
+      // Default per-size stock units
+      const defaultStocks: Record<string, number | string> = {
+        XS: 10,
+        S: 15,
+        M: 20,
+        L: 20,
+        XL: 15,
+        XXL: 10,
+        XXXL: 10,
+        '50g': 25,
+        '100g': 25,
+      };
+      setSizeStocks(defaultStocks);
     }
   }, [productToEdit, initialCategorySlug, isOpen]);
 
-  // Handle multiple files selected
-  const handleMultipleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handler to update stock for a single size and recalculate total stock
+  const handleSizeStockChange = (size: string, val: string | number) => {
+    const updated = { ...sizeStocks, [size]: val };
+    setSizeStocks(updated);
+
+    const activeSizes = targetCategory === 'fashion' ? selectedSizes : selectedSkincareSizes;
+    const total = activeSizes.reduce((acc, s) => {
+      const q = Number(s === size ? val : updated[s]);
+      return acc + (isNaN(q) ? 0 : Math.max(0, q));
+    }, 0);
+    setStock(total);
+  };
+
+  // Handle multiple files selected with instant compression
+  const handleMultipleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          const resultStr = reader.result;
-          setImages((prev) => [...prev, resultStr]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // Reset input
-    e.target.value = '';
+    try {
+      setIsProcessingPhotos(true);
+      const compressedList = await Promise.all(
+        Array.from(files).map((f) => compressImageFile(f))
+      );
+      const validImages = compressedList.filter((img) => img && img.trim().length > 0);
+      setImages((prev) => [...prev, ...validImages]);
+    } catch (err) {
+      console.error('Error processing photos:', err);
+      showToast('Could not load some photos. Please try again.', 'error');
+    } finally {
+      setIsProcessingPhotos(false);
+      e.target.value = '';
+    }
   };
 
   // Handle single URL add
@@ -179,44 +294,81 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     try {
       setIsSubmitting(true);
 
-      const isFashion = targetCategory === 'fashion';
-      const isAccessory = targetCategory === 'accessories';
-
-      // Find Category ID
+      // 1. Resolve Category ID Safely
       let cat = categories.find((c) => c.slug.toLowerCase() === targetCategory.toLowerCase());
       let catId = cat?.id;
 
       if (!catId) {
-        const catRes = await api.post('/categories', {
-          name: targetCategory.charAt(0).toUpperCase() + targetCategory.slice(1),
-          slug: targetCategory.toLowerCase(),
-        });
-        catId = catRes.data.id;
+        try {
+          const catRes = await api.get('/categories');
+          const latestCats = catRes.data as Category[];
+          setCategories(latestCats);
+          const foundCat = latestCats.find((c) => c.slug.toLowerCase() === targetCategory.toLowerCase());
+          if (foundCat) {
+            catId = foundCat.id;
+          } else {
+            const createRes = await api.post('/categories', {
+              name: targetCategory.charAt(0).toUpperCase() + targetCategory.slice(1),
+              slug: targetCategory.toLowerCase(),
+            });
+            catId = createRes.data.id;
+          }
+        } catch (catErr) {
+          console.warn('Category resolution warning:', catErr);
+          catId = categories[0]?.id || 1;
+        }
       }
 
-      // Default fallback image if none provided
-      let finalImages = [...images];
-      if (finalImages.length === 0) {
-        finalImages = [
-          isFashion
-            ? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=80'
-            : isAccessory
-            ? 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=1000&q=80'
-            : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1000&q=80',
-        ];
+      const numPrice = Number(price);
+      if (!price || isNaN(numPrice) || numPrice <= 0) {
+        showToast('Please enter a valid regular price', 'error');
+        setIsSubmitting(false);
+        return;
       }
+
+      const numStock = stock === '' ? 0 : Math.max(0, Number(stock));
+      const numSalePrice = salePrice !== '' && salePrice !== undefined && !isNaN(Number(salePrice)) ? Number(salePrice) : undefined;
+
+      const isFashion = targetCategory === 'fashion';
+      const isAccessory = targetCategory === 'accessories';
+      const isSkincare = targetCategory === 'skincare';
 
       const variantsPayload = isFashion && selectedSizes.length > 0
-        ? selectedSizes.map((size) => ({
-            variant_name: 'Size',
-            variant_value: size,
-            additional_price: 0,
-            stock_quantity: Math.max(1, Math.floor(stock / selectedSizes.length)),
-          }))
+        ? selectedSizes.map((size) => {
+            const rawStock = sizeStocks[size];
+            const qty = rawStock !== undefined && rawStock !== '' && !isNaN(Number(rawStock))
+              ? Math.max(0, Number(rawStock))
+              : Math.max(0, Math.floor(numStock / (selectedSizes.length || 1)));
+            return {
+              variant_name: 'Size',
+              variant_value: size,
+              additional_price: 0,
+              stock_quantity: qty,
+            };
+          })
+        : isSkincare && selectedSkincareSizes.length > 0
+        ? selectedSkincareSizes.map((size) => {
+            const rawStock = sizeStocks[size];
+            const qty = rawStock !== undefined && rawStock !== '' && !isNaN(Number(rawStock))
+              ? Math.max(0, Number(rawStock))
+              : Math.max(0, Math.floor(numStock / (selectedSkincareSizes.length || 1)));
+            return {
+              variant_name: 'Size',
+              variant_value: size,
+              additional_price: 0,
+              stock_quantity: qty,
+            };
+          })
         : [];
+
+      const totalCalculatedStock = variantsPayload.length > 0
+        ? variantsPayload.reduce((sum, v) => sum + v.stock_quantity, 0)
+        : numStock;
 
       const skinTypeVal = isFashion
         ? (selectedSizes.length > 0 ? `Sizes: ${selectedSizes.join(', ')}` : (skinType || 'Standard Fit'))
+        : isSkincare
+        ? (selectedSkincareSizes.length > 0 ? `Sizes: ${selectedSkincareSizes.join(', ')}` : (skinType || 'All'))
         : (skinType || 'All');
 
       const shortDescVal = shortDesc.trim() || (isFashion ? `${subCategory} • Premium Fashion` : name);
@@ -227,20 +379,35 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         : `${name} - Premium botanical skincare by Yurae Beauty.`
       );
 
+      const effectiveWeight = isSkincare && selectedSkincareSizes.length > 0
+        ? selectedSkincareSizes.join(', ')
+        : (weight.trim() || undefined);
+
+      let formattedWeight = effectiveWeight;
+      if (formattedWeight && /^\d+(\.\d+)?$/.test(formattedWeight)) {
+        formattedWeight = `${formattedWeight}g`;
+      }
+
+      const numWeightKg = formattedWeight
+        ? (parseFloat(formattedWeight.replace(/[^\d.]/g, '')) / 1000 || 0.35)
+        : 0.35;
+
       const payload = {
         category_id: catId,
         name: name.trim(),
         description: descVal,
         short_description: shortDescVal,
-        price: Number(price),
-        sale_price: salePrice ? Number(salePrice) : undefined,
-        stock_quantity: Number(stock),
+        price: numPrice,
+        sale_price: numSalePrice,
+        stock_quantity: totalCalculatedStock,
+        weight: formattedWeight || undefined,
+        weight_kg: numWeightKg,
         brand: 'Yurae Beauty',
         ingredients: ingredients.trim() || undefined,
         skin_type: skinTypeVal,
         status: 'ACTIVE',
         featured: true,
-        images: finalImages,
+        images: images,
         variants: variantsPayload,
       };
 
@@ -258,9 +425,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       onSuccess(resProduct, !isEditMode);
       onClose();
     } catch (err: any) {
-      console.error(err);
-      const msg = err.response?.data?.detail || 'Failed to save product. Please verify inputs.';
-      showToast(msg, 'error');
+      console.error('Product save error:', err);
+      let errorMsg = 'Failed to save product. Please verify inputs.';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail.map((d: any) => `${d.loc?.slice(-1)[0] || 'Field'}: ${d.msg}`).join(', ');
+        } else if (typeof detail === 'object') {
+          errorMsg = JSON.stringify(detail);
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      showToast(errorMsg, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -292,8 +471,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 text-xs">
-          {/* STORE DEPARTMENT SELECTION OR LOCKED INDICATOR */}
-          {allowCategorySelection ? (
+          {/* STORE DEPARTMENT SELECTION (New Products Only) OR LOCKED INDICATOR (Edit Mode) */}
+          {!isEditMode && allowCategorySelection ? (
             <div>
               <label className="font-bold text-[#111111] block mb-1.5 uppercase tracking-wider text-[11px]">
                 Choose Store Department *
@@ -423,8 +602,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <label className="font-bold text-[#111111] block mb-1">Regular Price (₹) *</label>
               <input
                 type="number"
+                min="0"
+                step="any"
                 value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="e.g. 1290"
                 required
                 className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111]"
               />
@@ -434,8 +616,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <label className="font-bold text-[#111111] block mb-1">Sale Price (₹)</label>
               <input
                 type="number"
-                value={salePrice || ''}
-                onChange={(e) => setSalePrice(e.target.value ? Number(e.target.value) : undefined)}
+                min="0"
+                step="any"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
                 placeholder="Optional"
                 className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111]"
               />
@@ -445,13 +629,200 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <label className="font-bold text-[#111111] block mb-1">Stock Units *</label>
               <input
                 type="number"
+                min="0"
                 value={stock}
-                onChange={(e) => setStock(Number(e.target.value))}
+                onChange={(e) => setStock(e.target.value)}
+                placeholder="e.g. 50"
                 required
                 className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111]"
               />
             </div>
           </div>
+
+          {/* SKINCARE MULTI-SELECT SIZES / GRAMS */}
+          {targetCategory === 'skincare' && (
+            <div className="p-4 bg-[#FFF0F5] border border-[#F1BCCE] rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="font-bold text-[#111111] text-xs flex items-center gap-2">
+                  <span className="text-sm">⚖️</span>
+                  <span>Available Skincare Sizes & Grams (Multi-Select)</span>
+                  <span className="px-2 py-0.5 bg-[#D84B7E] text-white text-[10px] font-bold rounded-full shadow-2xs">
+                    {selectedSkincareSizes.length} selected
+                  </span>
+                </label>
+                <div className="flex gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSkincareSizes(['50g', '100g', '150g'])}
+                    className="text-[#D84B7E] font-bold hover:underline cursor-pointer"
+                  >
+                    Common (50g, 100g)
+                  </button>
+                  <span className="text-gray-400">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSkincareSizes([...availableSkincareSizes])}
+                    className="text-[#D84B7E] font-bold hover:underline cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-gray-400">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSkincareSizes([])}
+                    className="text-gray-500 font-bold hover:underline cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Multi-Select Size Buttons */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {availableSkincareSizes.map((size) => {
+                  const isSelected = selectedSkincareSizes.includes(size);
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedSkincareSizes(selectedSkincareSizes.filter((s) => s !== size));
+                        } else {
+                          setSelectedSkincareSizes([...selectedSkincareSizes, size]);
+                        }
+                      }}
+                      className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer border ${
+                        isSelected
+                          ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105'
+                          : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
+                      }`}
+                    >
+                      {isSelected ? `✓ ${size}` : size}
+                    </button>
+                  );
+                })}
+
+                {/* Any custom sizes added by admin */}
+                {selectedSkincareSizes
+                  .filter((s) => !availableSkincareSizes.includes(s))
+                  .map((customSize) => (
+                    <button
+                      key={customSize}
+                      type="button"
+                      onClick={() =>
+                        setSelectedSkincareSizes(selectedSkincareSizes.filter((s) => s !== customSize))
+                      }
+                      className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105 cursor-pointer flex items-center gap-1"
+                    >
+                      <span>✓ {customSize}</span>
+                      <span className="text-[10px] hover:text-black">✕</span>
+                    </button>
+                  ))}
+              </div>
+
+              {/* Custom Size / Grams Input */}
+              <div className="flex gap-2 pt-2 border-t border-[#F1BCCE]/60 items-center">
+                <input
+                  type="text"
+                  value={customSkincareSizeInput}
+                  onChange={(e) => setCustomSkincareSizeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const val = customSkincareSizeInput.trim();
+                      if (val) {
+                        const formatted = /^\d+(\.\d+)?$/.test(val) ? `${val}g` : val;
+                        if (!selectedSkincareSizes.includes(formatted)) {
+                          setSelectedSkincareSizes([...selectedSkincareSizes, formatted]);
+                          if (sizeStocks[formatted] === undefined) {
+                            setSizeStocks((prev) => ({ ...prev, [formatted]: 25 }));
+                          }
+                        }
+                        setCustomSkincareSizeInput('');
+                      }
+                    }
+                  }}
+                  placeholder="Or enter custom grams/size (e.g. 60g, 120ml)..."
+                  className="flex-1 p-2.5 bg-white border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111] text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = customSkincareSizeInput.trim();
+                    if (val) {
+                      const formatted = /^\d+(\.\d+)?$/.test(val) ? `${val}g` : val;
+                      if (!selectedSkincareSizes.includes(formatted)) {
+                        setSelectedSkincareSizes([...selectedSkincareSizes, formatted]);
+                        if (sizeStocks[formatted] === undefined) {
+                          setSizeStocks((prev) => ({ ...prev, [formatted]: 25 }));
+                        }
+                      }
+                      setCustomSkincareSizeInput('');
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-[#111111] text-white hover:bg-[#D84B7E] rounded-xl font-bold transition-colors text-xs shrink-0 cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Size
+                </button>
+              </div>
+
+              {/* PER-SIZE STOCK UNITS BREAKDOWN (SKINCARE) */}
+              {selectedSkincareSizes.length > 0 && (
+                <div className="pt-3 border-t border-[#F1BCCE] space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="font-bold text-[#111111] text-xs flex items-center gap-1.5">
+                      <span>📦</span>
+                      <span>Stock Units for Each Size / Grams:</span>
+                    </label>
+                    <span className="text-[11px] text-gray-600 font-medium">
+                      Sum: <strong className="text-[#D84B7E] font-bold">{stock} units total</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {selectedSkincareSizes.map((size) => (
+                      <div
+                        key={size}
+                        className="p-2.5 bg-white border border-[#F1BCCE] rounded-xl flex items-center justify-between gap-2 shadow-2xs"
+                      >
+                        <span className="text-xs font-bold text-[#111111] px-2 py-0.5 bg-[#FCE7F0] border border-[#F1BCCE] rounded-md shrink-0">
+                          {size}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            value={sizeStocks[size] !== undefined ? sizeStocks[size] : 25}
+                            onChange={(e) => handleSizeStockChange(size, e.target.value)}
+                            placeholder="Qty"
+                            className="w-16 p-1 text-center font-bold text-xs bg-[#FDF4F7] border border-[#F1BCCE] rounded-lg outline-none focus:border-[#D84B7E] text-[#111111]"
+                          />
+                          <span className="text-[10px] text-gray-500 font-medium">units</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {targetCategory !== 'skincare' && targetCategory !== 'fashion' && (
+            <div className="p-3.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl space-y-1.5">
+              <label className="font-bold text-[#111111] text-xs flex items-center gap-1.5">
+                <span className="text-sm">⚖️</span>
+                <span>Item Weight (Optional, e.g. 50g)</span>
+              </label>
+              <input
+                type="text"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="e.g. 50g"
+                className="w-full p-2.5 bg-white border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111] text-xs font-bold placeholder:font-normal"
+              />
+            </div>
+          )}
 
           {/* MULTI-IMAGE UPLOAD SECTION */}
           <div className="p-4 bg-[#FCE7F0]/60 border border-[#F1BCCE] rounded-2xl space-y-3">
@@ -507,12 +878,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             {/* File Input & URL Input */}
             <div className="space-y-2 pt-2 border-t border-[#F1BCCE]/60">
               <div className="flex flex-col sm:flex-row gap-2 items-stretch">
-                <label className="flex-1 px-4 py-2.5 bg-[#D84B7E] text-white hover:bg-[#111111] rounded-xl font-bold text-center cursor-pointer transition-all flex items-center justify-center gap-2 shadow-sm">
+                <label className={`flex-1 px-4 py-2.5 ${isProcessingPhotos ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#D84B7E] hover:bg-[#111111] cursor-pointer'} text-white rounded-xl font-bold text-center transition-all flex items-center justify-center gap-2 shadow-sm`}>
                   <Upload className="w-4 h-4" />
-                  Upload Multiple Photos from Device
+                  {isProcessingPhotos ? 'Optimizing & Adding Photos...' : 'Upload Multiple Photos from Device'}
                   <input
                     type="file"
                     multiple
+                    disabled={isProcessingPhotos}
                     accept="image/*"
                     onChange={handleMultipleFiles}
                     className="hidden"
@@ -586,19 +958,61 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                           setSelectedSizes(selectedSizes.filter((s) => s !== size));
                         } else {
                           setSelectedSizes([...selectedSizes, size]);
+                          if (sizeStocks[size] === undefined) {
+                            setSizeStocks((prev) => ({ ...prev, [size]: 10 }));
+                          }
                         }
                       }}
                       className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer border ${
                         isSelected
                           ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105'
-                          : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
+                          : 'bg-[#FFF8FA] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
                       }`}
                     >
-                      {size}
+                      {isSelected ? `✓ ${size}` : size}
                     </button>
                   );
                 })}
               </div>
+
+              {/* PER-SIZE STOCK UNITS BREAKDOWN (FASHION) */}
+              {selectedSizes.length > 0 && (
+                <div className="pt-3 border-t border-[#F1BCCE] space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="font-bold text-[#111111] text-xs flex items-center gap-1.5">
+                      <span>📦</span>
+                      <span>Stock Units for Each Size:</span>
+                    </label>
+                    <span className="text-[11px] text-gray-600 font-medium">
+                      Sum: <strong className="text-[#D84B7E] font-bold">{stock} units total</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {selectedSizes.map((size) => (
+                      <div
+                        key={size}
+                        className="p-2.5 bg-white border border-[#F1BCCE] rounded-xl flex items-center justify-between gap-2 shadow-2xs"
+                      >
+                        <span className="text-xs font-bold text-[#111111] px-2 py-0.5 bg-[#FCE7F0] border border-[#F1BCCE] rounded-md shrink-0">
+                          {size}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            value={sizeStocks[size] !== undefined ? sizeStocks[size] : 10}
+                            onChange={(e) => handleSizeStockChange(size, e.target.value)}
+                            placeholder="Qty"
+                            className="w-16 p-1 text-center font-bold text-xs bg-[#FDF4F7] border border-[#F1BCCE] rounded-lg outline-none focus:border-[#D84B7E] text-[#111111]"
+                          />
+                          <span className="text-[10px] text-gray-500 font-medium">units</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

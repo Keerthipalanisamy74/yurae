@@ -539,6 +539,17 @@ class ShippingService:
             db.refresh(shipment)
             db.refresh(order)
 
+            # 10. Dispatch Shipment Dispatched Email with Live Tracking
+            try:
+                from app.services.email_service import EmailService
+                EmailService.send_shipment_dispatched_email(order, {
+                    "awb_code": awb_code,
+                    "courier_name": courier_name,
+                    "tracking_url": tracking_url
+                })
+            except Exception as email_ex:
+                logger.warning(f"Could not dispatch shipment email for Order #{order.order_number}: {email_ex}")
+
             logger.info(f"Fulfillment completed for Order #{order.order_number} ({country}). Courier: {courier_name}, AWB: {awb_code}")
             return shipment
 

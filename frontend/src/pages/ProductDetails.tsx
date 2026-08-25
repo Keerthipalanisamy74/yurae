@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Star, Heart, Plus, Minus, ShieldCheck, Truck, RotateCcw, ChevronDown, ChevronUp, Trash2, Edit } from 'lucide-react';
+import {
+  Star, Heart, Plus, Minus, ShieldCheck, Truck, RotateCcw,
+  ChevronDown, ChevronUp, Trash2, Edit, Bell, Mail, CheckCircle2,
+  Camera, Image as ImageIcon, X, ZoomIn, Upload, Sparkles, Share2
+} from 'lucide-react';
 import { Product, ProductVariant, Review, Category } from '../types';
 import { api } from '../services/api';
 import { useCart } from '../context/CartContext';
@@ -10,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { ProductCard } from '../components/common/ProductCard';
 import { ProductFormModal } from '../components/common/ProductFormModal';
+import { SEO } from '../components/common/SEO';
 
 export const ProductDetails: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -17,7 +22,7 @@ export const ProductDetails: React.FC = () => {
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const { formatPrice, currentCurrencyInfo } = useCurrency();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -29,6 +34,17 @@ export const ProductDetails: React.FC = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  // Back in Stock Notification State
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
+  const [notifiedVariants, setNotifiedVariants] = useState<{ [key: string]: boolean }>({});
+
+  useEffect(() => {
+    if (user?.email) {
+      setNotifyEmail(user.email);
+    }
+  }, [user]);
 
   // Accordion state
   const [openAccordions, setOpenAccordions] = useState<{ [key: string]: boolean }>({
@@ -42,6 +58,9 @@ export const ProductDetails: React.FC = () => {
   // Review Form state
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
+  const [reviewPhotoUrl, setReviewPhotoUrl] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState<string | null>(null);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewEligibility, setReviewEligibility] = useState<{
     eligible: boolean;
@@ -49,6 +68,11 @@ export const ProductDetails: React.FC = () => {
     is_delivered: boolean;
     has_reviewed: boolean;
     message: string;
+    existing_review?: {
+      rating: number;
+      review: string;
+      photo_url?: string;
+    };
   } | null>(null);
 
   useEffect(() => {
@@ -59,6 +83,9 @@ export const ProductDetails: React.FC = () => {
           if (res.data.existing_review) {
             setReviewRating(res.data.existing_review.rating);
             setReviewText(res.data.existing_review.review);
+            if (res.data.existing_review.photo_url) {
+              setReviewPhotoUrl(res.data.existing_review.photo_url);
+            }
           }
         })
         .catch(() => setReviewEligibility(null));
@@ -75,7 +102,7 @@ export const ProductDetails: React.FC = () => {
       .then((res) => {
         const prodData: Product = res.data;
         setProduct(prodData);
-        setSelectedImage(prodData.images[0]?.image_url || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1000&q=80');
+        setSelectedImage(prodData.images?.[0]?.image_url || '');
         if (prodData.variants && prodData.variants.length > 0) {
           setSelectedVariant(prodData.variants[0]);
         }
@@ -90,9 +117,14 @@ export const ProductDetails: React.FC = () => {
           .then((rRes) => setReviews(rRes.data))
           .catch((err) => console.error(err));
 
-        api.get(`/products?category_slug=${prodData.category?.slug}&limit=4`)
-          .then((relRes) => setRelatedProducts(relRes.data.filter((p: Product) => p.id !== prodData.id)))
-          .catch((err) => console.error(err));
+        api.get(`/products/${prodData.slug}/complementary?limit=4`)
+          .then((relRes) => setRelatedProducts(relRes.data))
+          .catch((err) => {
+            console.error(err);
+            api.get(`/products?category_slug=${prodData.category?.slug}&limit=4`)
+              .then((fb) => setRelatedProducts(fb.data.filter((p: Product) => p.id !== prodData.id)))
+              .catch(() => {});
+          });
       })
       .catch((err) => {
         console.error(err);
@@ -128,6 +160,31 @@ export const ProductDetails: React.FC = () => {
     }
   };
 
+  const handleSubscribeStockAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifyEmail.trim() || !product) {
+      showToast('Please enter a valid email address', 'error');
+      return;
+    }
+
+    const variantKey = selectedVariant ? `${product.id}-${selectedVariant.id}` : `${product.id}-all`;
+    try {
+      setIsSubmittingNotify(true);
+      const res = await api.post(`/products/${product.id}/notify-stock`, {
+        email: notifyEmail.trim(),
+        variant_id: selectedVariant?.id || undefined,
+        variant_value: selectedVariant?.variant_value || undefined,
+      });
+      showToast(res.data.message || 'You are on the priority restock list!', 'success');
+      setNotifiedVariants((prev) => ({ ...prev, [variantKey]: true }));
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Failed to register for restock alert';
+      showToast(msg, 'error');
+    } finally {
+      setIsSubmittingNotify(false);
+    }
+  };
+
   const handleDeleteThisProduct = async () => {
     if (!product) return;
     if (window.confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
@@ -138,6 +195,37 @@ export const ProductDetails: React.FC = () => {
       } catch {
         showToast('Failed to delete product', 'error');
       }
+    }
+  };
+
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Photo must be under 5MB', 'error');
+      return;
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/reviews/upload-photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setReviewPhotoUrl(res.data.photo_url);
+      showToast('📸 Glow / Look photo attached successfully!', 'success');
+    } catch (err: any) {
+      console.warn('File upload endpoint fallback to data URL:', err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReviewPhotoUrl(reader.result as string);
+        showToast('📸 Photo attached successfully!', 'success');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
 
@@ -155,16 +243,86 @@ export const ProductDetails: React.FC = () => {
         product_id: product?.id,
         rating: reviewRating,
         review: reviewText,
+        photo_url: reviewPhotoUrl || undefined,
       });
-      setReviews((prev) => [res.data, ...prev]);
-      setReviewText('');
-      showToast('Thank you! Your review has been submitted.', 'success');
+      setReviews((prev) => {
+        const filtered = prev.filter((r) => r.id !== res.data.id && r.user_id !== res.data.user_id);
+        return [res.data, ...filtered];
+      });
+      showToast('✨ Thank you! Your review has been published.', 'success');
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to submit review. Only verified purchasers can review.';
+      const msg = err.response?.data?.detail || 'Failed to submit review. Please try again.';
       showToast(msg, 'error');
     } finally {
       setIsSubmittingReview(false);
     }
+  };
+
+  // Instant Social Share State & Handlers
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const getShareUrl = () => {
+    return typeof window !== 'undefined' ? window.location.href : '';
+  };
+
+  const getShareTitle = () => {
+    if (!product) return 'YURAE | Luxury Fashion & Beauty';
+    const priceText = `₹${(product.sale_price || product.price).toLocaleString()} INR`;
+    return isFashion
+      ? `✨ ${product.name} (${priceText}) — Yurae Luxury Fashion`
+      : isAccessories
+      ? `✨ ${product.name} (${priceText}) — Yurae Luxury Accessories`
+      : `✨ ${product.name} (${priceText}) — Yurae Botanical Skincare`;
+  };
+
+  const handleCopyLink = async () => {
+    const url = getShareUrl();
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedLink(true);
+      showToast('✨ Product link copied to clipboard!', 'success');
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      showToast('Failed to copy link', 'error');
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    const url = getShareUrl();
+    const title = getShareTitle();
+    const categoryTag = isFashion ? 'Luxury Minimalist Fashion' : isAccessories ? 'Artisanal Luxury Jewelry' : 'Korean-Inspired Botanical Skincare';
+    const text = `${title}\n🌟 ${categoryTag}\n\n👉 Discover the look & ritual:\n${url}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handlePinterestShare = () => {
+    const url = getShareUrl();
+    const media = selectedImage || (product?.images && product.images[0]?.image_url) || '';
+    const desc = `${product?.name || 'Yurae'} — ${product?.short_description || product?.description || 'Luxury Outfits & Skincare by Yurae'}`;
+    window.open(
+      `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}&media=${encodeURIComponent(media)}&description=${encodeURIComponent(desc)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
+
+  const handleInstagramShare = async () => {
+    await handleCopyLink();
+    showToast('📸 Link copied! Opening Instagram to share with friends or Story...', 'info');
+    setTimeout(() => {
+      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+    }, 700);
   };
 
   if (loading || !product) {
@@ -192,8 +350,30 @@ export const ProductDetails: React.FC = () => {
   const isFashion = categorySlug === 'fashion' || categoryName.includes('fashion') || categoryName.includes('dress') || categoryName.includes('apparel') || categoryName.includes('kurti') || categoryName.includes('saree') || categoryName.includes('clothing');
   const isAccessories = categorySlug === 'accessories' || categoryName.includes('accessories') || categoryName.includes('jewelry') || categoryName.includes('bag') || categoryName.includes('pendant') || categoryName.includes('ring') || categoryName.includes('earring');
 
+  const calculatedRating = product.rating || (reviews.length > 0 ? Number((reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)) : 5.0);
+  const effectivePrice = product.sale_price || product.price;
+
   return (
     <div className="pb-24 pt-8 bg-[#FDF4F7]">
+      <SEO
+        title={`${product.name} — Luxury ${product.category?.name || 'Beauty'} | YURAE`}
+        description={`${product.short_description || (product.description ? product.description.slice(0, 160) + '...' : 'Luxury Korean-inspired formulation.')} ₹${effectivePrice.toLocaleString()} INR. Complimentary express shipping & signature packaging.`}
+        image={selectedImage || product.images?.[0]?.image_url || '/images/hero-skincare-model.jpg'}
+        type="product"
+        price={effectivePrice}
+        currency="INR"
+        availability={product.stock_quantity > 0 ? 'InStock' : 'OutOfStock'}
+        brand="YURAE"
+        sku={product.sku || `YURAE-${product.id}`}
+        category={product.category?.name || 'Skincare'}
+        ratingValue={calculatedRating}
+        reviewCount={product.reviews_count || reviews.length || 1}
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: product.category?.name || 'Shop', url: `/shop?category=${product.category?.slug || ''}` },
+          { name: product.name, url: `/product/${product.id}` },
+        ]}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumbs */}
@@ -258,7 +438,11 @@ export const ProductDetails: React.FC = () => {
               </h1>
 
               {/* Rating */}
-              <div className="flex items-center gap-3 pt-1">
+              <a
+                href="#client-reviews"
+                className="flex items-center gap-3 pt-1 group hover:opacity-85 transition-opacity cursor-pointer inline-flex"
+                title="Jump to reviews"
+              >
                 <div className="flex text-[#D84B7E]">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -269,10 +453,13 @@ export const ProductDetails: React.FC = () => {
                     />
                   ))}
                 </div>
-                <span className="text-xs font-bold text-[#111111]">
+                <span className="text-xs font-bold text-[#111111] group-hover:underline">
                   {product.avg_rating || 5.0} ({product.review_count || reviews.length} client reviews)
                 </span>
-              </div>
+                <span className="text-[11px] text-[#D84B7E] font-bold group-hover:underline">
+                  Write a review ↓
+                </span>
+              </a>
 
               {/* Price with Currency Conversion */}
               <div className="flex items-baseline gap-3 pt-3">
@@ -289,7 +476,21 @@ export const ProductDetails: React.FC = () => {
                 </span>
               </div>
 
-              {/* Short Desc */}
+              {/* Short Desc & Net Weight Badge */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {product.weight && (
+                  <span className="text-xs bg-[#FFF0F5] text-[#D84B7E] font-bold px-3 py-1 rounded-full border border-[#F1BCCE] flex items-center gap-1.5 shadow-2xs">
+                    <span>⚖️</span>
+                    <span>Net Wt: {product.weight}</span>
+                  </span>
+                )}
+                {product.skin_type && (
+                  <span className="text-xs bg-[#F8D7E3] text-[#111111] font-bold px-3 py-1 rounded-full border border-[#F1BCCE]">
+                    {product.skin_type}
+                  </span>
+                )}
+              </div>
+
               <p className="text-sm text-gray-700 font-normal leading-relaxed pt-2">
                 {product.short_description || product.description}
               </p>
@@ -298,62 +499,202 @@ export const ProductDetails: React.FC = () => {
             {/* Variants Selector */}
             {product.variants && product.variants.length > 0 && (
               <div className="space-y-3">
-                <label className="text-xs uppercase tracking-widest text-[#111111] font-bold block">
-                  Select {product.variants[0].variant_name}
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {product.variants.map((variant) => (
-                    <button
-                      key={variant.id}
-                      onClick={() => setSelectedVariant(variant)}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        selectedVariant?.id === variant.id
-                          ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105'
-                          : 'bg-[#FFF8FA] border-[#F1BCCE] text-[#111111] hover:border-[#D84B7E]'
-                      }`}
-                    >
-                      {variant.variant_value}
-                      {variant.additional_price > 0 && ` (+${formatPrice(variant.additional_price)})`}
-                    </button>
-                  ))}
+                <div className="flex justify-between items-center">
+                  <label className="text-xs uppercase tracking-widest text-[#111111] font-bold block">
+                    Select {product.variants[0].variant_name}
+                  </label>
+                  {product.variants.some((v) => v.stock_quantity !== undefined && v.stock_quantity <= 0) && (
+                    <span className="text-[11px] text-[#D84B7E] font-medium flex items-center gap-1">
+                      <Bell className="w-3 h-3" /> Select a sold-out size to get a restock alert
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  {product.variants.map((variant) => {
+                    const isSelected = selectedVariant?.id === variant.id;
+                    const isVariantOutOfStock = variant.stock_quantity !== undefined && variant.stock_quantity <= 0;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => setSelectedVariant(variant)}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isVariantOutOfStock && isSelected
+                            ? 'bg-rose-50 border-[#D84B7E] text-[#D84B7E] ring-2 ring-[#F1BCCE] shadow-sm scale-105'
+                            : isVariantOutOfStock
+                            ? 'bg-gray-100 text-gray-500 border-gray-200 hover:border-[#F1BCCE] hover:text-[#111111]'
+                            : isSelected
+                            ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105'
+                            : 'bg-[#FFF8FA] border-[#F1BCCE] text-[#111111] hover:border-[#D84B7E]'
+                        }`}
+                      >
+                        <span>{variant.variant_value}</span>
+                        {variant.additional_price > 0 && <span>(+{formatPrice(variant.additional_price)})</span>}
+                        {isVariantOutOfStock && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                            isSelected ? 'bg-[#D84B7E] text-white' : 'bg-red-100 text-red-700'
+                          }`}>
+                            Sold Out 🔔
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Quantity Selector & CTA Buttons */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border border-[#F1BCCE] rounded-full bg-[#FFF8FA] px-3 py-2">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-1 text-gray-600 hover:text-black cursor-pointer"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <span className="px-4 text-sm font-bold text-[#111111]">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="p-1 text-gray-600 hover:text-black cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+            {/* Real-time Inventory Stock Status */}
+            {(() => {
+              const currentStock = selectedVariant && selectedVariant.stock_quantity !== undefined
+                ? selectedVariant.stock_quantity
+                : product.stock_quantity;
+
+              return (
+                <div className="pt-1">
+                  {currentStock <= 0 ? (
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-300 shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                      <span>
+                        {selectedVariant
+                          ? `Size ${selectedVariant.variant_value} Out of Stock`
+                          : 'Out of Stock — Sold Out'}
+                      </span>
+                    </div>
+                  ) : currentStock < 5 ? (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 via-orange-100 to-amber-100 text-amber-900 text-xs font-bold rounded-2xl border border-amber-300 shadow-sm animate-pulse">
+                      <span className="text-sm">⚡</span>
+                      <span>
+                        Low Stock Alert: Only {currentStock} {currentStock === 1 ? 'item' : 'items'} left
+                        {selectedVariant ? ` in size ${selectedVariant.variant_value}` : ' in stock'} — order soon!
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span>
+                        In Stock ({currentStock} units available
+                        {selectedVariant ? ` for size ${selectedVariant.variant_value}` : ''})
+                      </span>
+                    </div>
+                  )}
                 </div>
+              );
+            })()}
 
-                <button
-                  onClick={handleAddToCart}
-                  className="flex-1 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  {isFashion ? 'Add to Bag' : isAccessories ? 'Add to Bag' : 'Add to Beauty Bag'}
-                </button>
-              </div>
+            {/* Quantity Selector & CTA Buttons */}
+            {(() => {
+              const currentStock = selectedVariant && selectedVariant.stock_quantity !== undefined
+                ? selectedVariant.stock_quantity
+                : product.stock_quantity;
+              const isOutOfStock = currentStock <= 0;
 
-              <button
-                onClick={handleBuyNow}
-                className="w-full py-3.5 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all shadow-md cursor-pointer"
-              >
-                Buy Now — Express Checkout
-              </button>
+              const variantKey = selectedVariant ? `${product.id}-${selectedVariant.id}` : `${product.id}-all`;
+              const hasSubscribedForCurrent = Boolean(notifiedVariants[variantKey]);
+
+              return (
+                <div className="space-y-4 pt-2">
+                  {isOutOfStock ? (
+                    <div className="p-5 bg-[#FFF0F5] border border-[#F1BCCE] rounded-3xl space-y-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2.5 bg-white text-[#D84B7E] rounded-2xl border border-[#F1BCCE] shrink-0 shadow-2xs">
+                          <Bell className="w-5 h-5 animate-bounce" />
+                        </div>
+                        <div>
+                          <h4 className="font-serif text-base font-bold text-[#111111]">
+                            {selectedVariant
+                              ? `Size ${selectedVariant.variant_value} is Currently Sold Out`
+                              : 'This Item is Currently Sold Out'}
+                          </h4>
+                          <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
+                            Leave your email below to receive an instant priority notification the moment inventory is restocked.
+                          </p>
+                        </div>
+                      </div>
+
+                      {hasSubscribedForCurrent ? (
+                        <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-800 text-xs font-bold flex items-center gap-2.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>
+                            ✓ You're on the priority list! We'll alert you at <span className="underline font-bold">{notifyEmail}</span> the moment {selectedVariant ? `Size ${selectedVariant.variant_value}` : 'this item'} returns.
+                          </span>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleSubscribeStockAlert} className="space-y-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="relative flex-1">
+                              <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                              <input
+                                type="email"
+                                value={notifyEmail}
+                                onChange={(e) => setNotifyEmail(e.target.value)}
+                                required
+                                placeholder="Enter your email address..."
+                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#F1BCCE] rounded-full text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                              />
+                            </div>
+                            <button
+                              type="submit"
+                              disabled={isSubmittingNotify}
+                              className="px-6 py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-sm cursor-pointer shrink-0 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                              {isSubmittingNotify ? 'Registering...' : 'Notify Me'}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-gray-500 italic pl-1">
+                            Private alert • We will only email you once when restocked.
+                          </p>
+                        </form>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center border border-[#F1BCCE] rounded-full bg-[#FFF8FA] px-3 py-2">
+                          <button
+                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                            disabled={isOutOfStock}
+                            className="p-1 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="px-4 text-sm font-bold text-[#111111]">{quantity}</span>
+                          <button
+                            onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))}
+                            disabled={isOutOfStock || quantity >= currentStock}
+                            className="p-1 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={handleAddToCart}
+                          disabled={isOutOfStock}
+                          className="flex-1 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {isFashion
+                            ? 'Add to Bag'
+                            : isAccessories
+                            ? 'Add to Bag'
+                            : 'Add to Beauty Bag'}
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={handleBuyNow}
+                        disabled={isOutOfStock}
+                        className="w-full py-3.5 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all shadow-md cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Buy Now — Express Checkout
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
               {isAdmin && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -373,6 +714,97 @@ export const ProductDetails: React.FC = () => {
                   </button>
                 </div>
               )}
+
+            {/* INSTANT SOCIAL SHARING BAR */}
+            <div className="p-4 sm:p-5 bg-gradient-to-br from-[#FFF8FA] via-[#FDF4F7] to-[#FFF0F5] border border-[#F1BCCE] rounded-3xl space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-[#FCE7F0] border border-[#F1BCCE] flex items-center justify-center text-[#D84B7E] shrink-0">
+                    <Share2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#111111]">
+                      {isFashion
+                        ? 'Share Outfit with Friends'
+                        : isAccessories
+                        ? 'Share Style with Friends'
+                        : 'Share Beauty with Friends'}
+                    </h4>
+                    <p className="text-[10px] text-gray-500">
+                      Send to your group chat, stories, or moodboard
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#D84B7E] bg-pink-100/70 px-2.5 py-0.5 rounded-full border border-[#F1BCCE]">
+                  Instant Share
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                {/* WhatsApp */}
+                <button
+                  type="button"
+                  onClick={handleWhatsAppShare}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#E8F8F0] hover:bg-[#D1F2E0] text-[#1B6F45] border border-[#BDE5D0] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group"
+                  title="Share on WhatsApp"
+                >
+                  <svg className="w-4 h-4 fill-[#25D366] shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.072-1.042-.062-.239-.078-.544-.197-1.258-.507-1.874-.814-3.072-2.73-3.167-2.855-.095-.126-.757-1.007-.757-1.922s.475-1.365.644-1.554c.168-.189.367-.236.49-.236.122 0 .245.001.353.007.113.006.264-.042.413.315.153.367.522 1.272.568 1.365.046.094.076.204.015.326-.061.122-.092.198-.183.305-.091.107-.193.24-.275.322-.092.091-.188.19-.081.374.107.183.476.786 1.021 1.272.702.627 1.294.821 1.478.913.184.092.291.077.399-.046.108-.123.46-.537.583-.721.123-.184.246-.153.414-.092.169.061 1.072.506 1.256.598.184.092.307.138.353.215.046.077.046.444-.098.849z"/>
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.66 1.434 5.176L2 22l4.981-1.393A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.637 0-3.155-.47-4.437-1.282l-.318-.202-2.956.826.837-2.883-.223-.335A8.136 8.136 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z"/>
+                  </svg>
+                  <span>WhatsApp</span>
+                </button>
+
+                {/* Instagram */}
+                <button
+                  type="button"
+                  onClick={handleInstagramShare}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#FDF0F5] hover:bg-[#FCE2EC] text-[#B82B60] border border-[#F6C2D6] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group"
+                  title="Share on Instagram"
+                >
+                  <svg className="w-4 h-4 fill-[#E1306C] shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                  <span>Instagram</span>
+                </button>
+
+                {/* Pinterest */}
+                <button
+                  type="button"
+                  onClick={handlePinterestShare}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#FFF0F2] hover:bg-[#FDE2E6] text-[#C4122C] border border-[#F7C6CD] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group"
+                  title="Pin on Pinterest"
+                >
+                  <svg className="w-4 h-4 fill-[#E60023] shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                    <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.098.119.112.224.083.345-.09.375-.291 1.199-.33 1.365-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 12-5.373 12-12 0-6.628-5.393-12-12-12z"/>
+                  </svg>
+                  <span>Pinterest</span>
+                </button>
+
+                {/* Copy Link */}
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group border ${
+                    copiedLink
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white hover:bg-[#FDF4F7] text-[#111111] border-[#F1BCCE]'
+                  }`}
+                  title="Copy Product Link"
+                >
+                  {copiedLink ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-4 h-4 text-[#D84B7E] shrink-0 group-hover:rotate-12 transition-transform" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Key Trust Signals */}
@@ -489,7 +921,7 @@ export const ProductDetails: React.FC = () => {
         </div>
 
         {/* CLIENT REVIEWS SECTION */}
-        <section className="mt-20 pt-12 border-t border-[#F1BCCE]">
+        <section id="client-reviews" className="mt-20 pt-12 border-t border-[#F1BCCE]">
           <div className="max-w-3xl mx-auto space-y-8">
             <div className="text-center space-y-2">
               <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Feedback</span>
@@ -501,27 +933,37 @@ export const ProductDetails: React.FC = () => {
             {/* Submit Review Box */}
             <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
               <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-[#F1BCCE]">
-                <h3 className="font-serif text-lg font-bold text-[#111111]">Share Your Experience</h3>
-                {reviewEligibility?.eligible && (
+                <h3 className="font-serif text-lg font-bold text-[#111111]">
+                  {reviewEligibility?.has_reviewed ? 'Edit Your Review' : 'Share Your Experience'}
+                </h3>
+                {reviewEligibility?.is_delivered ? (
                   <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-full tracking-wider border border-emerald-300">
                     ✓ Verified Delivered Buyer
                   </span>
-                )}
+                ) : reviewEligibility?.has_purchased ? (
+                  <span className="px-3 py-1 bg-pink-100 text-[#D84B7E] text-[10px] font-bold uppercase rounded-full tracking-wider border border-[#F1BCCE]">
+                    ✓ Verified Customer
+                  </span>
+                ) : isAuthenticated ? (
+                  <span className="px-3 py-1 bg-white text-gray-700 text-[10px] font-bold uppercase rounded-full tracking-wider border border-[#F1BCCE]">
+                    ★ Community Review
+                  </span>
+                ) : null}
               </div>
 
               {!isAuthenticated ? (
                 <div className="p-6 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl text-center space-y-3">
                   <p className="text-xs text-gray-700">
-                    Please sign in to write a review for products delivered to your account.
+                    Please sign in to write a review and share your {isFashion ? 'fashion look' : isAccessories ? 'styling photo' : 'skincare glow'}.
                   </p>
                   <a
                     href={`/login?redirect=/product/${slug}`}
                     className="inline-block px-6 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all shadow-xs"
                   >
-                    Sign In to Review
+                    Sign In to Write a Review
                   </a>
                 </div>
-              ) : reviewEligibility?.eligible ? (
+              ) : (
                 <form onSubmit={handleReviewSubmit} className="space-y-4">
                   <div>
                     <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
@@ -547,7 +989,7 @@ export const ProductDetails: React.FC = () => {
 
                   <div>
                     <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
-                      Written Review *
+                      Review *
                     </label>
                     <textarea
                       rows={3}
@@ -558,63 +1000,140 @@ export const ProductDetails: React.FC = () => {
                           ? 'Describe fabric comfort, quality, sizing fit, and elegance...'
                           : isAccessories
                           ? 'Describe material finish, shine, craftsmanship, and styling...'
-                          : 'Describe formulation texture, hydration, scent, and results...'
+                          : 'Describe formulation texture, hydration, scent, and radiance results...'
                       }
                       className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
                       required
                     />
                   </div>
 
+                  {/* Photo Upload for Skincare Glow / Fashion Look */}
+                  <div>
+                    <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5 text-[#D84B7E]" />
+                        {isFashion
+                          ? 'Upload Your Fashion Look Photo (Optional)'
+                          : isAccessories
+                          ? 'Upload Styling Photo (Optional)'
+                          : 'Upload Your Skincare Glow Photo (Optional)'}
+                      </span>
+                      {isUploadingPhoto && (
+                        <span className="text-[10px] text-[#D84B7E] font-bold animate-pulse">
+                          Uploading photo...
+                        </span>
+                      )}
+                    </label>
+
+                    {reviewPhotoUrl ? (
+                      <div className="flex items-center gap-3 p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl">
+                        <div className="relative group">
+                          <img
+                            src={reviewPhotoUrl}
+                            alt="Glow Preview"
+                            className="w-16 h-16 rounded-xl object-cover border border-[#F1BCCE]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setReviewPhotoUrl('')}
+                            className="absolute -top-1.5 -right-1.5 p-1 bg-[#D84B7E] text-white rounded-full hover:bg-black transition-colors cursor-pointer shadow-xs"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="flex-1 text-xs">
+                          <p className="font-bold text-gray-800">📸 Photo Attached</p>
+                          <p className="text-[11px] text-gray-500">
+                            Your photo will be showcased in the client review gallery.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 bg-[#FDF4F7] border border-dashed border-[#F1BCCE] hover:border-[#D84B7E] rounded-2xl cursor-pointer transition-colors text-xs font-bold text-gray-700">
+                        <Upload className="w-4 h-4 text-[#D84B7E]" />
+                        <span>Upload photo of your glow or look</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoFileChange}
+                          className="hidden"
+                          disabled={isUploadingPhoto}
+                        />
+                      </label>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
-                    disabled={isSubmittingReview}
-                    className="px-6 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                    disabled={isSubmittingReview || isUploadingPhoto}
+                    className="px-6 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
                   >
+                    <Sparkles className="w-3.5 h-3.5" />
                     {isSubmittingReview
-                      ? 'Submitting...'
-                      : reviewEligibility.has_reviewed
+                      ? 'Publishing...'
+                      : reviewEligibility?.has_reviewed
                       ? 'Update Review'
                       : 'Submit Review'}
                   </button>
                 </form>
-              ) : reviewEligibility?.has_purchased && !reviewEligibility?.is_delivered ? (
-                <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-1.5 text-amber-900">
-                  <span className="font-bold flex items-center gap-1.5 text-amber-800">
-                    ⏳ Review Available Once Delivered
-                  </span>
-                  <p className="text-gray-600">
-                    Your order for this item is currently in transit. You will be able to share your review thoughts once the package has been delivered.
-                  </p>
-                </div>
-              ) : (
-                <div className="p-5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl text-xs space-y-1.5 text-gray-700">
-                  <span className="font-bold flex items-center gap-1.5 text-[#111111]">
-                    🔒 Verified Delivered Purchase Required
-                  </span>
-                  <p className="text-gray-500">
-                    To maintain authentic customer experiences, reviews can only be submitted by clients who have ordered and received this product.
-                  </p>
-                </div>
               )}
             </div>
 
             {/* Reviews List */}
             <div className="space-y-4">
               {reviews.length === 0 ? (
-                <p className="text-center py-8 text-sm text-gray-500 font-light">Be the first client to review this product!</p>
+                <p className="text-center py-8 text-sm text-gray-500 font-light">
+                  Be the first client to review this product and share your glow!
+                </p>
               ) : (
                 reviews.map((r) => (
-                  <div key={r.id} className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-sm text-[#111111]">{r.user_name}</span>
+                  <div key={r.id} className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-[#111111]">{r.user_name}</span>
+                          {r.is_verified_buyer ? (
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase rounded-full border border-emerald-300">
+                              ✓ Verified Buyer
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-pink-50 text-[#D84B7E] text-[9px] font-bold uppercase rounded-full border border-[#F1BCCE]">
+                              ✓ Verified Reviewer
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex text-[#D84B7E] mt-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'fill-[#D84B7E]' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                      </div>
                       <span className="text-[10px] text-gray-500">{new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
-                    <div className="flex text-[#D84B7E]">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? 'fill-[#D84B7E]' : 'text-gray-300'}`} />
-                      ))}
-                    </div>
-                    <p className="text-sm font-serif italic text-gray-800 leading-relaxed pt-1">{r.review}</p>
+
+                    <p className="text-sm font-serif italic text-gray-800 leading-relaxed">{r.review}</p>
+
+                    {/* Customer Glow Photo */}
+                    {r.photo_url && (
+                      <div className="pt-2 border-t border-[#F1BCCE]/40">
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-[#D84B7E] flex items-center gap-1 mb-1.5">
+                          <Sparkles className="w-3 h-3" /> Client Glow & Styling Showcase
+                        </span>
+                        <div
+                          onClick={() => setZoomedPhotoUrl(r.photo_url!)}
+                          className="relative inline-block group cursor-pointer overflow-hidden rounded-xl border border-[#F1BCCE] shadow-xs"
+                        >
+                          <img
+                            src={r.photo_url}
+                            alt="Customer Glow"
+                            className="w-24 h-24 sm:w-32 sm:h-32 object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1">
+                            <ZoomIn className="w-3.5 h-3.5" /> View Photo
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -622,17 +1141,91 @@ export const ProductDetails: React.FC = () => {
           </div>
         </section>
 
-        {/* RELATED PRODUCTS */}
-        {relatedProducts.length > 0 && (
-          <section className="mt-20 pt-12 border-t border-[#F1BCCE]">
-            <h2 className="font-serif text-2xl font-bold text-[#111111] mb-8">You May Also Like</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-              {relatedProducts.map((relProduct) => (
-                <ProductCard key={relProduct.id} product={relProduct} />
-              ))}
+        {/* Fullscreen Photo Lightbox Modal */}
+        {zoomedPhotoUrl && (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+            onClick={() => setZoomedPhotoUrl(null)}
+          >
+            <div
+              className="relative max-w-2xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setZoomedPhotoUrl(null)}
+                className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black text-white rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={zoomedPhotoUrl}
+                alt="Customer Glow Showcase"
+                className="w-full max-h-[80vh] object-contain rounded-2xl"
+              />
+              <div className="p-3 text-center text-xs font-serif italic text-gray-700">
+                ✨ Verified Customer Glow & Look on Yurae Beauty
+              </div>
             </div>
-          </section>
+          </div>
         )}
+
+        {/* COMPLEMENTARY PRODUCTS SECTION */}
+        {relatedProducts.length > 0 && (() => {
+          const catSlug = product?.category?.slug?.toLowerCase() || '';
+          const catName = product?.category?.name?.toLowerCase() || '';
+          const prodName = product?.name?.toLowerCase() || '';
+          const isSkincare = catSlug.includes('skincare') || catName.includes('skincare');
+          const isFashion = catSlug.includes('fashion') || catName.includes('fashion') || ['dress', 'kurti', 'skirt', 'top', 'saree'].some((w) => prodName.includes(w));
+          const isAccessories = catSlug.includes('accessories') || catName.includes('accessories') || ['ring', 'chain', 'necklace', 'earring', 'jewelry', 'bag'].some((w) => prodName.includes(w));
+
+          let sectionPill = '✨ Recommended Pairings';
+          let sectionTitle = 'Complete Your Ritual — Complementary Products';
+          let sectionSubtitle = 'Specially curated items crafted to harmonize seamlessly with your selection.';
+
+          if (isSkincare) {
+            sectionPill = '✨ Botanical Routine Harmony';
+            sectionTitle = 'Complete Your Skincare Ritual';
+            sectionSubtitle = `Pair your ${product?.name || 'selection'} with matching routine steps for optimal hydration and a luminous glow.`;
+          } else if (isFashion) {
+            sectionPill = '✨ Styled For You';
+            sectionTitle = 'Complete The Look — Recommended Pairings & Jewelry';
+            sectionSubtitle = `Handpicked luxury jewelry and accents tailored to elevate and complement this piece.`;
+          } else if (isAccessories) {
+            sectionPill = '✨ Coordinated Pairings';
+            sectionTitle = 'Complete Your Ensemble';
+            sectionSubtitle = `Ready-to-wear fashion and matching jewelry designed to accompany this luxury piece.`;
+          }
+
+          return (
+            <section className="mt-20 pt-12 border-t border-[#F1BCCE]">
+              <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#FCE7F0] border border-[#F1BCCE] text-[#D84B7E] text-[11px] uppercase tracking-wider font-bold rounded-full mb-2">
+                    {sectionPill}
+                  </span>
+                  <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#111111]">
+                    {sectionTitle}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-2xl font-light">
+                    {sectionSubtitle}
+                  </p>
+                </div>
+                <div className="hidden sm:block">
+                  <span className="text-xs text-gray-500 font-bold">
+                    Showing 4 Curated Recommendations
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {relatedProducts.slice(0, 4).map((relProduct) => (
+                  <ProductCard key={relProduct.id} product={relProduct} />
+                ))}
+              </div>
+            </section>
+          );
+        })()}
 
         {/* Admin Edit Modal */}
         {isEditModalOpen && product && (

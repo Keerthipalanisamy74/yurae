@@ -1,5 +1,14 @@
+import sys
+from pathlib import Path
+
+# Ensure backend directory is in sys.path
+backend_dir = Path(__file__).resolve().parent.parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 from sqlalchemy.orm import Session
 from app.database.session import SessionLocal, engine, Base
+import app.models.models  # Register all models with Base.metadata
 from app.models.models import User, Category, Product, ProductImage, ProductVariant, Coupon, Review, Cart, Address
 from app.core.security import get_password_hash
 from datetime import datetime, timedelta

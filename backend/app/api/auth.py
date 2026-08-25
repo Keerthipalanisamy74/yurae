@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
-from app.models.models import User, Address, Cart
+from app.models.models import User, Address, Cart, Order
 from app.schemas.schemas import (
     UserRegister, UserLogin, UserResponse, Token,
-    ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest, AddressCreate, AddressResponse
+    ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest, ChangePasswordRequest,
+    AddressCreate, AddressUpdate, AddressResponse
 )
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.api.deps import get_current_user
@@ -44,8 +45,10 @@ def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(user_in: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_in.email.lower()).first()
-    if not user or not verify_password(user_in.password, user.password_hash):
+    clean_email = user_in.email.strip().lower()
+    clean_password = user_in.password.strip()
+    user = db.query(User).filter(User.email == clean_email).first()
+    if not user or not verify_password(clean_password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
@@ -85,18 +88,59 @@ def update_profile(
 def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email.lower()).first()
     if not user:
-        # Return success anyway to avoid account enumeration
-        return {"message": "If that email exists in our records, password reset instructions have been sent."}
-    return {"message": "Password reset email sent (demo mode: reset token generated successfully)."}
+        # Generic message to avoid email enumeration
+        return {"message": "If that email is registered with Yurae, a verification code has been sent."}
+    
+    import random
+    from datetime import datetime, timedelta
+    from app.services.email_service import EmailService
+
+    # Generate 6-digit numeric OTP
+    otp = f"{random.randint(100000, 999999)}"
+    user.reset_otp = otp
+    user.reset_otp_expires_at = datetime.utcnow() + timedelta(minutes=15)
+    db.commit()
+
+    # Dispatch branded security email
+    EmailService.send_password_reset_otp(user.email, user.first_name, otp)
+
+    return {
+        "message": "Verification code has been sent to your email address.",
+        "expires_in_minutes": 15,
+        "dev_otp": otp  # Included for seamless testing in dev environments
+    }
+
+@router.post("/verify-reset-otp")
+def verify_reset_otp(req: VerifyOtpRequest, db: Session = Depends(get_db)):
+    from datetime import datetime
+    user = db.query(User).filter(User.email == req.email.lower()).first()
+    if not user or not user.reset_otp or user.reset_otp != req.otp.strip():
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+    
+    if user.reset_otp_expires_at and user.reset_otp_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new code.")
+    
+    return {"message": "Verification code is valid. You may now choose a new password."}
 
 @router.post("/reset-password")
 def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    from datetime import datetime
     user = db.query(User).filter(User.email == req.email.lower()).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="Invalid email or reset token")
+    if not user or not user.reset_otp or user.reset_otp != req.otp.strip():
+        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+    
+    if user.reset_otp_expires_at and user.reset_otp_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new code.")
+    
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+
     user.password_hash = get_password_hash(req.new_password)
+    user.reset_otp = None
+    user.reset_otp_expires_at = None
     db.commit()
-    return {"message": "Password reset successfully. You can now login with your new password."}
+
+    return {"message": "Your password has been successfully reset. You can now login with your new password."}
 
 @router.post("/change-password")
 def change_password(
@@ -121,7 +165,7 @@ def change_password(
 # --- Address Endpoints ---
 @router.get("/addresses", response_model=List[AddressResponse])
 def get_user_addresses(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Address).filter(Address.user_id == current_user.id).all()
+    return db.query(Address).filter(Address.user_id == current_user.id).order_by(Address.is_default.desc(), Address.id.desc()).all()
 
 @router.post("/addresses", response_model=AddressResponse)
 def create_user_address(
@@ -129,25 +173,71 @@ def create_user_address(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if addr_in.is_default:
+    existing_count = db.query(Address).filter(Address.user_id == current_user.id).count()
+    should_be_default = addr_in.is_default or (existing_count == 0)
+
+    if should_be_default:
         db.query(Address).filter(Address.user_id == current_user.id).update({"is_default": False})
     
     new_addr = Address(
         user_id=current_user.id,
+        address_type=addr_in.address_type or "Home",
         name=addr_in.name,
         phone=addr_in.phone,
         address_line1=addr_in.address_line1,
         address_line2=addr_in.address_line2,
+        building_or_flat=addr_in.building_or_flat,
+        landmark=addr_in.landmark,
         city=addr_in.city,
         state=addr_in.state,
         postal_code=addr_in.postal_code,
-        country=addr_in.country,
-        is_default=addr_in.is_default
+        country=addr_in.country or "India",
+        is_default=should_be_default
     )
     db.add(new_addr)
     db.commit()
     db.refresh(new_addr)
     return new_addr
+
+@router.put("/addresses/{address_id}", response_model=AddressResponse)
+def update_user_address(
+    address_id: int,
+    addr_in: AddressUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    addr = db.query(Address).filter(Address.id == address_id, Address.user_id == current_user.id).first()
+    if not addr:
+        raise HTTPException(status_code=404, detail="Address not found")
+
+    update_data = addr_in.model_dump(exclude_unset=True) if hasattr(addr_in, "model_dump") else addr_in.dict(exclude_unset=True)
+
+    if update_data.get("is_default"):
+        db.query(Address).filter(Address.user_id == current_user.id).update({"is_default": False})
+
+    for field, val in update_data.items():
+        setattr(addr, field, val)
+
+    db.commit()
+    db.refresh(addr)
+    return addr
+
+@router.put("/addresses/{address_id}/set-default", response_model=AddressResponse)
+def set_default_address(
+    address_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    addr = db.query(Address).filter(Address.id == address_id, Address.user_id == current_user.id).first()
+    if not addr:
+        raise HTTPException(status_code=404, detail="Address not found")
+
+    # Unset all other addresses
+    db.query(Address).filter(Address.user_id == current_user.id).update({"is_default": False})
+    addr.is_default = True
+    db.commit()
+    db.refresh(addr)
+    return addr
 
 @router.delete("/addresses/{address_id}")
 def delete_user_address(
@@ -158,6 +248,19 @@ def delete_user_address(
     addr = db.query(Address).filter(Address.id == address_id, Address.user_id == current_user.id).first()
     if not addr:
         raise HTTPException(status_code=404, detail="Address not found")
+    was_default = addr.is_default
+
+    # Unlink past orders referencing this address to prevent FK integrity errors
+    db.query(Order).filter(Order.address_id == addr.id).update({"address_id": None})
+    
     db.delete(addr)
     db.commit()
+
+    # If the deleted address was default, promote the newest remaining address to default
+    if was_default:
+        next_addr = db.query(Address).filter(Address.user_id == current_user.id).order_by(Address.id.desc()).first()
+        if next_addr:
+            next_addr.is_default = True
+            db.commit()
+
     return {"message": "Address deleted successfully"}

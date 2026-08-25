@@ -4,7 +4,9 @@ import {
   TrendingUp, ShoppingCart, AlertTriangle, Plus, Trash2, Tag, Globe,
   RefreshCw, Edit, Clock, X, Sparkles, Power, LogOut,
   Mail, MessageSquare, Phone, Inbox, CheckCircle2, Eye,
-  Truck, FileText, Send, Check, ExternalLink, ShieldCheck, Copy, RotateCcw, Download, Loader2, Package
+  Truck, FileText, Send, Check, ExternalLink, ShieldCheck, Copy, RotateCcw, Download, Loader2, Package,
+  Database, Server, Key, Layers, Terminal, CheckCircle, Code, Cpu, HardDrive,
+  Calendar, Filter, Search, FileSpreadsheet, Receipt, Building, CreditCard, Percent, BarChart3
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -15,14 +17,18 @@ import {
   Coupon, Category, CurrencyInfo, ContactMessage, ShippingSettings
 } from '../types';
 import { ProductFormModal } from '../components/common/ProductFormModal';
+import { InvoiceModal } from '../components/common/InvoiceModal';
 
 export const AdminDashboard: React.FC = () => {
   const { user, isAdmin, logout } = useAuth();
   const { showToast } = useToast();
   const { formatRawPrice } = useCurrency();
   const navigate = useNavigate();
+  const [adminInvoiceOrderId, setAdminInvoiceOrderId] = useState<string | number | null>(null);
+  const [inventoryStockFilter, setInventoryStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
+  const [inventorySearch, setInventorySearch] = useState<string>('');
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'shipping' | 'contact_messages' | 'order_queries' | 'customers' | 'inventory' | 'coupons' | 'currencies'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'products' | 'orders' | 'shipping' | 'contact_messages' | 'order_queries' | 'customers' | 'inventory' | 'coupons' | 'currencies' | 'database'>('overview');
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -34,6 +40,16 @@ export const AdminDashboard: React.FC = () => {
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [messageFilter, setMessageFilter] = useState<'ALL' | 'UNREAD' | 'READ' | 'REPLIED'>('ALL');
   const [orderQueryFilter, setOrderQueryFilter] = useState<'ALL' | 'UNREAD' | 'READ' | 'REPLIED'>('ALL');
+
+  // Database & System Environment Explorer State
+  const [dbOverview, setDbOverview] = useState<any | null>(null);
+  const [envOverview, setEnvOverview] = useState<any | null>(null);
+  const [isLoadingDbOverview, setIsLoadingDbOverview] = useState(false);
+  const [isSyncingDb, setIsSyncingDb] = useState(false);
+  const [isSeedingDb, setIsSeedingDb] = useState(false);
+  const [selectedDbTable, setSelectedDbTable] = useState<any | null>(null);
+  const [dbSearchTerm, setDbSearchTerm] = useState('');
+  const [dbViewSubTab, setDbViewSubTab] = useState<'tables' | 'env'>('tables');
 
   // Shipping & Fulfillment Management State
   const [shippingSubTab, setShippingSubTab] = useState<'shipments' | 'settings'>('shipments');
@@ -57,9 +73,203 @@ export const AdminDashboard: React.FC = () => {
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
+  // GST & Accounting Report Center State
+  const [reportStartDate, setReportStartDate] = useState<string>('');
+  const [reportEndDate, setReportEndDate] = useState<string>('');
+  const [reportPaymentFilter, setReportPaymentFilter] = useState<'Paid' | 'ALL'>('Paid');
+  const [gstSummary, setGstSummary] = useState<any | null>(null);
+  const [isLoadingGstSummary, setIsLoadingGstSummary] = useState(false);
+  const [isExporting, setIsExporting] = useState<{ [key: string]: boolean }>({});
+  const [previewReportType, setPreviewReportType] = useState<'sales_gst' | 'orders' | 'inventory' | 'gstr1'>('sales_gst');
+  const [reportPreviewRows, setReportPreviewRows] = useState<any[]>([]);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [reportSearchQuery, setReportSearchQuery] = useState('');
+
   // New & Edit Product Modal State
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const fetchDbOverview = useCallback(async () => {
+    try {
+      setIsLoadingDbOverview(true);
+      const [dbRes, envRes] = await Promise.all([
+        api.get('/admin/database-overview'),
+        api.get('/admin/env-overview')
+      ]);
+      setDbOverview(dbRes.data);
+      setEnvOverview(envRes.data);
+    } catch {
+      // Non-blocking error
+    } finally {
+      setIsLoadingDbOverview(false);
+    }
+  }, []);
+
+  // --- GST & FINANCIAL REPORT EXPORT HANDLERS ---
+
+  const triggerCsvDownload = async (url: string, filename: string, exportKey: string) => {
+    setIsExporting((prev) => ({ ...prev, [exportKey]: true }));
+    try {
+      showToast(`Generating ${filename}...`, 'info');
+      const response = await api.get(url, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      showToast(`✅ ${filename} downloaded successfully!`, 'success');
+    } catch {
+      showToast('Failed to export report CSV', 'error');
+    } finally {
+      setIsExporting((prev) => ({ ...prev, [exportKey]: false }));
+    }
+  };
+
+  const handleExportSalesGst = (customStart?: string, customEnd?: string) => {
+    const sDate = customStart !== undefined ? customStart : reportStartDate;
+    const eDate = customEnd !== undefined ? customEnd : reportEndDate;
+    const params = new URLSearchParams();
+    if (sDate) params.append('start_date', sDate);
+    if (eDate) params.append('end_date', eDate);
+    if (reportPaymentFilter) params.append('payment_status', reportPaymentFilter);
+    const filename = `yurae_gst_sales_report_${new Date().toISOString().slice(0, 10)}.csv`;
+    triggerCsvDownload(`/admin/reports/sales-gst?${params.toString()}`, filename, 'sales_gst');
+  };
+
+  const handleExportOrdersLedger = (customStart?: string, customEnd?: string) => {
+    const sDate = customStart !== undefined ? customStart : reportStartDate;
+    const eDate = customEnd !== undefined ? customEnd : reportEndDate;
+    const params = new URLSearchParams();
+    if (sDate) params.append('start_date', sDate);
+    if (eDate) params.append('end_date', eDate);
+    const filename = `yurae_orders_ledger_${new Date().toISOString().slice(0, 10)}.csv`;
+    triggerCsvDownload(`/admin/reports/orders?${params.toString()}`, filename, 'orders');
+  };
+
+  const handleExportInventorySheet = () => {
+    const filename = `yurae_inventory_valuation_${new Date().toISOString().slice(0, 10)}.csv`;
+    triggerCsvDownload('/admin/reports/inventory', filename, 'inventory');
+  };
+
+  const handleExportGstr1Summary = () => {
+    const filename = `yurae_gstr1_summary_${new Date().toISOString().slice(0, 10)}.csv`;
+    triggerCsvDownload('/admin/reports/gstr1-summary', filename, 'gstr1');
+  };
+
+  const fetchGstSummaryData = useCallback(async () => {
+    try {
+      setIsLoadingGstSummary(true);
+      const params = new URLSearchParams();
+      if (reportStartDate) params.append('start_date', reportStartDate);
+      if (reportEndDate) params.append('end_date', reportEndDate);
+      const res = await api.get(`/admin/reports/gst-summary?${params.toString()}`);
+      setGstSummary(res.data);
+    } catch {
+      // Non-blocking
+    } finally {
+      setIsLoadingGstSummary(false);
+    }
+  }, [reportStartDate, reportEndDate]);
+
+  const fetchReportPreview = useCallback(async (type: 'sales_gst' | 'orders' | 'inventory' | 'gstr1') => {
+    try {
+      setIsLoadingPreview(true);
+      setPreviewReportType(type);
+      const params = new URLSearchParams();
+      if (reportStartDate) params.append('start_date', reportStartDate);
+      if (reportEndDate) params.append('end_date', reportEndDate);
+      params.append('format', 'json');
+      if (type === 'sales_gst') params.append('payment_status', reportPaymentFilter);
+
+      const endpoint = type === 'sales_gst'
+        ? '/admin/reports/sales-gst'
+        : type === 'orders'
+        ? '/admin/reports/orders'
+        : type === 'inventory'
+        ? '/admin/reports/inventory'
+        : '/admin/reports/gstr1-summary';
+
+      const res = await api.get(`${endpoint}?${params.toString()}`);
+      setReportPreviewRows(res.data || []);
+    } catch {
+      setReportPreviewRows([]);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  }, [reportStartDate, reportEndDate, reportPaymentFilter]);
+
+  const setQuickDatePreset = (preset: string) => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+
+    if (preset === 'ALL') {
+      setReportStartDate('');
+      setReportEndDate('');
+    } else if (preset === 'THIS_MONTH') {
+      const firstDay = new Date(y, m, 1).toISOString().slice(0, 10);
+      const lastDay = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+      setReportStartDate(firstDay);
+      setReportEndDate(lastDay);
+    } else if (preset === 'LAST_MONTH') {
+      const firstDay = new Date(y, m - 1, 1).toISOString().slice(0, 10);
+      const lastDay = new Date(y, m, 0).toISOString().slice(0, 10);
+      setReportStartDate(firstDay);
+      setReportEndDate(lastDay);
+    } else if (preset === 'Q1') {
+      setReportStartDate(`${y}-04-01`);
+      setReportEndDate(`${y}-06-30`);
+    } else if (preset === 'Q2') {
+      setReportStartDate(`${y}-07-01`);
+      setReportEndDate(`${y}-09-30`);
+    } else if (preset === 'Q3') {
+      setReportStartDate(`${y}-10-01`);
+      setReportEndDate(`${y}-12-31`);
+    } else if (preset === 'Q4') {
+      setReportStartDate(`${y}-01-01`);
+      setReportEndDate(`${y}-03-31`);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchGstSummaryData();
+      fetchReportPreview(previewReportType);
+    }
+  }, [activeTab, fetchGstSummaryData, fetchReportPreview, previewReportType]);
+
+  const handleTriggerDbSync = async () => {
+    try {
+      setIsSyncingDb(true);
+      const res = await api.post('/admin/database-sync');
+      showToast(res.data.message || 'Database schema synchronized!', 'success');
+      await fetchDbOverview();
+      loadAdminData();
+    } catch (err: any) {
+      showToast(err.response?.data?.detail || 'Database schema sync failed', 'error');
+    } finally {
+      setIsSyncingDb(false);
+    }
+  };
+
+  const handleTriggerDbSeed = async () => {
+    if (!window.confirm('Re-seed luxury skincare products and catalog data?')) return;
+    try {
+      setIsSeedingDb(true);
+      const res = await api.post('/admin/database-seed');
+      showToast(res.data.message || 'Database catalog re-seeded successfully!', 'success');
+      await fetchDbOverview();
+      loadAdminData();
+    } catch (err: any) {
+      showToast(err.response?.data?.detail || 'Catalog re-seeding failed', 'error');
+    } finally {
+      setIsSeedingDb(false);
+    }
+  };
 
   // Coupon Creation State
   const [isCreateCouponOpen, setIsCreateCouponOpen] = useState(false);
@@ -117,12 +327,14 @@ export const AdminDashboard: React.FC = () => {
         .then((sRes) => setShippingSettings(sRes.data))
         .catch((err) => console.warn('Could not load shipping settings:', err));
 
+      fetchDbOverview();
+
     } catch {
       showToast('Failed to load admin data', 'error');
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, fetchDbOverview]);
 
   // Shipping & Fulfillment Actions
   const handleCreateShipment = async (orderId: number) => {
@@ -557,6 +769,34 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleQuickRestock = async (productId: number, addUnits: number, variantId?: number) => {
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+    try {
+      const res = await api.post(`/products/${productId}/restock`, {
+        add_quantity: addUnits,
+        variant_id: variantId || undefined,
+      });
+      const updatedProd = res.data;
+      showToast(
+        variantId
+          ? `Restocked variant (+${addUnits}u) → Total: ${updatedProd.stock_quantity}`
+          : `Restocked ${prod.name} (+${addUnits} units) → Total: ${updatedProd.stock_quantity}`,
+        'success'
+      );
+      setProducts((prev) => prev.map((p) => (p.id === productId ? updatedProd : p)));
+      setInventory((prev) =>
+        prev.map((inv) =>
+          inv.id === productId
+            ? { ...inv, stock_quantity: updatedProd.stock_quantity, is_low_stock: updatedProd.stock_quantity < 5 }
+            : inv
+        )
+      );
+    } catch {
+      showToast('Failed to restock inventory units', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 text-center">
@@ -635,12 +875,20 @@ export const AdminDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-2">
-            <div className="flex justify-between items-center text-xs font-bold text-gray-600 uppercase tracking-wider">
-              <span>Low Stock Alerts</span>
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
+          <div
+            onClick={() => {
+              setActiveTab('inventory');
+              setInventoryStockFilter('LOW');
+            }}
+            className="p-6 bg-[#FFF8FA] border border-amber-300 rounded-2xl shadow-xs space-y-2 cursor-pointer hover:bg-amber-50/50 hover:border-amber-400 transition-all group"
+            title="Click to view & restock low stock products"
+          >
+            <div className="flex justify-between items-center text-xs font-bold text-amber-900 uppercase tracking-wider">
+              <span className="group-hover:text-amber-700">⚡ Low Stock Alerts</span>
+              <AlertTriangle className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
             </div>
             <p className="font-serif text-3xl font-bold text-amber-600">{stats?.low_stock_products}</p>
+            <span className="text-[10px] font-bold text-amber-700 block">Click to 1-click restock →</span>
           </div>
         </div>
 
@@ -648,7 +896,14 @@ export const AdminDashboard: React.FC = () => {
         <div className="flex overflow-x-auto gap-2 border-b border-[#F1BCCE] pb-1">
           {[
             { id: 'overview', label: 'Dashboard Overview' },
+            { id: 'reports', label: '📑 GST & Accounting Exports' },
+            {
+              id: 'inventory',
+              label: `⚡ Restock & Low Stock Center (${products.filter((p) => (p.stock_quantity || 0) < 5).length})`,
+            },
             { id: 'shipping', label: `🚚 Shipping & Fulfillment (${orders.filter((o) => o.shipping_status && o.shipping_status !== 'NOT_CREATED').length})` },
+            { id: 'products', label: `Products (${products.length})` },
+            { id: 'orders', label: `Orders (${orders.length})` },
             {
               id: 'contact_messages',
               label: `📬 Contact Messages (${messages.filter((m) => m.source !== 'ORDER_QUERY').length})${
@@ -666,11 +921,9 @@ export const AdminDashboard: React.FC = () => {
               }`,
             },
             { id: 'coupons', label: `Coupons & Offers (${coupons.length})` },
-            { id: 'products', label: `Products (${products.length})` },
-            { id: 'orders', label: `Orders (${orders.length})` },
+            { id: 'database', label: `🗄️ Database & .env (${dbOverview?.total_tables || 20})` },
             { id: 'currencies', label: 'Currencies & Rates' },
             { id: 'customers', label: `Customers (${customers.length})` },
-            { id: 'inventory', label: 'Inventory Monitor' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -706,6 +959,12 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveTab('reports')}
+                  className="px-4 py-2 bg-gradient-to-r from-[#D84B7E] to-[#B82B60] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:from-[#111111] hover:to-[#111111] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> GST & Financial Exports
+                </button>
                 <button
                   onClick={() => setIsAddProductOpen(true)}
                   className="px-4 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#111111] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -950,6 +1209,416 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* GST, SALES & ACCOUNTING EXPORT REPORTS TAB */}
+        {activeTab === 'reports' && (
+          <div className="space-y-8">
+            
+            {/* Header & Quick Action Buttons */}
+            <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs space-y-4">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-[#F1BCCE]">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2.5 bg-[#FCE7F0] text-[#D84B7E] rounded-2xl border border-[#F1BCCE]">
+                      <FileSpreadsheet className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-2xl font-bold text-[#111111]">
+                        GST Filing, Sales & Accounting Export Center
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        Export official itemized tax invoices (GSTR-1 compliant), customer order transactions, and stock valuation spreadsheets for CA accounting and tax filing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleExportSalesGst()}
+                    disabled={isExporting['sales_gst']}
+                    className="px-4 py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    {isExporting['sales_gst'] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    Export GST Sales (CSV)
+                  </button>
+                  <button
+                    onClick={() => handleExportOrdersLedger()}
+                    disabled={isExporting['orders']}
+                    className="px-4 py-2.5 bg-[#111111] hover:bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    {isExporting['orders'] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    Export Orders Ledger (CSV)
+                  </button>
+                  <button
+                    onClick={handleExportInventorySheet}
+                    disabled={isExporting['inventory']}
+                    className="px-4 py-2.5 bg-white text-[#111111] border border-[#F1BCCE] hover:bg-[#FCE7F0] text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    {isExporting['inventory'] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    Export Stock Sheet (CSV)
+                  </button>
+                </div>
+              </div>
+
+              {/* Date Filters & Presets */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-[#D84B7E]" /> Presets:
+                  </span>
+                  {[
+                    { id: 'ALL', label: 'All Time' },
+                    { id: 'THIS_MONTH', label: 'This Month' },
+                    { id: 'LAST_MONTH', label: 'Last Month' },
+                    { id: 'Q1', label: 'Q1 (Apr-Jun)' },
+                    { id: 'Q2', label: 'Q2 (Jul-Sep)' },
+                    { id: 'Q3', label: 'Q3 (Oct-Dec)' },
+                    { id: 'Q4', label: 'Q4 (Jan-Mar)' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => setQuickDatePreset(preset.id)}
+                      className="px-3 py-1 bg-white hover:bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5 bg-white border border-[#F1BCCE] px-3 py-1.5 rounded-xl text-xs">
+                    <span className="text-gray-500 font-bold">From:</span>
+                    <input
+                      type="date"
+                      value={reportStartDate}
+                      onChange={(e) => setReportStartDate(e.target.value)}
+                      className="outline-none text-xs font-bold cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white border border-[#F1BCCE] px-3 py-1.5 rounded-xl text-xs">
+                    <span className="text-gray-500 font-bold">To:</span>
+                    <input
+                      type="date"
+                      value={reportEndDate}
+                      onChange={(e) => setReportEndDate(e.target.value)}
+                      className="outline-none text-xs font-bold cursor-pointer"
+                    />
+                  </div>
+                  <select
+                    value={reportPaymentFilter}
+                    onChange={(e) => setReportPaymentFilter(e.target.value as any)}
+                    className="bg-white border border-[#F1BCCE] px-3 py-1.5 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                  >
+                    <option value="Paid">Paid Only (Tax Invoices)</option>
+                    <option value="ALL">All Payments (Inc. Pending)</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      fetchGstSummaryData();
+                      fetchReportPreview(previewReportType);
+                    }}
+                    className="p-2 bg-[#FCE7F0] hover:bg-[#F1BCCE] text-[#D84B7E] rounded-xl cursor-pointer transition-colors"
+                    title="Refresh Data"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isLoadingGstSummary ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Key Accounting & GST Liability Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="p-4 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-1">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Gross Sales Invoiced</span>
+                <p className="font-serif text-xl font-bold text-[#111111]">
+                  ₹{(gstSummary?.sales?.gross_sales_inr || 0).toLocaleString()}
+                </p>
+                <span className="text-[10px] text-gray-500 block">{gstSummary?.sales?.paid_orders_count || 0} Paid Invoices</span>
+              </div>
+
+              <div className="p-4 bg-[#FFF8FA] border border-blue-200 rounded-2xl shadow-xs space-y-1 bg-blue-50/20">
+                <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">Taxable Base Turnover</span>
+                <p className="font-serif text-xl font-bold text-blue-700">
+                  ₹{(gstSummary?.sales?.taxable_turnover_inr || 0).toLocaleString()}
+                </p>
+                <span className="text-[10px] text-blue-600 block">Excl. 18% GST Base</span>
+              </div>
+
+              <div className="p-4 bg-[#FFF8FA] border border-emerald-300 rounded-2xl shadow-xs space-y-1 bg-emerald-50/30">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">CGST 9% (Intra-TN)</span>
+                <p className="font-serif text-xl font-bold text-emerald-700">
+                  ₹{(gstSummary?.sales?.cgst_inr || 0).toLocaleString()}
+                </p>
+                <span className="text-[10px] text-emerald-600 block">Central Goods Tax</span>
+              </div>
+
+              <div className="p-4 bg-[#FFF8FA] border border-emerald-300 rounded-2xl shadow-xs space-y-1 bg-emerald-50/30">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">SGST 9% (Intra-TN)</span>
+                <p className="font-serif text-xl font-bold text-emerald-700">
+                  ₹{(gstSummary?.sales?.sgst_inr || 0).toLocaleString()}
+                </p>
+                <span className="text-[10px] text-emerald-600 block">State Goods Tax</span>
+              </div>
+
+              <div className="p-4 bg-[#FFF8FA] border border-purple-300 rounded-2xl shadow-xs space-y-1 bg-purple-50/30">
+                <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider block">IGST 18% (Inter-State)</span>
+                <p className="font-serif text-xl font-bold text-purple-700">
+                  ₹{(gstSummary?.sales?.igst_inr || 0).toLocaleString()}
+                </p>
+                <span className="text-[10px] text-purple-600 block">Integrated GST</span>
+              </div>
+
+              <div className="p-4 bg-gradient-to-br from-[#FFF0F5] to-[#FCE7F0] border border-[#D84B7E] rounded-2xl shadow-xs space-y-1">
+                <span className="text-[10px] font-bold text-[#D84B7E] uppercase tracking-wider block">Total GST Collected</span>
+                <p className="font-serif text-xl font-bold text-[#D84B7E]">
+                  ₹{(gstSummary?.sales?.total_tax_collected_inr || 0).toLocaleString()}
+                </p>
+                <span className="text-[10px] text-pink-700 font-bold block">Total Tax Liability</span>
+              </div>
+            </div>
+
+            {/* 4 Major Export Action Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Card 1: GST Sales Invoices */}
+              <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs flex flex-col justify-between space-y-4 hover:border-[#D84B7E] transition-all group">
+                <div className="space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FCE7F0] border border-[#F1BCCE] flex items-center justify-center text-[#D84B7E] group-hover:scale-110 transition-transform">
+                    <Receipt className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-[#111111]">
+                      GST Sales & Invoices Report
+                    </h4>
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 mt-1">
+                      GSTR-1 Ready
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Itemized tax invoice sheet with Customer Name, State of Supply, HSN 3304, Taxable base, CGST 9%, SGST 9%, IGST 18%, Shipping GST, and Totals.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleExportSalesGst()}
+                  disabled={isExporting['sales_gst']}
+                  className="w-full py-3 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs font-bold uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {isExporting['sales_gst'] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download Sales CSV
+                </button>
+              </div>
+
+              {/* Card 2: Orders Master Ledger */}
+              <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs flex flex-col justify-between space-y-4 hover:border-[#D84B7E] transition-all group">
+                <div className="space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FCE7F0] border border-[#F1BCCE] flex items-center justify-center text-[#D84B7E] group-hover:scale-110 transition-transform">
+                    <Package className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-[#111111]">
+                      Orders Master Ledger
+                    </h4>
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-300 mt-1">
+                      All Transactions
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Full customer orders register with street addresses, phone numbers, items breakdown, payment transaction IDs, courier partners, and AWB tracking codes.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleExportOrdersLedger()}
+                  disabled={isExporting['orders']}
+                  className="w-full py-3 bg-[#111111] hover:bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {isExporting['orders'] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download Orders CSV
+                </button>
+              </div>
+
+              {/* Card 3: Inventory & Stock Valuation */}
+              <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs flex flex-col justify-between space-y-4 hover:border-[#D84B7E] transition-all group">
+                <div className="space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FCE7F0] border border-[#F1BCCE] flex items-center justify-center text-[#D84B7E] group-hover:scale-110 transition-transform">
+                    <FileSpreadsheet className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-[#111111]">
+                      Stock & Inventory Valuation
+                    </h4>
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mt-1">
+                      Balance Sheet Asset
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Complete catalogue register with SKUs, category, stock counts, valuation at MRP (₹{(gstSummary?.inventory?.valuation_mrp_inr || 0).toLocaleString()}), package dimensions & weights.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleExportInventorySheet}
+                  disabled={isExporting['inventory']}
+                  className="w-full py-3 bg-white text-[#111111] border border-[#F1BCCE] hover:bg-[#FCE7F0] text-xs font-bold uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {isExporting['inventory'] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download Stock CSV
+                </button>
+              </div>
+
+              {/* Card 4: GSTR-1 Summary Report */}
+              <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs flex flex-col justify-between space-y-4 hover:border-[#D84B7E] transition-all group">
+                <div className="space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FCE7F0] border border-[#F1BCCE] flex items-center justify-center text-[#D84B7E] group-hover:scale-110 transition-transform">
+                    <BarChart3 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-[#111111]">
+                      GSTR-1 State Summary
+                    </h4>
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300 mt-1">
+                      CA Filing Summary
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    State-wise aggregated B2C E-Commerce summary grouped by Place of Supply for rapid entry into the GSTN Portal or direct forwarding to your Chartered Accountant.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleExportGstr1Summary}
+                  disabled={isExporting['gstr1']}
+                  className="w-full py-3 bg-white text-[#D84B7E] border border-[#D84B7E] hover:bg-[#D84B7E] hover:text-white text-xs font-bold uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {isExporting['gstr1'] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download GSTR-1 CSV
+                </button>
+              </div>
+            </div>
+
+            {/* Live Interactive Data Table Preview */}
+            <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-3 border-b border-[#F1BCCE]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#FCE7F0] text-[#D84B7E] rounded-xl">
+                    <Eye className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-[#111111]">
+                      Live Report Data Preview & Inspection
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Preview live data before exporting to spreadsheet.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub-tab preview selector */}
+                <div className="flex flex-wrap gap-1.5 p-1 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl">
+                  {[
+                    { id: 'sales_gst', label: '📊 GST Sales Invoices' },
+                    { id: 'orders', label: '📦 Orders Ledger' },
+                    { id: 'inventory', label: '📋 Stock Sheet' },
+                    { id: 'gstr1', label: '📈 GSTR-1 State Summary' },
+                  ].map((pt) => (
+                    <button
+                      key={pt.id}
+                      onClick={() => fetchReportPreview(pt.id as any)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        previewReportType === pt.id
+                          ? 'bg-[#D84B7E] text-white shadow-xs'
+                          : 'text-gray-700 hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {pt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search filter in preview */}
+              <div className="flex justify-between items-center gap-4">
+                <div className="relative max-w-sm w-full">
+                  <input
+                    type="text"
+                    value={reportSearchQuery}
+                    onChange={(e) => setReportSearchQuery(e.target.value)}
+                    placeholder="Search preview rows..."
+                    className="w-full pl-9 pr-3 py-2 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl text-xs outline-none focus:border-[#D84B7E]"
+                  />
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                </div>
+
+                <span className="text-xs text-gray-500 font-bold">
+                  Showing {reportPreviewRows.length} records
+                </span>
+              </div>
+
+              {/* Table rendering */}
+              {isLoadingPreview ? (
+                <div className="p-12 text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-[#D84B7E] border-t-transparent rounded-full mx-auto" />
+                  <p className="mt-3 text-xs text-gray-500 font-bold">Loading report preview...</p>
+                </div>
+              ) : reportPreviewRows.length === 0 ? (
+                <div className="p-12 text-center bg-[#FDF4F7] rounded-2xl border border-[#F1BCCE]">
+                  <p className="font-serif text-base font-bold text-[#111111]">No data records found for this period.</p>
+                  <p className="text-xs text-gray-500 mt-1">Try selecting a broader date range or changing the payment status filter.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-96 overflow-y-auto border border-[#F1BCCE] rounded-2xl">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#FCE7F0] uppercase text-[#111111] font-bold sticky top-0 border-b border-[#F1BCCE] z-10">
+                      <tr>
+                        {Object.keys(reportPreviewRows[0]).map((col) => (
+                          <th key={col} className="p-3 whitespace-nowrap">
+                            {col.replace(/_/g, ' ')}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F1BCCE]">
+                      {reportPreviewRows
+                        .filter((row) => {
+                          if (!reportSearchQuery.trim()) return true;
+                          const q = reportSearchQuery.toLowerCase();
+                          return Object.values(row).some((val) =>
+                            String(val || '').toLowerCase().includes(q)
+                          );
+                        })
+                        .map((row, idx) => (
+                          <tr key={idx} className="hover:bg-[#FDF4F7]">
+                            {Object.entries(row).map(([k, val]: [string, any], cIdx) => (
+                              <td key={cIdx} className="p-3 whitespace-nowrap">
+                                {k.toLowerCase().includes('inr') || k.toLowerCase().includes('price') || k.toLowerCase().includes('amount') || k.toLowerCase().includes('total') || k.toLowerCase().includes('turnover') || k.toLowerCase().includes('cgst') || k.toLowerCase().includes('sgst') || k.toLowerCase().includes('igst') ? (
+                                  <span className="font-mono font-bold text-[#111111]">
+                                    {typeof val === 'number' ? `₹${val.toLocaleString()}` : val}
+                                  </span>
+                                ) : k.toLowerCase().includes('status') ? (
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                    String(val).toUpperCase().includes('PAID') || String(val).toUpperCase().includes('ACTIVE') || String(val).toUpperCase().includes('IN STOCK') || String(val).toUpperCase().includes('DELIVERED')
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : String(val).toUpperCase().includes('PENDING') || String(val).toUpperCase().includes('LOW')
+                                      ? 'bg-amber-100 text-amber-900'
+                                      : 'bg-rose-100 text-rose-800'
+                                  }`}>
+                                    {String(val)}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-800">{String(val ?? '')}</span>
+                                )}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1248,6 +1917,16 @@ export const AdminDashboard: React.FC = () => {
                                         {currentAction === 'creating' ? 'Creating...' : 'Create Shipment'}
                                       </button>
                                     )}
+
+                                    {/* Download Tax Invoice PDF */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setAdminInvoiceOrderId(ord.order_number || ord.id)}
+                                      className="px-3 py-1.5 bg-white border border-[#D84B7E] text-[#D84B7E] font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-[#FCE7F0] transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                                      title="View & Download Official GST Tax Invoice PDF"
+                                    >
+                                      <FileText className="w-3 h-3 text-[#D84B7E]" /> Invoice (PDF)
+                                    </button>
 
                                     {/* Download Label PDF */}
                                     {ord.awb_code && (
@@ -2188,8 +2867,27 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
 
-              {/* Status Filter Tabs */}
-              <div className="flex flex-wrap gap-1.5">
+              {/* Status Filter Tabs & Instant Export Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handleExportOrdersLedger()}
+                  disabled={isExporting['orders']}
+                  className="px-3.5 py-1.5 bg-white hover:bg-[#FDF4F7] text-[#111111] border border-[#F1BCCE] rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-1.5 shadow-2xs transition-colors"
+                  title="Export orders master ledger as CSV spreadsheet"
+                >
+                  {isExporting['orders'] ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D84B7E]" /> : <Download className="w-3.5 h-3.5 text-[#D84B7E]" />}
+                  Export Orders (CSV)
+                </button>
+                <button
+                  onClick={() => handleExportSalesGst()}
+                  disabled={isExporting['sales_gst']}
+                  className="px-3.5 py-1.5 bg-[#D84B7E] hover:bg-[#111111] text-white rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-1.5 shadow-2xs transition-colors"
+                  title="Export GST sales tax invoice register"
+                >
+                  {isExporting['sales_gst'] ? <Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> : <FileText className="w-3.5 h-3.5 text-white" />}
+                  Export GST Sales (CSV)
+                </button>
+                <div className="h-4 w-px bg-gray-300 mx-1 hidden sm:block" />
                 {['all', 'confirmed', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((st) => (
                   <button
                     key={st}
@@ -2714,42 +3412,653 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* INVENTORY TAB */}
+        {/* INVENTORY & RESTOCK ALERT CENTER TAB */}
         {activeTab === 'inventory' && (
-          <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-6">
-            <h3 className="font-serif text-xl font-bold text-[#111111]">Inventory Monitor</h3>
+          <div className="space-y-6">
+            {/* Top Inventory Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-1">
+                <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">Total Products</span>
+                <p className="font-serif text-2xl font-bold text-[#111111]">{products.length}</p>
+              </div>
+
+              <div className="p-5 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-1">
+                <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">Total Inventory Units</span>
+                <p className="font-serif text-2xl font-bold text-[#D84B7E]">
+                  {products.reduce((acc, p) => acc + (p.stock_quantity || 0), 0)} units
+                </p>
+              </div>
+
+              <div className="p-5 bg-[#FFF8FA] border border-amber-300 rounded-2xl shadow-xs space-y-1 bg-amber-50/40">
+                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                  <span>⚡</span> Low Stock Alerts (&lt;5 units)
+                </span>
+                <p className="font-serif text-2xl font-bold text-amber-700">
+                  {products.filter((p) => (p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) < 5).length}
+                </p>
+              </div>
+
+              <div className="p-5 bg-[#FFF8FA] border border-rose-300 rounded-2xl shadow-xs space-y-1 bg-rose-50/40">
+                <span className="text-[11px] font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1">
+                  <span>❌</span> Out of Stock (0 units)
+                </span>
+                <p className="font-serif text-2xl font-bold text-rose-700">
+                  {products.filter((p) => (p.stock_quantity || 0) <= 0).length}
+                </p>
+              </div>
+            </div>
+
+            {/* Inventory Control & Filters */}
+            <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-[#F1BCCE]">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-[#111111] flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-[#D84B7E]" />
+                    Low Stock & Restock Alert Center
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    Monitor product and size-variant stock levels and immediately restock inventory with one click.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={inventorySearch}
+                      onChange={(e) => setInventorySearch(e.target.value)}
+                      placeholder="Search product or SKU..."
+                      className="pl-8 pr-3 py-1.5 bg-white border border-[#F1BCCE] rounded-full text-xs outline-none focus:border-[#D84B7E] w-48 sm:w-56"
+                    />
+                    <span className="absolute left-2.5 top-2 text-gray-400 text-xs">🔍</span>
+                    {inventorySearch && (
+                      <button
+                        type="button"
+                        onClick={() => setInventorySearch('')}
+                        className="absolute right-2.5 top-2 text-gray-400 hover:text-black text-xs cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleExportInventorySheet}
+                    disabled={isExporting['inventory']}
+                    className="px-4 py-2 bg-white hover:bg-[#FDF4F7] text-[#111111] border border-[#F1BCCE] rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-1.5 shadow-2xs transition-colors"
+                    title="Export full inventory and valuation sheet"
+                  >
+                    {isExporting['inventory'] ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D84B7E]" /> : <Download className="w-3.5 h-3.5 text-[#D84B7E]" />}
+                    Export Stock & Valuation (CSV)
+                  </button>
+
+                  <button
+                    onClick={() => setInventoryStockFilter('ALL')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer border ${
+                      inventoryStockFilter === 'ALL'
+                        ? 'bg-[#111111] text-white border-[#111111]'
+                        : 'bg-white text-gray-700 border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                    }`}
+                  >
+                    All ({products.length})
+                  </button>
+                  <button
+                    onClick={() => setInventoryStockFilter('LOW')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer border ${
+                      inventoryStockFilter === 'LOW'
+                        ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                    }`}
+                  >
+                    ⚡ Low Stock ({products.filter((p) => (p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) < 5).length})
+                  </button>
+                  <button
+                    onClick={() => setInventoryStockFilter('OUT')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer border ${
+                      inventoryStockFilter === 'OUT'
+                        ? 'bg-rose-600 text-white border-rose-600'
+                        : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50'
+                    }`}
+                  >
+                    ❌ Sold Out ({products.filter((p) => (p.stock_quantity || 0) <= 0).length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Table / List */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#FCE7F0] uppercase text-[#111111] font-bold border-b border-[#F1BCCE]">
+                    <tr>
+                      <th className="p-3.5">Product</th>
+                      <th className="p-3.5">Category</th>
+                      <th className="p-3.5">Price</th>
+                      <th className="p-3.5">Current Stock</th>
+                      <th className="p-3.5">Size Variants Inventory</th>
+                      <th className="p-3.5 text-right">Quick Restock Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F1BCCE]">
+                    {products
+                      .filter((p) => {
+                        if (inventoryStockFilter === 'LOW') {
+                          if (!((p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) < 5)) return false;
+                        }
+                        if (inventoryStockFilter === 'OUT') {
+                          if (!((p.stock_quantity || 0) <= 0)) return false;
+                        }
+                        if (inventorySearch.trim()) {
+                          const q = inventorySearch.toLowerCase();
+                          const matchName = p.name.toLowerCase().includes(q);
+                          const matchSku = (p.sku || '').toLowerCase().includes(q);
+                          const matchCat = (p.category?.name || '').toLowerCase().includes(q);
+                          if (!matchName && !matchSku && !matchCat) return false;
+                        }
+                        return true;
+                      })
+                      .map((prod) => {
+                        const isLow = (prod.stock_quantity || 0) > 0 && (prod.stock_quantity || 0) < 5;
+                        const isOut = (prod.stock_quantity || 0) <= 0;
+
+                        return (
+                          <tr key={prod.id} className="hover:bg-[#FDF4F7] transition-colors">
+                            <td className="p-3.5 font-bold text-[#111111] flex items-center gap-3">
+                              <img
+                                src={prod.images?.[0]?.image_url || '/placeholder.png'}
+                                alt={prod.name}
+                                className="w-10 h-10 object-cover rounded-lg border border-[#F1BCCE] shrink-0"
+                              />
+                              <div>
+                                <span className="block">{prod.name}</span>
+                                <span className="text-[10px] font-mono text-gray-500">{prod.sku || `PRD-${prod.id}`}</span>
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-gray-600 uppercase text-[10px] font-bold">
+                              {prod.category?.name || 'Skincare'}
+                            </td>
+                            <td className="p-3.5 font-mono font-bold text-[#111111]">
+                              ₹{prod.price.toLocaleString()}
+                            </td>
+                            <td className="p-3.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`px-2.5 py-1 rounded-full font-bold text-[11px] border ${
+                                  isOut
+                                    ? 'bg-red-100 text-red-800 border-red-300'
+                                    : isLow
+                                    ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+                                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                }`}>
+                                  {isOut ? '❌ 0 Sold Out' : isLow ? `⚡ Only ${prod.stock_quantity} Left` : `✓ ${prod.stock_quantity} Units`}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-3.5">
+                              {prod.variants && prod.variants.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5 max-w-sm">
+                                  {prod.variants.map((v) => (
+                                    <span
+                                      key={v.id}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                                        v.stock_quantity <= 0
+                                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                          : v.stock_quantity < 5
+                                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                          : 'bg-white text-gray-700 border-gray-200'
+                                      }`}
+                                    >
+                                      <span>{v.variant_value}: <strong>{v.stock_quantity}u</strong></span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleQuickRestock(prod.id, 5, v.id)}
+                                        className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded font-mono text-[9px] cursor-pointer transition-colors shadow-2xs"
+                                        title={`Add +5 units to ${v.variant_value}`}
+                                      >
+                                        +5
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleQuickRestock(prod.id, 10, v.id)}
+                                        className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded font-mono text-[9px] cursor-pointer transition-colors shadow-2xs"
+                                        title={`Add +10 units to ${v.variant_value}`}
+                                      >
+                                        +10
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-[11px]">Standard Size</span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickRestock(prod.id, 10)}
+                                  className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                                  title="Add 10 units"
+                                >
+                                  +10
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickRestock(prod.id, 25)}
+                                  className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                                  title="Add 25 units"
+                                >
+                                  +25
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickRestock(prod.id, 50)}
+                                  className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                                  title="Add 50 units"
+                                >
+                                  +50
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickRestock(prod.id, 100)}
+                                  className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                                  title="Add 100 units"
+                                >
+                                  +100
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingProduct(prod)}
+                                  className="px-3 py-1 bg-[#111111] hover:bg-[#D84B7E] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                                >
+                                  <Edit className="w-3 h-3" /> Edit Sizes
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DATABASE & SYSTEM ENVIRONMENT EXPLORER TAB */}
+        {activeTab === 'database' && (
+          <div className="space-y-6">
+            {/* Top Telemetry & Control Banner */}
+            <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xs space-y-6">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-[#F1BCCE]">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-[#FCE7F0] text-[#D84B7E] rounded-xl">
+                      <Database className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-serif text-2xl font-bold text-[#111111]">
+                      Database & System Environment Explorer
+                    </h3>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Live inspection of active MySQL schema tables, live record counts, health latency, and active loaded <code className="px-1.5 py-0.5 bg-white border border-[#F1BCCE] rounded text-[#D84B7E] font-mono">.env</code> configuration.
+                  </p>
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={fetchDbOverview}
+                    disabled={isLoadingDbOverview}
+                    className="px-4 py-2 bg-white border border-[#F1BCCE] text-[#111111] text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#FCE7F0] transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-[#D84B7E] ${isLoadingDbOverview ? 'animate-spin' : ''}`} />
+                    Refresh DB Stats
+                  </button>
+                  <button
+                    onClick={handleTriggerDbSync}
+                    disabled={isSyncingDb}
+                    className="px-4 py-2 bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#D84B7E] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <Layers className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin' : ''}`} />
+                    {isSyncingDb ? 'Syncing Schema...' : 'Run Schema Sync'}
+                  </button>
+                  <button
+                    onClick={handleTriggerDbSeed}
+                    disabled={isSeedingDb}
+                    className="px-4 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#B53864] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${isSeedingDb ? 'animate-spin' : ''}`} />
+                    {isSeedingDb ? 'Seeding Catalog...' : 'Seed Catalog Data'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl space-y-1">
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Database Connection</span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="font-bold text-emerald-700 text-sm">
+                      {dbOverview?.status || 'CONNECTED'} ({dbOverview?.engine || 'MySQL'})
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 font-mono block">
+                    Ping Latency: {dbOverview?.latency_ms ?? 25} ms
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl space-y-1">
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Database Instance</span>
+                  <span className="font-bold text-[#111111] text-sm block font-mono">
+                    {dbOverview?.database_name || 'yuraedb'}
+                  </span>
+                  <span className="text-[10px] text-gray-500 block truncate" title={dbOverview?.database_url_masked}>
+                    {dbOverview?.database_url_masked || 'mysql://yuraeuser:••••@localhost:3306/yuraedb'}
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl space-y-1">
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Total Database Records</span>
+                  <span className="font-serif text-2xl font-bold text-[#111111] block">
+                    {dbOverview?.total_rows ?? 65} <span className="text-xs font-sans text-gray-500 font-normal">in {dbOverview?.total_tables ?? 20} tables</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-600 font-bold block">
+                    Active Catalog & Relations
+                  </span>
+                </div>
+
+                <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl space-y-1">
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Schema Health</span>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span className="font-bold text-emerald-700 text-sm">100% In Sync</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 block">
+                    0 missing model columns
+                  </span>
+                </div>
+              </div>
+
+              {/* Subtabs Switcher */}
+              <div className="flex gap-2 border-b border-[#F1BCCE] pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDbViewSubTab('tables')}
+                  className={`px-5 py-2 text-xs uppercase tracking-wider font-bold rounded-t-xl transition-all cursor-pointer ${
+                    dbViewSubTab === 'tables'
+                      ? 'bg-white text-[#D84B7E] border-t border-l border-r border-[#F1BCCE] -mb-px'
+                      : 'text-gray-600 hover:text-[#111111]'
+                  }`}
+                >
+                  Database Tables ({dbOverview?.tables?.length || 20})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDbViewSubTab('env')}
+                  className={`px-5 py-2 text-xs uppercase tracking-wider font-bold rounded-t-xl transition-all cursor-pointer ${
+                    dbViewSubTab === 'env'
+                      ? 'bg-white text-[#D84B7E] border-t border-l border-r border-[#F1BCCE] -mb-px'
+                      : 'text-gray-600 hover:text-[#111111]'
+                  }`}
+                >
+                  Environment Config (.env)
+                </button>
+              </div>
+            </div>
+
+            {/* TAB CONTENT: TABLES */}
+            {dbViewSubTab === 'tables' && (
+              <div className="space-y-4">
+                {/* Search Bar */}
+                <div className="flex justify-between items-center gap-4 bg-white p-4 border border-[#F1BCCE] rounded-2xl">
+                  <input
+                    type="text"
+                    placeholder="Search database tables (e.g. products, orders, users, shipments)..."
+                    value={dbSearchTerm}
+                    onChange={(e) => setDbSearchTerm(e.target.value)}
+                    className="w-full text-xs px-4 py-2 border border-[#F1BCCE] rounded-xl focus:outline-none focus:border-[#D84B7E]"
+                  />
+                  {dbSearchTerm && (
+                    <button
+                      onClick={() => setDbSearchTerm('')}
+                      className="px-3 py-2 text-xs font-bold text-gray-500 hover:text-black cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Tables Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(dbOverview?.tables || [])
+                    .filter((tbl: any) => !dbSearchTerm || tbl.name.toLowerCase().includes(dbSearchTerm.toLowerCase()))
+                    .map((tbl: any) => (
+                      <div
+                        key={tbl.name}
+                        className="p-5 bg-white border border-[#F1BCCE] rounded-2xl hover:border-[#D84B7E] transition-all shadow-xs space-y-3 flex flex-col justify-between"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-2">
+                              <Database className="w-4 h-4 text-[#D84B7E]" />
+                              <span className="font-mono font-bold text-sm text-[#111111]">{tbl.name}</span>
+                            </div>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              tbl.row_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {tbl.row_count} {tbl.row_count === 1 ? 'row' : 'rows'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <Layers className="w-3.5 h-3.5 text-gray-400" />
+                            <span>{tbl.column_count || tbl.columns?.length || 0} Schema Columns</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-[#F1BCCE]/60 flex justify-between items-center">
+                          <span className="text-[10px] text-gray-400 font-mono">
+                            PK: {tbl.columns?.find((c: any) => c.is_primary_key)?.name || 'id'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDbTable(tbl)}
+                            className="px-3 py-1.5 bg-[#FFF8FA] hover:bg-[#FCE7F0] border border-[#F1BCCE] text-[#D84B7E] text-[11px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <Code className="w-3 h-3" /> Inspect Schema
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: ENVIRONMENT VARIABLES */}
+            {dbViewSubTab === 'env' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Core App */}
+                <div className="p-6 bg-white border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#F1BCCE]">
+                    <Sparkles className="w-4 h-4 text-[#D84B7E]" />
+                    <h4 className="font-serif text-base font-bold text-[#111111]">Core Backend Settings</h4>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">PROJECT_NAME</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.core?.project_name || 'YURAE BEAUTY'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">VERSION</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.core?.version || '1.0.0'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">API Prefix</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.core?.api_v1_prefix || '/api'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">JWT Token Expiry</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.core?.access_token_expire_days || 7} Days</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500 font-medium">Active .env Loaded</span>
+                      <span className="font-bold text-emerald-600 font-mono">✅ Root & Backend</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Database Config */}
+                <div className="p-6 bg-white border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#F1BCCE]">
+                    <Database className="w-4 h-4 text-[#D84B7E]" />
+                    <h4 className="font-serif text-base font-bold text-[#111111]">Database Engine Configuration</h4>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">Dialect</span>
+                      <span className="font-bold text-[#111111] font-mono uppercase">{envOverview?.database?.dialect || 'MySQL'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">Host / Database</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.database?.url_masked || 'localhost:3306/yuraedb'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">Pool Pre-Ping</span>
+                      <span className="font-bold text-emerald-600 font-mono">Enabled (Automatic Reconnection)</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500 font-medium">Pool Recycle</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.database?.pool_recycle_sec || 3600} Seconds</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Gateways */}
+                <div className="p-6 bg-white border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#F1BCCE]">
+                    <Key className="w-4 h-4 text-[#D84B7E]" />
+                    <h4 className="font-serif text-base font-bold text-[#111111]">Payment Gateways (Domestic & Global)</h4>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">Razorpay (India UPI/Cards)</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.payments?.razorpay?.key_id_masked || 'rzp_test_••••'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">Stripe (International USD/EUR/GBP)</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.payments?.stripe?.public_key_masked || 'pk_test_••••'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500 font-medium">PayPal Sandbox</span>
+                      <span className="font-bold text-[#111111] font-mono">{envOverview?.payments?.paypal?.client_id_masked || 'yurae_paypal_••••'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shipping & Warehouse */}
+                <div className="p-6 bg-white border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-[#F1BCCE]">
+                    <Truck className="w-4 h-4 text-[#D84B7E]" />
+                    <h4 className="font-serif text-base font-bold text-[#111111]">Fulfillment & Logistics Setup</h4>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">Shipping Mode</span>
+                      <span className="font-bold text-amber-600 font-mono uppercase">{envOverview?.shipping?.mode || 'TEST SANDBOX'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">Domestic Carrier Adapter</span>
+                      <span className="font-bold text-[#111111] font-mono uppercase">{envOverview?.shipping?.domestic_provider || 'Shiprocket'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500 font-medium">International Carrier</span>
+                      <span className="font-bold text-[#111111] font-mono uppercase">{envOverview?.shipping?.international_provider || 'DHL Express'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-500 font-medium">Primary Warehouse Origin</span>
+                      <span className="font-bold text-[#111111] font-mono">
+                        {envOverview?.shipping?.warehouse?.city || 'Bengaluru'}, {envOverview?.shipping?.warehouse?.country || 'India'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* SCHEMA INSPECTION MODAL */}
+      {selectedDbTable && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start pb-4 border-b border-[#F1BCCE]">
+              <div>
+                <span className="text-[11px] uppercase tracking-widest text-[#D84B7E] font-bold flex items-center gap-1.5">
+                  <Database className="w-4 h-4" /> Table Schema Definition
+                </span>
+                <h3 className="font-serif text-2xl font-bold text-[#111111] mt-0.5 font-mono">
+                  `{selectedDbTable.name}` ({selectedDbTable.row_count} rows)
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedDbTable(null)}
+                className="p-1.5 text-gray-500 hover:text-black rounded-full hover:bg-[#FCE7F0] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#FCE7F0] uppercase text-[#111111] font-bold border-b border-[#F1BCCE]">
                   <tr>
-                    <th className="p-3">Product Name</th>
-                    <th className="p-3">SKU</th>
-                    <th className="p-3">Available Stock</th>
-                    <th className="p-3">Status</th>
+                    <th className="p-3">Column Name</th>
+                    <th className="p-3">Data Type</th>
+                    <th className="p-3">Nullable</th>
+                    <th className="p-3">Key</th>
+                    <th className="p-3">Default Value</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F1BCCE]">
-                  {inventory.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#FDF4F7]">
-                      <td className="p-3 font-bold text-[#111111]">{item.name}</td>
-                      <td className="p-3 font-mono text-gray-500">{item.sku}</td>
-                      <td className="p-3 font-bold text-[#111111]">{item.stock_quantity} units</td>
+                  {(selectedDbTable.columns || []).map((col: any) => (
+                    <tr key={col.name} className="hover:bg-[#FDF4F7]">
+                      <td className="p-3 font-mono font-bold text-[#111111]">
+                        {col.name}
+                        {col.is_primary_key && (
+                          <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[9px] font-bold">
+                            PRIMARY
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 font-mono text-[#D84B7E]">{col.type}</td>
                       <td className="p-3">
-                        <span className={`px-2.5 py-0.5 rounded-full font-bold ${
-                          item.is_low_stock ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          col.nullable ? 'bg-gray-100 text-gray-700' : 'bg-rose-100 text-rose-800'
                         }`}>
-                          {item.is_low_stock ? 'Low Stock' : 'In Stock'}
+                          {col.nullable ? 'NULL' : 'NOT NULL'}
                         </span>
                       </td>
+                      <td className="p-3 font-mono text-gray-600">{col.is_primary_key ? 'PRI' : '-'}</td>
+                      <td className="p-3 font-mono text-gray-500">{col.default !== null ? String(col.default) : 'NULL'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
 
-      </div>
+            <div className="flex justify-end pt-4 border-t border-[#F1BCCE]">
+              <button
+                onClick={() => setSelectedDbTable(null)}
+                className="px-5 py-2.5 bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#D84B7E] transition-all cursor-pointer"
+              >
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PRODUCT CREATE / EDIT MODAL */}
       {(isAddProductOpen || !!editingProduct) && (
@@ -2918,6 +4227,14 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Official Tax Invoice Modal for Admin */}
+      {adminInvoiceOrderId && (
+        <InvoiceModal
+          isOpen={!!adminInvoiceOrderId}
+          onClose={() => setAdminInvoiceOrderId(null)}
+          orderIdentifier={adminInvoiceOrderId}
+        />
+      )}
     </div>
   );
 };

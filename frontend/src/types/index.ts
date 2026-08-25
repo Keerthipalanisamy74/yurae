@@ -12,6 +12,7 @@ export interface User {
 export interface Address {
   id: number;
   user_id: number;
+  address_type?: string; // 'Home' | 'Office' | 'Parents' | 'Other'
   name: string;
   phone: string;
   address_line1: string;
@@ -56,9 +57,13 @@ export interface Review {
   product_id: number;
   rating: number;
   review: string;
+  photo_url?: string;
   is_approved: boolean;
   created_at: string;
   user_name?: string;
+  is_verified_buyer?: boolean;
+  product_name?: string;
+  product_slug?: string;
 }
 
 export interface Product {

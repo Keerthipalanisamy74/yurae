@@ -2,9 +2,18 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { api } from '../services/api';
+import { SEO } from '../components/common/SEO';
 
 export const AboutPage: React.FC = () => (
   <div className="pb-24 pt-12 max-w-4xl mx-auto px-4 space-y-12 bg-[#FDF4F7]">
+    <SEO
+      title="About YURAE — The Philosophy of Botanical Skincare & Luxury"
+      description="Learn about Yurae's commitment to botanical integrity, clean Korean formulation chemistry, and minimalist luxury aesthetics."
+      breadcrumbs={[
+        { name: 'Home', url: '/' },
+        { name: 'About Yurae', url: '/about' },
+      ]}
+    />
     <div className="text-center space-y-3">
       <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Our Story</span>
       <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#111111]">About Yurae Beauty</h1>
@@ -80,6 +89,14 @@ export const ContactPage: React.FC = () => {
 
   return (
     <div className="pb-24 pt-12 max-w-5xl mx-auto px-4 space-y-12 bg-[#FDF4F7]">
+      <SEO
+        title="Contact YURAE Concierge & Client Services"
+        description="Connect with Yurae's client advisors for questions on botanical formulations, bespoke sizing, styling advice, or order tracking."
+        breadcrumbs={[
+          { name: 'Home', url: '/' },
+          { name: 'Contact Us', url: '/contact' },
+        ]}
+      />
       <div className="text-center space-y-3">
         <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Care</span>
         <h1 className="font-serif text-4xl font-bold text-[#111111]">Contact Us</h1>
@@ -177,6 +194,14 @@ export const ContactPage: React.FC = () => {
 
 export const FAQPage: React.FC = () => (
   <div className="pb-24 pt-12 max-w-4xl mx-auto px-4 space-y-12 bg-[#FDF4F7]">
+    <SEO
+      title="Frequently Asked Questions & Ritual Guide — YURAE"
+      description="Find answers to common questions about Yurae shipping, ingredient sourcing, bespoke fashion sizing, returns, and skincare routines."
+      breadcrumbs={[
+        { name: 'Home', url: '/' },
+        { name: 'FAQs', url: '/faq' },
+      ]}
+    />
     <div className="text-center space-y-3">
       <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Help Center</span>
       <h1 className="font-serif text-4xl font-bold text-[#111111]">Frequently Asked Questions</h1>

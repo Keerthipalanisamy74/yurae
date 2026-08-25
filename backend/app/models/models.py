@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database.session import Base
@@ -14,6 +15,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), default="CUSTOMER")  # CUSTOMER or ADMIN
     is_active = Column(Boolean, default=True)
+    reset_otp = Column(String(10), nullable=True)
+    reset_otp_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -29,7 +32,8 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    name = Column(String(150), nullable=False)
+    address_type = Column(String(50), default="Home")  # Home, Office, Parents, Other
+    name = Column(String(100), nullable=False)
     phone = Column(String(50), nullable=False)
     address_line1 = Column(String(255), nullable=False)
     address_line2 = Column(String(255), nullable=True)
@@ -50,8 +54,8 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     slug = Column(String(100), unique=True, index=True, nullable=False)
-    description = Column(Text, nullable=True)
-    image = Column(String(500), nullable=True)
+    description = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    image = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     products = relationship("Product", back_populates="category")
@@ -64,8 +68,8 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     name = Column(String(200), nullable=False)
     slug = Column(String(200), unique=True, index=True, nullable=False)
-    description = Column(Text, nullable=True)
-    short_description = Column(Text, nullable=True)
+    description = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    short_description = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
     price = Column(Float, nullable=False)  # Base price in base_currency (INR)
     sale_price = Column(Float, nullable=True)
     base_currency = Column(String(10), default="INR", nullable=False)
@@ -77,8 +81,8 @@ class Product(Base):
     length_cm = Column(Float, default=15.0)
     breadth_cm = Column(Float, default=10.0)
     height_cm = Column(Float, default=8.0)
-    ingredients = Column(Text, nullable=True)
-    how_to_use = Column(Text, nullable=True)
+    ingredients = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    how_to_use = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
     skin_type = Column(String(100), nullable=True)
     status = Column(String(20), default="ACTIVE")
     featured = Column(Boolean, default=False)
@@ -96,7 +100,7 @@ class ProductImage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    image_url = Column(Text, nullable=False)
+    image_url = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=False)
     sort_order = Column(Integer, default=0)
 
     product = relationship("Product", back_populates="images")
@@ -338,6 +342,7 @@ class Review(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     rating = Column(Integer, nullable=False)  # 1 to 5
     review = Column(Text, nullable=False)
+    photo_url = Column(Text, nullable=True)  # Skincare glow or fashion look photo
     is_approved = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -361,5 +366,23 @@ class ContactMessage(Base):
     admin_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class StockNotification(Base):
+    __tablename__ = "stock_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    variant_id = Column(Integer, ForeignKey("product_variants.id"), nullable=True)
+    email = Column(String(255), nullable=False, index=True)
+    variant_name = Column(String(100), nullable=True)
+    variant_value = Column(String(100), nullable=True)
+    is_notified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    notified_at = Column(DateTime, nullable=True)
+
+    product = relationship("Product")
+    variant = relationship("ProductVariant")
+
 
 

@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from app.database.session import get_db
-from app.models.models import Product, ProductImage, ProductVariant, Category, Review, User, CartItem, Wishlist, OrderItem
-from app.schemas.schemas import ProductResponse, ProductCreate, ProductUpdate
+from datetime import datetime
+from app.models.models import Product, ProductImage, ProductVariant, Category, Review, User, CartItem, Wishlist, OrderItem, StockNotification
+from app.schemas.schemas import ProductResponse, ProductCreate, ProductUpdate, RestockRequest, StockNotificationCreate, StockNotificationResponse
+from app.services.email_service import EmailService
 from app.api.deps import get_current_admin
 from typing import List, Optional
 
@@ -62,10 +64,15 @@ def format_product_response(product: Product, db: Session) -> dict:
         "short_description": product.short_description,
         "price": product.price,
         "sale_price": product.sale_price,
+        "base_currency": product.base_currency or "INR",
         "stock_quantity": product.stock_quantity,
         "sku": product.sku,
         "brand": product.brand,
         "weight": product.weight,
+        "weight_kg": product.weight_kg if product.weight_kg is not None else 0.35,
+        "length_cm": product.length_cm if product.length_cm is not None else 15.0,
+        "breadth_cm": product.breadth_cm if product.breadth_cm is not None else 10.0,
+        "height_cm": product.height_cm if product.height_cm is not None else 8.0,
         "ingredients": product.ingredients,
         "how_to_use": product.how_to_use,
         "skin_type": product.skin_type,
@@ -201,6 +208,136 @@ def get_product_by_id_or_slug(identifier: str, db: Session = Depends(get_db)):
 
     return format_product_response(product, db)
 
+@router.get("/{identifier}/complementary", response_model=List[ProductResponse])
+def get_complementary_products(
+    identifier: str,
+    limit: int = 4,
+    db: Session = Depends(get_db)
+):
+    if identifier.isdigit():
+        current_prod = db.query(Product).filter(Product.id == int(identifier)).first()
+    else:
+        current_prod = db.query(Product).filter(Product.slug == identifier).first()
+
+    if not current_prod:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    cat_slug = current_prod.category.slug.lower() if current_prod.category and current_prod.category.slug else ""
+    cat_name = current_prod.category.name.lower() if current_prod.category and current_prod.category.name else ""
+    name_lower = current_prod.name.lower()
+
+    is_skincare = "skincare" in cat_slug or "skincare" in cat_name
+    is_fashion = "fashion" in cat_slug or "fashion" in cat_name or any(k in name_lower for k in ["dress", "kurti", "skirt", "top", "saree", "apparel"])
+    is_accessories = "accessories" in cat_slug or "accessories" in cat_name or any(k in name_lower for k in ["ring", "chain", "necklace", "earring", "jewelry", "bag", "pendant"])
+
+    complementary_ids = []
+    
+    # 1. Fashion Product -> Primary pairing: Accessories & Jewelry, then other fashion pieces
+    if is_fashion:
+        accessories_prods = db.query(Product).join(Category).filter(
+            Product.id != current_prod.id,
+            or_(
+                Category.slug.ilike("%accessories%"),
+                Category.name.ilike("%accessories%"),
+                Product.name.ilike("%ring%"),
+                Product.name.ilike("%chain%"),
+                Product.name.ilike("%necklace%"),
+                Product.name.ilike("%earring%"),
+                Product.name.ilike("%bag%")
+            )
+        ).all()
+        for p in accessories_prods:
+            if p.id not in complementary_ids and len(complementary_ids) < limit:
+                complementary_ids.append(p.id)
+        
+        if len(complementary_ids) < limit:
+            other_fashion = db.query(Product).join(Category).filter(
+                Product.id != current_prod.id,
+                Product.id.notin_(complementary_ids),
+                or_(Category.slug.ilike("%fashion%"), Category.name.ilike("%fashion%"))
+            ).all()
+            for p in other_fashion:
+                if len(complementary_ids) < limit:
+                    complementary_ids.append(p.id)
+
+    # 2. Accessories Product -> Primary pairing: Fashion apparel & dresses, then other accessories
+    elif is_accessories:
+        fashion_prods = db.query(Product).join(Category).filter(
+            Product.id != current_prod.id,
+            or_(
+                Category.slug.ilike("%fashion%"),
+                Category.name.ilike("%fashion%"),
+                Product.name.ilike("%dress%"),
+                Product.name.ilike("%kurti%"),
+                Product.name.ilike("%top%"),
+                Product.name.ilike("%skirt%")
+            )
+        ).all()
+        for p in fashion_prods:
+            if p.id not in complementary_ids and len(complementary_ids) < limit:
+                complementary_ids.append(p.id)
+
+        if len(complementary_ids) < limit:
+            other_acc = db.query(Product).join(Category).filter(
+                Product.id != current_prod.id,
+                Product.id.notin_(complementary_ids),
+                or_(Category.slug.ilike("%accessories%"), Category.name.ilike("%accessories%"))
+            ).all()
+            for p in other_acc:
+                if len(complementary_ids) < limit:
+                    complementary_ids.append(p.id)
+
+    # 3. Skincare Product -> Primary pairing: Matching routine steps (Cleanser <-> Serum <-> Toner <-> Balm <-> Cream)
+    elif is_skincare:
+        if any(k in name_lower for k in ["wash", "cleanse", "cleanser", "soap"]):
+            priority_keywords = ["serum", "niacinamide", "arbutin", "balm", "toner", "cream", "moisturizer", "oil"]
+        elif any(k in name_lower for k in ["serum", "arbutin", "niacinamide", "vitamin", "retinol"]):
+            priority_keywords = ["wash", "cleanse", "balm", "toner", "cream", "moisturizer"]
+        elif any(k in name_lower for k in ["balm", "lip"]):
+            priority_keywords = ["serum", "wash", "cleanse", "toner", "cream"]
+        else:
+            priority_keywords = ["serum", "wash", "balm", "toner"]
+
+        for kw in priority_keywords:
+            matching = db.query(Product).filter(
+                Product.id != current_prod.id,
+                Product.id.notin_(complementary_ids) if complementary_ids else True,
+                or_(Product.name.ilike(f"%{kw}%"), Product.description.ilike(f"%{kw}%"))
+            ).all()
+            for p in matching:
+                if p.id not in complementary_ids and len(complementary_ids) < limit:
+                    complementary_ids.append(p.id)
+            if len(complementary_ids) >= limit:
+                break
+
+        if len(complementary_ids) < limit:
+            remaining_skin = db.query(Product).join(Category).filter(
+                Product.id != current_prod.id,
+                Product.id.notin_(complementary_ids) if complementary_ids else True,
+                or_(Category.slug.ilike("%skincare%"), Category.name.ilike("%skincare%"))
+            ).all()
+            for p in remaining_skin:
+                if len(complementary_ids) < limit:
+                    complementary_ids.append(p.id)
+
+    # 4. Fallback guarantee: fill up to 4 items from top-rated/featured products in store
+    if len(complementary_ids) < limit:
+        fillers = db.query(Product).filter(
+            Product.id != current_prod.id,
+            Product.id.notin_(complementary_ids) if complementary_ids else True
+        ).order_by(Product.featured.desc(), Product.id.desc()).limit(limit - len(complementary_ids)).all()
+        for p in fillers:
+            complementary_ids.append(p.id)
+
+    if not complementary_ids:
+        return []
+
+    found_products = db.query(Product).filter(Product.id.in_(complementary_ids)).all()
+    prod_map = {p.id: p for p in found_products}
+    ordered_prods = [prod_map[pid] for pid in complementary_ids if pid in prod_map]
+
+    return [format_product_response(p, db) for p in ordered_prods]
+
 # Admin operations
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(
@@ -208,6 +345,19 @@ def create_product(
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
+    # Verify or fallback category
+    cat = db.query(Category).filter(Category.id == prod_in.category_id).first()
+    if not cat:
+        cat = db.query(Category).first()
+        if not cat:
+            cat = Category(name="Botanical Skincare", slug="skincare")
+            db.add(cat)
+            db.commit()
+            db.refresh(cat)
+        cat_id = cat.id
+    else:
+        cat_id = prod_in.category_id
+
     # Automatically generate a unique slug
     base_slug = prod_in.slug or prod_in.name
     final_slug = generate_unique_slug(base_slug, db)
@@ -216,7 +366,7 @@ def create_product(
     final_sku = generate_unique_sku(prod_in.sku, db)
 
     new_prod = Product(
-        category_id=prod_in.category_id,
+        category_id=cat_id,
         name=prod_in.name,
         slug=final_slug,
         description=prod_in.description,
@@ -228,6 +378,10 @@ def create_product(
         sku=final_sku,
         brand=prod_in.brand or "Yurae Beauty",
         weight=prod_in.weight,
+        weight_kg=prod_in.weight_kg if prod_in.weight_kg is not None else 0.35,
+        length_cm=prod_in.length_cm if prod_in.length_cm is not None else 15.0,
+        breadth_cm=prod_in.breadth_cm if prod_in.breadth_cm is not None else 10.0,
+        height_cm=prod_in.height_cm if prod_in.height_cm is not None else 8.0,
         ingredients=prod_in.ingredients,
         how_to_use=prod_in.how_to_use,
         skin_type=prod_in.skin_type,
@@ -239,23 +393,28 @@ def create_product(
     db.refresh(new_prod)
 
     # Add images if provided
-    for idx, img_url in enumerate(prod_in.images):
-        img = ProductImage(product_id=new_prod.id, image_url=img_url, sort_order=idx)
-        db.add(img)
+    if prod_in.images:
+        for idx, img_url in enumerate(prod_in.images):
+            if img_url and str(img_url).strip():
+                img = ProductImage(product_id=new_prod.id, image_url=str(img_url).strip(), sort_order=idx)
+                db.add(img)
 
     # Add variants (e.g. fashion sizes XS, S, M, L, XL, XXL, XXXL) if provided
     if prod_in.variants:
         for v in prod_in.variants:
-            variant_obj = ProductVariant(
-                product_id=new_prod.id,
-                variant_name=v.variant_name or "Size",
-                variant_value=v.variant_value,
-                additional_price=v.additional_price or 0.0,
-                stock_quantity=v.stock_quantity if v.stock_quantity > 0 else new_prod.stock_quantity
-            )
-            db.add(variant_obj)
+            if v.variant_value and str(v.variant_value).strip():
+                var_stock = int(v.stock_quantity) if v.stock_quantity is not None else int(new_prod.stock_quantity)
+                variant_obj = ProductVariant(
+                    product_id=new_prod.id,
+                    variant_name=v.variant_name or "Size",
+                    variant_value=str(v.variant_value).strip(),
+                    additional_price=float(v.additional_price or 0.0),
+                    stock_quantity=var_stock
+                )
+                db.add(variant_obj)
 
     db.commit()
+    db.expire_all()
     db.refresh(new_prod)
 
     return format_product_response(new_prod, db)
@@ -290,13 +449,14 @@ def update_product(
             db.query(ProductVariant).filter(ProductVariant.product_id == product_id).delete()
             for v in variants_list:
                 v_dict = v if isinstance(v, dict) else (v.model_dump() if hasattr(v, "model_dump") else v.dict())
-                if v_dict.get("variant_value"):
+                if v_dict.get("variant_value") and str(v_dict.get("variant_value")).strip():
+                    var_stock = int(v_dict.get("stock_quantity")) if v_dict.get("stock_quantity") is not None else int(prod.stock_quantity)
                     variant_obj = ProductVariant(
                         product_id=prod.id,
                         variant_name=v_dict.get("variant_name") or "Size",
-                        variant_value=v_dict.get("variant_value"),
+                        variant_value=str(v_dict.get("variant_value")).strip(),
                         additional_price=float(v_dict.get("additional_price") or 0.0),
-                        stock_quantity=int(v_dict.get("stock_quantity") or prod.stock_quantity)
+                        stock_quantity=var_stock
                     )
                     db.add(variant_obj)
 
@@ -308,7 +468,125 @@ def update_product(
         setattr(prod, field, val)
 
     db.commit()
+    db.expire_all()
     db.refresh(prod)
+
+    # If stock is positive, notify pending subscribers
+    if prod.stock_quantity > 0:
+        dispatch_pending_restock_notifications(product_id, None, db)
+
+    return format_product_response(prod, db)
+
+def dispatch_pending_restock_notifications(product_id: int, variant_id: Optional[int], db: Session):
+    prod = db.query(Product).filter(Product.id == product_id).first()
+    if not prod:
+        return
+
+    query = db.query(StockNotification).filter(
+        StockNotification.product_id == product_id,
+        StockNotification.is_notified == False
+    )
+    if variant_id:
+        query = query.filter(StockNotification.variant_id == variant_id)
+
+    pending_subs = query.all()
+    for sub in pending_subs:
+        try:
+            EmailService.send_back_in_stock_email(
+                to_email=sub.email,
+                product_name=prod.name,
+                variant_value=sub.variant_value,
+                product_url=f"http://localhost:5173/product/{prod.slug}"
+            )
+            sub.is_notified = True
+            sub.notified_at = datetime.utcnow()
+        except Exception as e:
+            print(f"[RESTOCK ALERT ERROR] Failed notifying {sub.email}: {e}")
+    db.commit()
+
+@router.post("/{product_id}/notify-stock")
+def subscribe_stock_notification(
+    product_id: int,
+    req: StockNotificationCreate,
+    db: Session = Depends(get_db)
+):
+    prod = db.query(Product).filter(Product.id == product_id).first()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    variant = None
+    if req.variant_id:
+        variant = db.query(ProductVariant).filter(
+            ProductVariant.id == req.variant_id,
+            ProductVariant.product_id == product_id
+        ).first()
+
+    var_val = variant.variant_value if variant else req.variant_value
+
+    # Check for existing subscriber
+    existing = db.query(StockNotification).filter(
+        StockNotification.product_id == product_id,
+        StockNotification.email == req.email,
+        StockNotification.variant_id == (variant.id if variant else None),
+        StockNotification.is_notified == False
+    ).first()
+
+    if not existing:
+        sub = StockNotification(
+            product_id=product_id,
+            variant_id=variant.id if variant else None,
+            email=req.email,
+            variant_name="Size" if var_val else None,
+            variant_value=var_val,
+            is_notified=False
+        )
+        db.add(sub)
+        db.commit()
+        db.refresh(sub)
+        try:
+            EmailService.send_stock_notification_registered_email(req.email, prod.name, var_val)
+        except Exception as e:
+            print("[RESTOCK CONFIRM ERROR]:", e)
+
+    size_text = f" ({var_val})" if var_val else ""
+    return {
+        "success": True,
+        "message": f"You're on the priority restock list! We will email {req.email} the moment {prod.name}{size_text} is available."
+    }
+
+@router.post("/{product_id}/restock", response_model=ProductResponse)
+def restock_product(
+    product_id: int,
+    req: RestockRequest,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    prod = db.query(Product).filter(Product.id == product_id).first()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if req.variant_id:
+        v = db.query(ProductVariant).filter(ProductVariant.id == req.variant_id, ProductVariant.product_id == product_id).first()
+        if v:
+            v.stock_quantity = max(0, (v.stock_quantity or 0) + req.add_quantity)
+            prod.stock_quantity = sum((var.stock_quantity or 0) for var in prod.variants)
+        else:
+            raise HTTPException(status_code=404, detail="Variant not found")
+    else:
+        prod.stock_quantity = max(0, (prod.stock_quantity or 0) + req.add_quantity)
+        if prod.variants:
+            add_per_var = max(1, req.add_quantity // len(prod.variants))
+            for var in prod.variants:
+                var.stock_quantity = (var.stock_quantity or 0) + add_per_var
+            prod.stock_quantity = sum((var.stock_quantity or 0) for var in prod.variants)
+
+    db.commit()
+    db.expire_all()
+    db.refresh(prod)
+
+    # Trigger automatic dispatch to waiting customers
+    dispatch_pending_restock_notifications(product_id, req.variant_id, db)
+
     return format_product_response(prod, db)
 
 @router.delete("/clear/all")

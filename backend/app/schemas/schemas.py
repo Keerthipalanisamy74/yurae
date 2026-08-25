@@ -35,9 +35,13 @@ class Token(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
-    reset_token: str
+    otp: str
     new_password: str
 
 class ChangePasswordRequest(BaseModel):
@@ -48,6 +52,7 @@ class ChangePasswordRequest(BaseModel):
 class AddressBase(BaseModel):
     name: str
     phone: str
+    address_type: Optional[str] = "Home"  # Home, Office, Parents, Other
     address_line1: str
     address_line2: Optional[str] = None
     building_or_flat: Optional[str] = None
@@ -60,6 +65,20 @@ class AddressBase(BaseModel):
 
 class AddressCreate(AddressBase):
     pass
+
+class AddressUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    address_type: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    building_or_flat: Optional[str] = None
+    landmark: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = None
+    is_default: Optional[bool] = None
 
 class AddressResponse(AddressBase):
     id: int
@@ -116,9 +135,13 @@ class ReviewResponse(BaseModel):
     product_id: int
     rating: int
     review: str
+    photo_url: Optional[str] = None
     is_approved: bool
     created_at: datetime
     user_name: Optional[str] = None
+    product_name: Optional[str] = None
+    product_slug: Optional[str] = None
+    is_verified_buyer: Optional[bool] = False
 
     class Config:
         from_attributes = True
@@ -174,6 +197,10 @@ class ProductUpdate(BaseModel):
     featured: Optional[bool] = None
     images: Optional[List[str]] = None
     variants: Optional[List[ProductVariantBase]] = None
+
+class RestockRequest(BaseModel):
+    add_quantity: int = Field(default=10, ge=1)
+    variant_id: Optional[int] = None
 
 class ProductResponse(ProductBase):
     id: int
@@ -416,6 +443,7 @@ class ReviewCreate(BaseModel):
     product_id: int
     rating: int = Field(..., ge=1, le=5)
     review: str
+    photo_url: Optional[str] = None
 
 # --- Admin Dashboard ---
 class AdminDashboardStats(BaseModel):
@@ -621,5 +649,24 @@ class ShippingSettingsUpdate(BaseModel):
     warehouse_state: Optional[str] = None
     warehouse_pincode: Optional[str] = None
     warehouse_country: Optional[str] = None
+
+# --- Stock Notifications (Back in Stock Alerts) ---
+class StockNotificationCreate(BaseModel):
+    email: EmailStr
+    variant_id: Optional[int] = None
+    variant_value: Optional[str] = None
+
+class StockNotificationResponse(BaseModel):
+    id: int
+    product_id: int
+    variant_id: Optional[int] = None
+    email: EmailStr
+    variant_value: Optional[str] = None
+    is_notified: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 

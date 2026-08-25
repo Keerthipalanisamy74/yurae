@@ -22,6 +22,7 @@ import { AccountPage } from './pages/AccountPage';
 import { Login, Register, ForgotPassword } from './pages/AuthPages';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AboutPage, ContactPage, FAQPage } from './pages/InfoPages';
+import { TrackingPage } from './pages/TrackingPage';
 
 export const App: React.FC = () => {
   return (
@@ -46,6 +47,8 @@ export const App: React.FC = () => {
                       <Route path="/checkout" element={<CheckoutPage />} />
                       <Route path="/wishlist" element={<WishlistPage />} />
                       <Route path="/account" element={<AccountPage />} />
+                      <Route path="/track" element={<TrackingPage />} />
+                      <Route path="/track/:orderNumber" element={<TrackingPage />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/register" element={<Register />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />

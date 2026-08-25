@@ -85,6 +85,9 @@ def format_product_response(product: Product, db: Session) -> dict:
 def get_products(
     category_slug: Optional[str] = None,
     skin_type: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    gender: Optional[str] = None,
+    tag: Optional[str] = None,
     search: Optional[str] = None,
     featured: Optional[bool] = None,
     min_price: Optional[float] = None,
@@ -105,6 +108,52 @@ def get_products(
 
     if skin_type and skin_type != "All":
         query = query.filter(Product.skin_type.ilike(f"%{skin_type}%"))
+
+    if subcategory and subcategory != "All":
+        sub_fmt = f"%{subcategory}%"
+        query = query.filter(
+            or_(
+                Product.name.ilike(sub_fmt),
+                Product.description.ilike(sub_fmt),
+                Product.ingredients.ilike(sub_fmt),
+                Product.skin_type.ilike(sub_fmt)
+            )
+        )
+
+    if gender and gender != "All":
+        if gender.lower() in ["women", "woman", "female"]:
+            query = query.filter(
+                or_(
+                    Product.name.ilike("%woman%"),
+                    Product.name.ilike("%women%"),
+                    Product.name.ilike("%lady%"),
+                    Product.name.ilike("%female%"),
+                    Product.description.ilike("%woman%"),
+                    Product.description.ilike("%women%"),
+                    Product.skin_type.ilike("%women%")
+                )
+            )
+        elif gender.lower() in ["men", "man", "male"]:
+            query = query.filter(
+                or_(
+                    Product.name.ilike("%men%"),
+                    Product.name.ilike("%man%"),
+                    Product.name.ilike("%male%"),
+                    Product.description.ilike("%men%"),
+                    Product.description.ilike("%man%"),
+                    Product.skin_type.ilike("%men%")
+                )
+            )
+
+    if tag and tag != "All":
+        tag_fmt = f"%{tag}%"
+        query = query.filter(
+            or_(
+                Product.name.ilike(tag_fmt),
+                Product.description.ilike(tag_fmt),
+                Product.ingredients.ilike(tag_fmt)
+            )
+        )
 
     if featured is not None:
         query = query.filter(Product.featured == featured)

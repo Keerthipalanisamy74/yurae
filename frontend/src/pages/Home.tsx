@@ -60,10 +60,10 @@ export const Home: React.FC = () => {
 
             <div className="flex flex-wrap gap-4 pt-4">
               <Link
-                to="/skincare"
+                to="/shop"
                 className="px-8 py-4 bg-[#D84B7E] text-[#FDF4F7] text-xs font-bold uppercase tracking-widest rounded-full hover:bg-[#111111] hover:text-[#FDF4F7] transition-all shadow-xl flex items-center gap-3 border border-[#D84B7E]"
               >
-                Shop Skincare
+                Shop Now
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
@@ -167,11 +167,8 @@ export const Home: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-10 gap-4">
           <div>
-            <span className="text-xs uppercase tracking-widest text-[#D84B7E] font-bold">
-              Curated Formulations
-            </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#111111]">
-              Uploaded Products
+              Available Products
             </h2>
           </div>
           <Link

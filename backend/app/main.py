@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.database.session import engine, Base
-from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency
+from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping
 
 # Create tables automatically
 Base.metadata.create_all(bind=engine)
@@ -32,9 +32,15 @@ app.include_router(currency.router, prefix=settings.API_V1_STR)
 app.include_router(cart.router, prefix=settings.API_V1_STR)
 app.include_router(wishlist.router, prefix=settings.API_V1_STR)
 app.include_router(orders.router, prefix=settings.API_V1_STR)
+app.include_router(shipping.router, prefix=settings.API_V1_STR)
 app.include_router(coupons.router, prefix=settings.API_V1_STR)
 app.include_router(reviews.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
+app.include_router(contact.router, prefix=settings.API_V1_STR)
+
+# Generic Webhook Route Alias
+from app.api.shipping import shiprocket_webhook
+app.add_api_route("/api/webhooks/shipping", shiprocket_webhook, methods=["POST"], tags=["Shipping & Order Fulfillment"])
 
 @app.get("/")
 def root():

@@ -167,7 +167,25 @@ def create_order(
         customer_info={"name": f"{current_user.first_name} {current_user.last_name}", "email": current_user.email}
     )
 
-    # 8. Create Order record in Database
+    # 8. Strict COD Validation (COD is strictly allowed ONLY for India)
+    is_cod = order_in.payment_method.strip().upper() in ["COD", "CASH ON DELIVERY", "CASH_ON_DELIVERY", "CASH"]
+    is_india = dest_country.strip().lower() in ["india", "in", "bharat"]
+
+    if is_cod and not is_india:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cash on Delivery (COD) is available only for Indian domestic deliveries. International orders require prepaid online payment."
+        )
+    
+    if is_cod or not order_in.is_paid:
+        order_payment_status = "Pending"
+        payment_status_db = "PENDING"
+    else:
+        order_payment_status = "Paid"
+        payment_status_db = "SUCCESS"
+        
+    order_status = "Confirmed"
+
     new_order = Order(
         user_id=current_user.id,
         address_id=address_id,
@@ -179,8 +197,11 @@ def create_order(
         shipping_fee=shipping_fee,
         tax=tax,
         total_amount=total_amount,
-        payment_status="Paid" if pay_result.success else "Pending",
-        order_status="Confirmed" if pay_result.success else "Pending"
+        payment_status=order_payment_status,
+        order_status=order_status,
+        is_cod=is_cod,
+        cod_amount=total_amount if is_cod else 0.0,
+        shipping_status="NOT_CREATED"
     )
     db.add(new_order)
     db.commit()
@@ -202,11 +223,11 @@ def create_order(
     # 10. Create Payment record
     pay_record = Payment(
         order_id=new_order.id,
-        payment_id=pay_result.payment_id,
+        payment_id=order_in.payment_id or pay_result.payment_id,
         payment_method=order_in.payment_method,
         currency=target_currency,
         amount=total_amount,
-        status="SUCCESS" if pay_result.success else "PENDING"
+        status=payment_status_db
     )
     db.add(pay_record)
 
@@ -215,6 +236,17 @@ def create_order(
 
     db.commit()
     db.refresh(new_order)
+
+    # 12. Automatic Indian Shipping & Order Fulfillment (Shiprocket)
+    # Trigger shipment pipeline for paid prepaid orders and COD orders
+    if is_cod or order_payment_status.upper() == "PAID":
+        try:
+            ShippingService.execute_automated_shipping_flow(new_order.id, db)
+            db.refresh(new_order)
+        except Exception as e:
+            # Crucial: Order is already safely created in DB. Do not fail the checkout response if shipping provider encounters network latency.
+            print(f"Warning: Async shipping pipeline deferred for Order #{new_order.order_number}: {e}")
+
     return new_order
 
 @router.get("", response_model=List[OrderResponse])

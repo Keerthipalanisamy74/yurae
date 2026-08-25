@@ -13,6 +13,7 @@ interface CartContextType {
   updateQuantity: (itemId: number, quantity: number) => Promise<void>;
   removeFromCart: (itemId: number) => Promise<void>;
   clearCart: () => Promise<void>;
+  fetchCart: () => Promise<void>;
   itemCount: number;
   loading: boolean;
 }
@@ -111,6 +112,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateQuantity,
         removeFromCart,
         clearCart,
+        fetchCart,
         itemCount: cart ? cart.item_count : 0,
         loading,
       }}

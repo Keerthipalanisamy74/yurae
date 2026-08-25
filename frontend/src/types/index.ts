@@ -16,6 +16,8 @@ export interface Address {
   phone: string;
   address_line1: string;
   address_line2?: string;
+  building_or_flat?: string;
+  landmark?: string;
   city: string;
   state: string;
   postal_code: string;
@@ -73,6 +75,10 @@ export interface Product {
   sku: string;
   brand: string;
   weight?: string;
+  weight_kg?: number;
+  length_cm?: number;
+  breadth_cm?: number;
+  height_cm?: number;
   ingredients?: string;
   how_to_use?: string;
   skin_type?: string;
@@ -137,10 +143,30 @@ export interface Order {
   total_amount: number;
   payment_status: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
   order_status: 'Pending' | 'Confirmed' | 'Processing' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled' | 'Returned';
+  
+  // Shipping & Fulfillment
+  shipping_status?: 'NOT_CREATED' | 'SHIPMENT_CREATED' | 'AWB_ASSIGNED' | 'PICKUP_SCHEDULED' | 'PICKED_UP' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED' | 'CANCELLED' | 'RTO';
+  shiprocket_order_id?: string;
+  shiprocket_shipment_id?: string;
+  awb_code?: string;
+  courier_name?: string;
+  courier_id?: number;
+  tracking_url?: string;
+  shipping_label_url?: string;
+  shipping_manifest_url?: string;
+  pickup_scheduled_date?: string;
+  pickup_token_number?: string;
+  estimated_delivery_date?: string;
+  shipping_error_log?: string;
+  is_cod?: boolean;
+  cod_amount?: number;
+
   created_at: string;
+  updated_at?: string;
   items: OrderItem[];
   address?: Address;
   payments?: any[];
+  user?: User;
 }
 
 export interface Coupon {
@@ -192,3 +218,99 @@ export interface ExchangeRatesResponse {
   currencies: CurrencyInfo[];
   last_updated: string;
 }
+
+export interface ContactMessage {
+  id: number;
+  source?: 'CONTACT_FORM' | 'ORDER_QUERY';
+  order_number?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  subject?: string;
+  rating?: string;
+  message: string;
+  status: 'UNREAD' | 'READ' | 'REPLIED' | 'ARCHIVED';
+  admin_notes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CourierOption {
+  courier_id: number;
+  courier_name: string;
+  rate: number;
+  estimated_delivery_days: string;
+  etd?: string;
+  rating?: number;
+  is_cod_available: boolean;
+  is_recommended: boolean;
+  service_tier?: 'STANDARD' | 'EXPRESS';
+  currency?: string;
+}
+
+export interface ServiceabilityResult {
+  pincode?: string;
+  postal_code?: string;
+  country?: string;
+  city?: string;
+  state?: string;
+  is_serviceable: boolean;
+  delivery_status_message: string;
+  estimated_delivery: string;
+  shipping_fee: number;
+  is_free: boolean;
+  free_shipping_threshold: number;
+  recommended_courier?: string;
+  available_couriers: CourierOption[];
+  currency?: string;
+  is_international?: boolean;
+  customs_notice?: string;
+}
+
+export interface TrackingTimelineEvent {
+  id: number;
+  order_id: number;
+  awb_code?: string;
+  status: string;
+  activity: string;
+  location?: string;
+  event_time: string;
+}
+
+export interface TrackingResponse {
+  order_number: string;
+  awb_code?: string;
+  courier_name?: string;
+  current_status: string;
+  shipping_status: string;
+  estimated_delivery?: string;
+  tracking_url?: string;
+  pickup_date?: string;
+  events: TrackingTimelineEvent[];
+}
+
+export interface ShippingSettings {
+  shipping_provider: string;
+  shipping_mode: string;
+  cod_enabled: boolean;
+  flat_shipping_fee: number;
+  free_shipping_threshold: number;
+  cod_surcharge: number;
+  default_package_weight_kg: number;
+  default_package_length_cm: number;
+  default_package_breadth_cm: number;
+  default_package_height_cm: number;
+  warehouse_contact_name: string;
+  warehouse_email: string;
+  warehouse_phone: string;
+  warehouse_address: string;
+  warehouse_address_2?: string;
+  warehouse_city: string;
+  warehouse_state: string;
+  warehouse_pincode: string;
+  warehouse_country: string;
+  is_shiprocket_connected: boolean;
+}
+
+
+

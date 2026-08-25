@@ -10,6 +10,7 @@ interface ProductFormModalProps {
   productToEdit?: Product | null;
   categories: Category[];
   initialCategorySlug?: string;
+  allowCategorySelection?: boolean;
   onSuccess: (savedProduct: Product, isNew: boolean) => void;
 }
 
@@ -19,6 +20,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   productToEdit,
   categories,
   initialCategorySlug = 'skincare',
+  allowCategorySelection = false,
   onSuccess,
 }) => {
   const { showToast } = useToast();
@@ -42,16 +44,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const availableFashionSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
   const dressCategories = [
+    'T-Shirts & Tops',
+    'Shirts & Blouses',
+    'Kurtis & Ethnic Wear',
     'Maxi & Midi Dresses',
     'Mini & Cocktail Dresses',
+    'Skirts & Bottoms',
+    'Pants & Trousers',
     'Silk Robes & Kimonos',
     'Co-ord Sets & Jumpsuits',
     'Evening & Party Gowns',
-    'Summer & Casual Dresses',
-    'Tops & Blouses',
-    'Skirts & Bottoms',
     'Loungewear & Nightwear',
-    'Ethnic & Fusion Wear',
   ];
 
   const skincareCategories = [
@@ -65,10 +68,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   ];
 
   const accessoryCategories = [
-    'Ring',
-    'Necklace',
-    'Bracelet',
-    'Earrings',
+    'Rings',
+    'Necklaces & Pendants',
+    'Bracelets & Bangles',
+    'Earrings & Studs',
+    'Anklets',
+    'Hair Accessories & Scrunchies',
+    'Handbags & Pouches',
   ];
 
   // Populate form on open or when productToEdit changes
@@ -286,47 +292,79 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 text-xs">
-          {/* CATEGORY SELECTOR TABS */}
-          <div>
-            <label className="font-bold text-[#111111] block mb-1.5 uppercase tracking-wider text-[11px]">
-              Store Department *
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setTargetCategory('skincare')}
-                className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
-                  targetCategory === 'skincare'
-                    ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
-                    : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
-                }`}
-              >
-                🌸 Skincare
-              </button>
-              <button
-                type="button"
-                onClick={() => setTargetCategory('fashion')}
-                className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
-                  targetCategory === 'fashion'
-                    ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
-                    : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
-                }`}
-              >
-                👗 Fashion & Dresses
-              </button>
-              <button
-                type="button"
-                onClick={() => setTargetCategory('accessories')}
-                className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
-                  targetCategory === 'accessories'
-                    ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
-                    : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
-                }`}
-              >
-                💍 Accessories
-              </button>
+          {/* STORE DEPARTMENT SELECTION OR LOCKED INDICATOR */}
+          {allowCategorySelection ? (
+            <div>
+              <label className="font-bold text-[#111111] block mb-1.5 uppercase tracking-wider text-[11px]">
+                Choose Store Department *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetCategory('skincare');
+                    setSubCategory(skincareCategories[0]);
+                    setSkinType('All');
+                  }}
+                  className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                    targetCategory === 'skincare'
+                      ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
+                      : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
+                  }`}
+                >
+                  🌸 Skincare
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetCategory('fashion');
+                    setSubCategory(dressCategories[0]);
+                    setSkinType('Standard Fit');
+                  }}
+                  className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                    targetCategory === 'fashion'
+                      ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
+                      : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
+                  }`}
+                >
+                  👗 Fashion & Dresses
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetCategory('accessories');
+                    setSubCategory(accessoryCategories[0]);
+                    setSkinType('All');
+                  }}
+                  className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                    targetCategory === 'accessories'
+                      ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
+                      : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
+                  }`}
+                >
+                  💍 Accessories
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3 p-3.5 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl">
+              <div className="w-9 h-9 rounded-xl bg-[#D84B7E] text-white flex items-center justify-center font-bold text-base shadow-xs">
+                {targetCategory === 'fashion' ? '👗' : targetCategory === 'accessories' ? '💍' : '🌸'}
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-widest font-bold text-[#D84B7E] block">
+                  Store Department
+                </span>
+                <span className="text-sm font-bold text-[#111111]">
+                  {targetCategory === 'fashion'
+                    ? 'Luxury Fashion & Apparel'
+                    : targetCategory === 'accessories'
+                    ? 'Fine Jewelry & Accessories'
+                    : 'Botanical Glass Skincare'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* NAME & SUBCATEGORY */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

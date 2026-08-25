@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Filter, SlidersHorizontal, RefreshCw, Upload, Trash2 } from 'lucide-react';
+import {
+  Filter, SlidersHorizontal, RefreshCw, Upload, Trash2, X,
+  Sparkles, Shirt, Gem
+} from 'lucide-react';
 import { Product, Category } from '../types';
 import { api } from '../services/api';
 import { ProductCard } from '../components/common/ProductCard';
@@ -19,7 +22,8 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   const { showToast } = useToast();
   const { formatPrice } = useCurrency();
 
-  const searchCategory = propCategorySlug || searchParams.get('category') || '';
+  const rawCategoryParam = searchParams.get('category');
+  const currentCategory = propCategorySlug || (rawCategoryParam ? rawCategoryParam.toLowerCase() : 'all');
   const searchSkinType = searchParams.get('skin_type') || '';
   const searchQuery = searchParams.get('search') || '';
 
@@ -27,26 +31,52 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters state
-  const [selectedCategory, setSelectedCategory] = useState<string>(searchCategory);
-  const [selectedSkinType, setSelectedSkinType] = useState<string>(searchSkinType);
+  // Price & Sorting state
   const [maxPrice, setMaxPrice] = useState<number>(10000);
   const [sortBy, setSortBy] = useState<string>('featured');
   const [isFilterMobileOpen, setIsFilterMobileOpen] = useState(false);
 
+  // 1. Skincare-Specific Filter States
+  const [selectedSkinType, setSelectedSkinType] = useState<string>(searchSkinType);
+  const [selectedSkincareRoutine, setSelectedSkincareRoutine] = useState<string>('');
+  const [selectedSkincareConcern, setSelectedSkincareConcern] = useState<string>('');
+
+  // 2. Fashion-Specific Filter States
+  const [selectedFashionGender, setSelectedFashionGender] = useState<string>('');
+  const [selectedFashionApparel, setSelectedFashionApparel] = useState<string>('');
+  const [selectedFashionSize, setSelectedFashionSize] = useState<string>('');
+  const [selectedFashionFabric, setSelectedFashionFabric] = useState<string>('');
+
+  // 3. Accessories-Specific Filter States
+  const [selectedAccessoryType, setSelectedAccessoryType] = useState<string>('');
+  const [selectedAccessoryGender, setSelectedAccessoryGender] = useState<string>('');
+  const [selectedAccessoryMaterial, setSelectedAccessoryMaterial] = useState<string>('');
+
   // Admin Upload Product Modal State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  const skinTypeOptions = ['All', 'Oily', 'Dry', 'Combination', 'Sensitive', 'Normal'];
+  // Filter Option Constants
+  const skinTypeOptions = ['All', 'Sensitive', 'Oily', 'Dry', 'Combination', 'Normal', 'Acne-Prone'];
+  const skincareRoutineOptions = ['All', 'Cleanser / Face Wash', 'Toner & Essence', 'Serum & Ampoule', 'Moisturizer & Cream', 'Sunscreen', 'Face Mask'];
+  const skincareConcernOptions = ['All', 'Hydration & Glass Skin', 'Soothing & Calming', 'Brightening & Glow', 'Pore Clarifying', 'Anti-Aging'];
+
+  const fashionGenderOptions = ['All', 'Women', 'Men', 'Unisex'];
+  const fashionApparelOptions = ['All', 'T-Shirts', 'Shirts & Blouses', 'Kurtis & Tops', 'Dresses & Midi', 'Skirts', 'Pants & Trousers', 'Silks & Loungewear'];
+  const fashionSizeOptions = ['All', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
+  const fashionFabricOptions = ['All', 'Mulberry Silk', 'Organic Cotton', 'Linen', 'Satin', 'Knitwear'];
+
+  const accessoryTypeOptions = ['All', 'Rings', 'Bracelets', 'Earrings', 'Necklaces & Pendants', 'Anklets', 'Hair Accessories & Scrunchies', 'Bags & Pouches'];
+  const accessoryGenderOptions = ['All', 'Women', 'Men', 'Unisex'];
+  const accessoryMaterialOptions = ['All', '18K Gold Plated', '925 Sterling Silver', 'Freshwater Pearl', 'Rose Gold', 'Silk & Fabric'];
 
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       let url = `/products?sort_by=${sortBy}&max_price=${maxPrice}`;
-      if (selectedCategory) {
-        url += `&category_slug=${selectedCategory}`;
+      if (currentCategory && currentCategory !== 'all') {
+        url += `&category_slug=${currentCategory}`;
       }
-      if (selectedSkinType && selectedSkinType !== 'All') {
+      if (currentCategory === 'skincare' && selectedSkinType && selectedSkinType !== 'All') {
         url += `&skin_type=${selectedSkinType}`;
       }
       if (searchQuery) {
@@ -60,7 +90,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedSkinType, maxPrice, sortBy, searchQuery]);
+  }, [currentCategory, selectedSkinType, maxPrice, sortBy, searchQuery]);
 
   useEffect(() => {
     fetchProducts();
@@ -72,38 +102,130 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
       .catch((err) => console.error(err));
   }, []);
 
-  useEffect(() => {
-    if (propCategorySlug) {
-      setSelectedCategory(propCategorySlug);
-    }
-  }, [propCategorySlug]);
-
   const handleResetFilters = () => {
-    setSelectedCategory(propCategorySlug || '');
     setSelectedSkinType('');
+    setSelectedSkincareRoutine('');
+    setSelectedSkincareConcern('');
+    setSelectedFashionGender('');
+    setSelectedFashionApparel('');
+    setSelectedFashionSize('');
+    setSelectedFashionFabric('');
+    setSelectedAccessoryType('');
+    setSelectedAccessoryGender('');
+    setSelectedAccessoryMaterial('');
     setMaxPrice(10000);
     setSortBy('featured');
-    setSearchParams({});
+    if (!propCategorySlug) {
+      setSearchParams({});
+    }
   };
 
+  // Filtered Products with Smart Matching
+  const filteredProducts = products.filter((p) => {
+    const pName = (p.name || '').toLowerCase();
+    const pDesc = (p.description || '').toLowerCase();
+    const pShortDesc = (p.short_description || '').toLowerCase();
+    const pSkinType = (p.skin_type || '').toLowerCase();
+    const pIngredients = (p.ingredients || '').toLowerCase();
+    const pCombined = `${pName} ${pDesc} ${pShortDesc} ${pSkinType} ${pIngredients}`;
+    
+    // 1. Skincare Sub-filters
+    if (currentCategory === 'skincare') {
+      if (selectedSkinType && selectedSkinType !== 'All') {
+        const matchesSkin = pSkinType.includes(selectedSkinType.toLowerCase()) ||
+                            pDesc.includes(selectedSkinType.toLowerCase()) ||
+                            pName.includes(selectedSkinType.toLowerCase());
+        if (!matchesSkin) return false;
+      }
+      if (selectedSkincareRoutine && selectedSkincareRoutine !== 'All') {
+        const keyword = selectedSkincareRoutine.toLowerCase().split('/')[0].trim().replace('&', '');
+        if (!pCombined.includes(keyword.toLowerCase())) return false;
+      }
+      if (selectedSkincareConcern && selectedSkincareConcern !== 'All') {
+        const concern = selectedSkincareConcern.toLowerCase().split('&')[0].trim();
+        if (!pCombined.includes(concern)) return false;
+      }
+    }
+
+    // 2. Fashion Sub-filters
+    if (currentCategory === 'fashion') {
+      if (selectedFashionGender && selectedFashionGender !== 'All') {
+        const g = selectedFashionGender.toLowerCase();
+        if (g === 'women') {
+          if (pCombined.includes('men') && !pCombined.includes('women') && !pCombined.includes('woman')) return false;
+        } else if (g === 'men') {
+          if (!pCombined.includes('men') && !pCombined.includes('man') && !pCombined.includes('male')) return false;
+        }
+      }
+      if (selectedFashionApparel && selectedFashionApparel !== 'All') {
+        const target = selectedFashionApparel.toLowerCase();
+        if (target.includes('t-shirt') && !pCombined.includes('t-shirt') && !pCombined.includes('tshirt') && !pCombined.includes('tee')) return false;
+        if (target.includes('shirt') && !target.includes('t-shirt') && !pCombined.includes('shirt') && !pCombined.includes('blouse')) return false;
+        if (target.includes('kurti') && !pCombined.includes('kurti') && !pCombined.includes('top')) return false;
+        if (target.includes('skirt') && !pCombined.includes('skirt')) return false;
+        if (target.includes('dress') && !pCombined.includes('dress') && !pCombined.includes('midi') && !pCombined.includes('gown')) return false;
+        if (target.includes('pant') && !pCombined.includes('pant') && !pCombined.includes('trouser') && !pCombined.includes('bottom')) return false;
+        if (target.includes('silk') && !pCombined.includes('silk') && !pCombined.includes('lounge') && !pCombined.includes('robe')) return false;
+      }
+      if (selectedFashionSize && selectedFashionSize !== 'All') {
+        const s = selectedFashionSize.toUpperCase();
+        const pTextUpper = `${p.skin_type || ''} ${p.description || ''}`.toUpperCase();
+        const hasVariant = p.variants?.some((v) => v.variant_value.toUpperCase().includes(s));
+        if (!hasVariant && !pTextUpper.includes(s)) return false;
+      }
+      if (selectedFashionFabric && selectedFashionFabric !== 'All') {
+        const fab = selectedFashionFabric.toLowerCase().split(' ')[0];
+        if (!pCombined.includes(fab)) return false;
+      }
+    }
+
+    // 3. Accessories Sub-filters
+    if (currentCategory === 'accessories') {
+      if (selectedAccessoryType && selectedAccessoryType !== 'All') {
+        const target = selectedAccessoryType.toLowerCase();
+        if (target.includes('ring') && !pCombined.includes('ring')) return false;
+        if (target.includes('bracelet') && !pCombined.includes('bracelet') && !pCombined.includes('bangle')) return false;
+        if (target.includes('earring') && !pCombined.includes('earring') && !pCombined.includes('stud') && !pCombined.includes('hoop')) return false;
+        if (target.includes('necklace') && !pCombined.includes('necklace') && !pCombined.includes('pendant') && !pCombined.includes('chain')) return false;
+        if (target.includes('anklet') && !pCombined.includes('anklet')) return false;
+        if (target.includes('scrunchie') && !pCombined.includes('scrunchie') && !pCombined.includes('hair')) return false;
+        if (target.includes('bag') && !pCombined.includes('bag') && !pCombined.includes('pouch') && !pCombined.includes('clutch')) return false;
+      }
+      if (selectedAccessoryGender && selectedAccessoryGender !== 'All') {
+        const g = selectedAccessoryGender.toLowerCase();
+        if (g === 'women') {
+          if (pCombined.includes('men') && !pCombined.includes('women') && !pCombined.includes('woman')) return false;
+        } else if (g === 'men') {
+          if (!pCombined.includes('men') && !pCombined.includes('man')) return false;
+        }
+      }
+      if (selectedAccessoryMaterial && selectedAccessoryMaterial !== 'All') {
+        const mat = selectedAccessoryMaterial.toLowerCase().split(' ')[0];
+        if (!pCombined.includes(mat)) return false;
+      }
+    }
+
+    return true;
+  });
+
   const getCategoryTitle = () => {
-    if (propCategorySlug === 'skincare' || selectedCategory === 'skincare') return 'Botanical Skincare';
-    if (propCategorySlug === 'fashion' || selectedCategory === 'fashion') return 'Luxury Fashion & Silks';
-    if (propCategorySlug === 'accessories' || selectedCategory === 'accessories') return 'Refined Accessories';
-    return 'The Complete Collection';
+    if (currentCategory === 'skincare') return 'Botanical Skincare';
+    if (currentCategory === 'fashion') return 'Luxury Fashion & Silks';
+    if (currentCategory === 'accessories') return 'Refined Accessories';
+    return 'All Products & Collections';
   };
 
   const getCategoryDescription = () => {
-    if (propCategorySlug === 'skincare' || selectedCategory === 'skincare') {
+    if (currentCategory === 'skincare') {
       return 'Formulated with Korean botanical extracts, niacinamide, and soothing centella for radiant glass skin.';
     }
-    if (propCategorySlug === 'fashion' || selectedCategory === 'fashion') {
+    if (currentCategory === 'fashion') {
       return 'Minimalist silhouettes cut from pure mulberry silk, French linen, and tailored luxury cuts.';
     }
-    if (propCategorySlug === 'accessories' || selectedCategory === 'accessories') {
+    if (currentCategory === 'accessories') {
       return 'Handcrafted fine jewelry, freshwater pearls, and silk scrunchies that complete your look.';
     }
-    return 'Explore all Yurae Beauty product categories—Skincare, Fashion, and Accessories.';
+    return 'Explore the entire Yurae Beauty catalog across botanical skincare, luxury silk fashion, and handcrafted fine jewelry.';
   };
 
   const openUploadModal = () => {
@@ -140,10 +262,380 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     }
   };
 
+  // Active filter badges list (Without Category)
+  const activeFilters = [
+    selectedSkinType && { label: `Skin: ${selectedSkinType}`, onRemove: () => setSelectedSkinType('') },
+    selectedSkincareRoutine && { label: `Routine: ${selectedSkincareRoutine}`, onRemove: () => setSelectedSkincareRoutine('') },
+    selectedSkincareConcern && { label: `Concern: ${selectedSkincareConcern}`, onRemove: () => setSelectedSkincareConcern('') },
+    selectedFashionGender && { label: `Department: ${selectedFashionGender}`, onRemove: () => setSelectedFashionGender('') },
+    selectedFashionApparel && { label: `Apparel: ${selectedFashionApparel}`, onRemove: () => setSelectedFashionApparel('') },
+    selectedFashionSize && { label: `Size: ${selectedFashionSize}`, onRemove: () => setSelectedFashionSize('') },
+    selectedFashionFabric && { label: `Fabric: ${selectedFashionFabric}`, onRemove: () => setSelectedFashionFabric('') },
+    selectedAccessoryType && { label: `Piece: ${selectedAccessoryType}`, onRemove: () => setSelectedAccessoryType('') },
+    selectedAccessoryGender && { label: `For: ${selectedAccessoryGender}`, onRemove: () => setSelectedAccessoryGender('') },
+    selectedAccessoryMaterial && { label: `Material: ${selectedAccessoryMaterial}`, onRemove: () => setSelectedAccessoryMaterial('') },
+    maxPrice < 10000 && { label: `Max ${formatPrice(maxPrice)}`, onRemove: () => setMaxPrice(10000) },
+  ].filter(Boolean) as { label: string; onRemove: () => void }[];
+
+  const renderCategoryFilters = () => {
+    return (
+      <div className="space-y-6">
+        {/* ALL CATEGORIES SELECTOR */}
+        {currentCategory === 'all' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 pb-1">
+              <Sparkles className="w-4 h-4 text-[#D84B7E]" />
+              <h4 className="text-xs uppercase tracking-widest font-bold text-[#111111]">
+                Filter by Category
+              </h4>
+            </div>
+            <div className="flex flex-col gap-2">
+              {[
+                { id: 'all', label: '✨ All Categories', desc: 'Browse all products' },
+                { id: 'skincare', label: '🌸 Botanical Skincare', desc: 'Serums, toners & creams' },
+                { id: 'fashion', label: '👗 Fashion & Dresses', desc: 'Silks, linens & apparel' },
+                { id: 'accessories', label: '💍 Refined Accessories', desc: 'Jewelry, bags & pieces' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    if (cat.id === 'all') {
+                      setSearchParams({});
+                    } else {
+                      setSearchParams({ category: cat.id });
+                    }
+                  }}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col ${
+                    currentCategory === cat.id
+                      ? 'bg-[#F8D7E3] border-[#D84B7E] text-[#D84B7E] shadow-xs font-bold'
+                      : 'bg-[#FDF4F7] border-[#F1BCCE] text-gray-700 hover:border-gray-400 hover:bg-[#FCE7F0]'
+                  }`}
+                >
+                  <span className="text-xs font-bold text-[#111111]">{cat.label}</span>
+                  <span className="text-[11px] text-gray-500 mt-0.5">{cat.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* BREADCRUMB BACK LINK WHEN IN SPECIFIC CATEGORY */}
+        {currentCategory !== 'all' && !propCategorySlug && (
+          <div className="pb-3 border-b border-[#F1BCCE]">
+            <button
+              type="button"
+              onClick={() => setSearchParams({})}
+              className="text-xs font-bold text-[#D84B7E] hover:underline flex items-center gap-1.5 cursor-pointer"
+            >
+              ← View All Products & Categories
+            </button>
+          </div>
+        )}
+
+        {/* SKINCARE FILTERS */}
+        {currentCategory === 'skincare' && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 pb-1">
+              <Sparkles className="w-4 h-4 text-[#D84B7E]" />
+              <h4 className="text-xs uppercase tracking-widest font-bold text-[#111111]">
+                Skincare & Formulations
+              </h4>
+            </div>
+
+            {/* Skin Type Filter */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Skin Type
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {skinTypeOptions.map((type) => {
+                  const active = (type === 'All' && !selectedSkinType) || selectedSkinType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setSelectedSkinType(type === 'All' ? '' : type)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Skincare Routine */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Routine Step
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {skincareRoutineOptions.map((r) => {
+                  const active = (r === 'All' && !selectedSkincareRoutine) || selectedSkincareRoutine === r;
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setSelectedSkincareRoutine(r === 'All' ? '' : r)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Skin Concern */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Skin Concern
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {skincareConcernOptions.map((c) => {
+                  const active = (c === 'All' && !selectedSkincareConcern) || selectedSkincareConcern === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setSelectedSkincareConcern(c === 'All' ? '' : c)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FASHION FILTERS */}
+        {currentCategory === 'fashion' && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 pb-1">
+              <Shirt className="w-4 h-4 text-[#D84B7E]" />
+              <h4 className="text-xs uppercase tracking-widest font-bold text-[#111111]">
+                Fashion & Apparel
+              </h4>
+            </div>
+
+            {/* Gender / Department */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Department
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {fashionGenderOptions.map((g) => {
+                  const active = (g === 'All' && !selectedFashionGender) || selectedFashionGender === g;
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setSelectedFashionGender(g === 'All' ? '' : g)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Apparel Item Type */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Item Type (T-Shirts, Skirts, Dresses...)
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {fashionApparelOptions.map((app) => {
+                  const active = (app === 'All' && !selectedFashionApparel) || selectedFashionApparel === app;
+                  return (
+                    <button
+                      key={app}
+                      type="button"
+                      onClick={() => setSelectedFashionApparel(app === 'All' ? '' : app)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {app}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Size Filter */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Size
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {fashionSizeOptions.map((s) => {
+                  const active = (s === 'All' && !selectedFashionSize) || selectedFashionSize === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSelectedFashionSize(s === 'All' ? '' : s)}
+                      className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Fabric / Material */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Fabric & Material
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {fashionFabricOptions.map((fab) => {
+                  const active = (fab === 'All' && !selectedFashionFabric) || selectedFashionFabric === fab;
+                  return (
+                    <button
+                      key={fab}
+                      type="button"
+                      onClick={() => setSelectedFashionFabric(fab === 'All' ? '' : fab)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {fab}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ACCESSORIES FILTERS */}
+        {currentCategory === 'accessories' && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 pb-1">
+              <Gem className="w-4 h-4 text-[#D84B7E]" />
+              <h4 className="text-xs uppercase tracking-widest font-bold text-[#111111]">
+                Jewelry & Accessories
+              </h4>
+            </div>
+
+            {/* Piece Category */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Piece Type (Rings, Bracelets, Earrings, Necklaces...)
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {accessoryTypeOptions.map((acc) => {
+                  const active = (acc === 'All' && !selectedAccessoryType) || selectedAccessoryType === acc;
+                  return (
+                    <button
+                      key={acc}
+                      type="button"
+                      onClick={() => setSelectedAccessoryType(acc === 'All' ? '' : acc)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {acc}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Gender / Audience */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Recipient
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {accessoryGenderOptions.map((g) => {
+                  const active = (g === 'All' && !selectedAccessoryGender) || selectedAccessoryGender === g;
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setSelectedAccessoryGender(g === 'All' ? '' : g)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Metal / Finish */}
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase tracking-wider font-bold text-gray-600 block">
+                Metal & Material
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {accessoryMaterialOptions.map((mat) => {
+                  const active = (mat === 'All' && !selectedAccessoryMaterial) || selectedAccessoryMaterial === mat;
+                  return (
+                    <button
+                      key={mat}
+                      type="button"
+                      onClick={() => setSelectedAccessoryMaterial(mat === 'All' ? '' : mat)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-[#D84B7E] text-white shadow-xs font-bold'
+                          : 'bg-[#FDF4F7] text-gray-700 border border-[#F1BCCE] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      {mat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="pb-24 bg-[#FDF4F7]">
       {/* Category Banner */}
-      <section className="bg-[#FCE7F0] py-16 px-4 border-b border-[#F1BCCE]">
+      <section className="bg-[#FCE7F0] py-14 px-4 border-b border-[#F1BCCE]">
         <div className="max-w-7xl mx-auto text-center space-y-4">
           <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">
             Yurae Beauty
@@ -155,19 +647,51 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
             {getCategoryDescription()}
           </p>
 
+          {/* Interactive Category Switcher Tabs */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 pt-3">
+            {[
+              { id: 'all', label: '✨ All Products', desc: 'All Collections' },
+              { id: 'skincare', label: '🌸 Skincare', desc: 'Botanical Skincare' },
+              { id: 'fashion', label: '👗 Fashion', desc: 'Dresses & Silks' },
+              { id: 'accessories', label: '💍 Accessories', desc: 'Jewelry & Pearls' },
+            ].map((cat) => {
+              const isActive = currentCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    if (cat.id === 'all') {
+                      setSearchParams({});
+                    } else {
+                      setSearchParams({ category: cat.id });
+                    }
+                  }}
+                  className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                    isActive
+                      ? 'bg-[#D84B7E] text-white shadow-md border border-[#D84B7E] scale-105'
+                      : 'bg-[#FFF8FA] text-[#111111] border border-[#F1BCCE] hover:bg-[#FCE7F0] hover:text-[#D84B7E]'
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Admin Upload Controls Banner */}
           {isAdmin && (
-            <div className="pt-6 flex flex-wrap items-center justify-center gap-3">
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={openUploadModal}
-                className="px-6 py-3 bg-[#D84B7E] text-[#FDF4F7] border border-[#D84B7E] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] hover:text-[#FDF4F7] transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 bg-[#D84B7E] text-[#FDF4F7] border border-[#D84B7E] text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] hover:text-[#FDF4F7] transition-all shadow-md flex items-center gap-2 cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-[#FDF4F7]" />
-                Upload New Product to {getCategoryTitle()}
+                Upload New Product {currentCategory !== 'all' ? `to ${getCategoryTitle()}` : ''}
               </button>
               <button
                 onClick={handleClearAllProducts}
-                className="px-4 py-3 bg-red-600/90 text-white text-xs uppercase tracking-widest font-bold rounded-full hover:bg-red-700 transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2.5 bg-red-600/90 text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-red-700 transition-all shadow-md flex items-center gap-2 cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
                 Reset Store Catalog
@@ -177,21 +701,21 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
         {/* Mobile Filter Toggle & Sort Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-8 border-b border-[#F1BCCE]">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-[#F1BCCE]">
           <button
             onClick={() => setIsFilterMobileOpen(!isFilterMobileOpen)}
-            className="lg:hidden flex items-center gap-2 px-4 py-2 border border-[#F1BCCE] bg-[#FFF8FA] rounded-full text-xs font-bold uppercase tracking-wider text-[#111111]"
+            className="lg:hidden flex items-center gap-2 px-4 py-2 border border-[#F1BCCE] bg-[#FFF8FA] rounded-full text-xs font-bold uppercase tracking-wider text-[#111111] cursor-pointer shadow-xs"
           >
             <Filter className="w-4 h-4 text-[#D84B7E]" />
-            Filters
+            Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
           </button>
 
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <span>Showing</span>
-            <span className="font-bold text-[#111111]">{products.length}</span>
+            <span className="font-bold text-[#111111]">{filteredProducts.length}</span>
             <span>rituals & pieces</span>
           </div>
 
@@ -216,79 +740,51 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
           </div>
         </div>
 
+        {/* Active Filter Pills Bar */}
+        {activeFilters.length > 0 && (
+          <div className="pt-4 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] uppercase tracking-wider font-bold text-gray-500">Active Filters:</span>
+            {activeFilters.map((flt, idx) => (
+              <button
+                key={idx}
+                onClick={flt.onRemove}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F8D7E3] text-[#D84B7E] border border-[#F1BCCE] rounded-full text-xs font-bold hover:bg-[#D84B7E] hover:text-white transition-colors cursor-pointer"
+              >
+                {flt.label}
+                <X className="w-3 h-3" />
+              </button>
+            ))}
+            <button
+              onClick={handleResetFilters}
+              className="text-xs text-gray-500 hover:text-[#D84B7E] underline font-bold ml-2 cursor-pointer"
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 pt-8">
           
           {/* SIDEBAR FILTERS (Desktop) */}
-          <aside className={`lg:block ${isFilterMobileOpen ? 'block' : 'hidden'} space-y-8 bg-[#FFF8FA] p-6 rounded-3xl border border-[#F1BCCE] h-fit`}>
+          <aside className={`lg:block ${isFilterMobileOpen ? 'block' : 'hidden'} space-y-6 bg-[#FFF8FA] p-6 rounded-3xl border border-[#F1BCCE] h-fit`}>
             
             {/* Header & Reset */}
             <div className="flex items-center justify-between pb-4 border-b border-[#F1BCCE]">
               <h3 className="font-serif text-lg font-bold text-[#111111] flex items-center gap-2">
                 <Filter className="w-4 h-4 text-[#D84B7E]" />
-                Filter Pieces
+                Filter {currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)}
               </h3>
               <button
                 onClick={handleResetFilters}
-                className="text-xs text-gray-500 hover:text-[#D84B7E] flex items-center gap-1 cursor-pointer"
+                className="text-xs text-gray-500 hover:text-[#D84B7E] flex items-center gap-1 cursor-pointer font-bold"
               >
                 <RefreshCw className="w-3 h-3" />
                 Reset
               </button>
             </div>
 
-            {/* Category Filter */}
-            <div className="space-y-3">
-              <h4 className="text-xs uppercase tracking-widest font-bold text-[#111111]">
-                Category
-              </h4>
-              <div className="space-y-1.5">
-                <button
-                  onClick={() => setSelectedCategory('')}
-                  className={`block w-full text-left text-xs py-1.5 px-3 rounded-lg transition-colors cursor-pointer ${
-                    !selectedCategory ? 'bg-[#FCE7F0] font-bold text-[#D84B7E]' : 'text-gray-700 hover:bg-[#FCE7F0]/50'
-                  }`}
-                >
-                  All Collections
-                </button>
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.slug)}
-                    className={`block w-full text-left text-xs py-1.5 px-3 rounded-lg transition-colors cursor-pointer ${
-                      selectedCategory === cat.slug
-                        ? 'bg-[#FCE7F0] font-bold text-[#D84B7E]'
-                        : 'text-gray-700 hover:bg-[#FCE7F0]/50'
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Skin Type Filter (Only show for Skincare) */}
-            {(!selectedCategory || selectedCategory === 'skincare') && (
-              <div className="space-y-3 pt-4 border-t border-[#F1BCCE]">
-                <h4 className="text-xs uppercase tracking-widest font-bold text-[#111111]">
-                  Skin Type
-                </h4>
-                <div className="space-y-1.5">
-                  {skinTypeOptions.map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setSelectedSkinType(type === 'All' ? '' : type)}
-                      className={`block w-full text-left text-xs py-1.5 px-3 rounded-lg transition-colors cursor-pointer ${
-                        (type === 'All' && !selectedSkinType) || selectedSkinType === type
-                          ? 'bg-[#FCE7F0] font-bold text-[#D84B7E]'
-                          : 'text-gray-700 hover:bg-[#FCE7F0]/50'
-                      }`}
-                    >
-                      {type} Skin
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Strictly Category-Specific Filters */}
+            {renderCategoryFilters()}
 
             {/* Price Range Slider */}
             <div className="space-y-3 pt-4 border-t border-[#F1BCCE]">
@@ -321,26 +817,34 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                   <div key={i} className="h-96 bg-[#FCE7F0] rounded-2xl animate-pulse" />
                 ))}
               </div>
-            ) : products.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-24 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 p-8 shadow-xs">
                 <h3 className="font-serif text-2xl text-[#111111] font-bold">
-                  No {getCategoryTitle().toLowerCase()} products uploaded yet.
+                  No matching {getCategoryTitle().toLowerCase()} found.
                 </h3>
-                <p className="text-xs text-gray-600">
-                  {isAdmin ? `Click the "Upload New Product" button above to manually add items to the ${getCategoryTitle()} collection.` : 'Check back soon for new arrivals.'}
+                <p className="text-xs text-gray-600 max-w-md mx-auto">
+                  Try adjusting your filter criteria, or click Reset Filters to view all {currentCategory} items.
                 </p>
-                {isAdmin && (
+                <div className="pt-2 flex justify-center gap-3">
                   <button
-                    onClick={openUploadModal}
-                    className="mt-4 px-6 py-2.5 bg-[#D84B7E] text-[#FDF4F7] border border-[#D84B7E] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] hover:text-[#FDF4F7] transition-colors cursor-pointer"
+                    onClick={handleResetFilters}
+                    className="px-6 py-2.5 bg-[#D84B7E] text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-xs"
                   >
-                    Upload {getCategoryTitle()} Product Now
+                    Reset All Filters
                   </button>
-                )}
+                  {isAdmin && (
+                    <button
+                      onClick={openUploadModal}
+                      className="px-6 py-2.5 bg-white text-[#111111] border border-[#F1BCCE] text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#FCE7F0] transition-colors cursor-pointer shadow-xs"
+                    >
+                      Upload New Product
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -362,11 +866,13 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
           isOpen={isUploadModalOpen}
           onClose={() => setIsUploadModalOpen(false)}
           categories={categories}
-          initialCategorySlug={propCategorySlug || selectedCategory || 'fashion'}
+          initialCategorySlug={currentCategory === 'all' ? 'skincare' : currentCategory}
+          allowCategorySelection={currentCategory === 'all'}
           onSuccess={handleProductSuccess}
         />
       )}
     </div>
   );
 };
+
 export default Shop;

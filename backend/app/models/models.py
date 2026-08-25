@@ -33,6 +33,8 @@ class Address(Base):
     phone = Column(String(50), nullable=False)
     address_line1 = Column(String(255), nullable=False)
     address_line2 = Column(String(255), nullable=True)
+    building_or_flat = Column(String(255), nullable=True)
+    landmark = Column(String(255), nullable=True)
     city = Column(String(100), nullable=False)
     state = Column(String(100), nullable=False)
     postal_code = Column(String(20), nullable=False)
@@ -71,6 +73,10 @@ class Product(Base):
     sku = Column(String(100), unique=True, nullable=False)
     brand = Column(String(100), default="Yurae Beauty")
     weight = Column(String(50), nullable=True)
+    weight_kg = Column(Float, default=0.35)
+    length_cm = Column(Float, default=15.0)
+    breadth_cm = Column(Float, default=10.0)
+    height_cm = Column(Float, default=8.0)
     ingredients = Column(Text, nullable=True)
     how_to_use = Column(Text, nullable=True)
     skin_type = Column(String(100), nullable=True)
@@ -175,12 +181,33 @@ class Order(Base):
     total_amount = Column(Float, nullable=False)
     payment_status = Column(String(50), default="Pending")  # Pending, Paid, Failed, Refunded
     order_status = Column(String(50), default="Pending")    # Pending, Confirmed, Processing, Shipped, Out for Delivery, Delivered, Cancelled, Returned
+    
+    # Shipping & Fulfillment Fields (Shiprocket)
+    shipping_status = Column(String(50), default="NOT_CREATED")  # NOT_CREATED, SHIPMENT_CREATED, AWB_ASSIGNED, PICKUP_SCHEDULED, PICKED_UP, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, FAILED, CANCELLED, RTO
+    shiprocket_order_id = Column(String(100), nullable=True, index=True)
+    shiprocket_shipment_id = Column(String(100), nullable=True, index=True)
+    awb_code = Column(String(100), nullable=True, index=True)
+    courier_name = Column(String(100), nullable=True)
+    courier_id = Column(Integer, nullable=True)
+    tracking_url = Column(String(500), nullable=True)
+    shipping_label_url = Column(String(500), nullable=True)
+    shipping_manifest_url = Column(String(500), nullable=True)
+    pickup_scheduled_date = Column(String(100), nullable=True)
+    pickup_token_number = Column(String(100), nullable=True)
+    estimated_delivery_date = Column(String(100), nullable=True)
+    shipping_error_log = Column(Text, nullable=True)
+    is_cod = Column(Boolean, default=False)
+    cod_amount = Column(Float, default=0.0)
+
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="orders")
     address = relationship("Address")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="order", cascade="all, delete-orphan")
+    shipment = relationship("Shipment", back_populates="order", uselist=False, cascade="all, delete-orphan")
+    tracking_events = relationship("ShippingTrackingEvent", back_populates="order", cascade="all, delete-orphan", order_by="ShippingTrackingEvent.event_time.desc()")
 
 
 class OrderItem(Base):
@@ -213,6 +240,82 @@ class Payment(Base):
     order = relationship("Order", back_populates="payments")
 
 
+class Shipment(Base):
+    __tablename__ = "shipments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), unique=True, nullable=False)
+    provider = Column(String(50), default="shiprocket", nullable=False)
+    shipping_service_tier = Column(String(50), default="STANDARD", nullable=False)  # STANDARD, EXPRESS, DHL_PRIORITY
+    destination_country = Column(String(100), default="India", nullable=False)
+    shipping_cost = Column(Float, default=0.0)
+    external_order_id = Column(String(100), nullable=True, index=True)
+    external_shipment_id = Column(String(100), nullable=True, index=True)
+    awb_code = Column(String(100), nullable=True, index=True)
+    courier_id = Column(Integer, nullable=True)
+    courier_name = Column(String(100), nullable=True)
+    status = Column(String(50), default="SHIPMENT_CREATED", nullable=False)
+    weight_kg = Column(Float, default=0.5)
+    length_cm = Column(Float, default=15.0)
+    breadth_cm = Column(Float, default=10.0)
+    height_cm = Column(Float, default=8.0)
+    label_url = Column(String(500), nullable=True)
+    manifest_url = Column(String(500), nullable=True)
+    invoice_url = Column(String(500), nullable=True)
+    pickup_token = Column(String(100), nullable=True)
+    pickup_date = Column(String(100), nullable=True)
+    estimated_delivery = Column(String(100), nullable=True)
+    customs_declared_value = Column(Float, nullable=True)
+    customs_currency = Column(String(10), nullable=True)
+    customs_hs_code = Column(String(50), nullable=True)  # e.g. 3304.99
+    customs_description = Column(String(255), nullable=True)
+    raw_response = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    order = relationship("Order", back_populates="shipment")
+
+
+class ShippingTrackingEvent(Base):
+    __tablename__ = "shipping_tracking_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    shipment_id = Column(Integer, ForeignKey("shipments.id"), nullable=True)
+    awb_code = Column(String(100), nullable=True, index=True)
+    status = Column(String(50), nullable=False)
+    activity = Column(String(255), nullable=False)
+    location = Column(String(255), nullable=True)
+    event_time = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order = relationship("Order", back_populates="tracking_events")
+
+
+class ShippingWebhookEvent(Base):
+    __tablename__ = "shipping_webhook_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String(150), unique=True, index=True, nullable=True)
+    provider = Column(String(50), default="shiprocket", nullable=False)
+    event_type = Column(String(100), nullable=False)
+    awb_code = Column(String(100), nullable=True, index=True)
+    order_number = Column(String(100), nullable=True, index=True)
+    status = Column(String(50), nullable=True)
+    payload = Column(Text, nullable=False)
+    processed = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ShippingSetting(Base):
+    __tablename__ = "shipping_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), unique=True, index=True, nullable=False)
+    value = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Coupon(Base):
     __tablename__ = "coupons"
 
@@ -240,3 +343,23 @@ class Review(Base):
 
     user = relationship("User", back_populates="reviews")
     product = relationship("Product", back_populates="reviews")
+
+
+class ContactMessage(Base):
+    __tablename__ = "contact_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String(50), default="CONTACT_FORM")  # CONTACT_FORM or ORDER_QUERY
+    order_number = Column(String(100), nullable=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    phone = Column(String(50), nullable=True)
+    subject = Column(String(255), nullable=True)
+    rating = Column(String(50), nullable=True)
+    message = Column(Text, nullable=False)
+    status = Column(String(50), default="UNREAD")  # UNREAD, READ, REPLIED, ARCHIVED
+    admin_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+

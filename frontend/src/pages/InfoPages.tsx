@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { api } from '../services/api';
 
 export const AboutPage: React.FC = () => (
   <div className="pb-24 pt-12 max-w-4xl mx-auto px-4 space-y-12 bg-[#FDF4F7]">
@@ -40,14 +41,41 @@ export const ContactPage: React.FC = () => {
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    showToast('Thank you for contacting Yurae Beauty. Our client advisor will reply within 24 hours.', 'success');
-    setName('');
-    setEmail('');
-    setMessage('');
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      showToast('Please fill in your name, email, and message.', 'error');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await api.post('/contact', {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        subject: subject.trim() || undefined,
+        message: message.trim(),
+        source: 'CONTACT_FORM',
+      });
+
+      showToast('Thank you for contacting Yurae Beauty! Your inquiry has been sent to our client advisor team.', 'success');
+      setName('');
+      setEmail('');
+      setPhone('');
+      setSubject('');
+      setMessage('');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Failed to submit your message. Please try again.';
+      showToast(msg, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -55,7 +83,7 @@ export const ContactPage: React.FC = () => {
       <div className="text-center space-y-3">
         <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Care</span>
         <h1 className="font-serif text-4xl font-bold text-[#111111]">Contact Us</h1>
-        <p className="text-sm text-gray-700 font-normal">Have a question about a ritual formulation or order? We are here to assist you.</p>
+        <p className="text-sm text-gray-700 font-normal">Have a question about a ritual formulation, skincare order, or luxury silk garment? We are here to assist you.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -80,40 +108,66 @@ export const ContactPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-8 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
           <h3 className="font-serif text-xl font-bold text-[#111111]">Send a Message</h3>
           <div>
-            <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Your Name</label>
+            <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Your Name *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Kiara Advani"
               required
               className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
             />
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Email Address *</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                required
+                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+              />
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Phone (Optional)</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+              />
+            </div>
+          </div>
           <div>
-            <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Email Address</label>
+            <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Subject (Optional)</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Order Inquiry / Routine Advice"
               className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
             />
           </div>
           <div>
-            <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Message</label>
+            <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Message *</label>
             <textarea
               rows={4}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              placeholder="Write your message, question, or order details here..."
               required
               className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
             />
           </div>
           <button
             type="submit"
-            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+            disabled={isSubmitting}
+            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
           >
-            Send Message <Send className="w-4 h-4" />
+            {isSubmitting ? 'Sending Message...' : 'Send Message'} <Send className="w-4 h-4" />
           </button>
         </form>
       </div>

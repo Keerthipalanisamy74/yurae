@@ -43,6 +43,29 @@ export const ProductDetails: React.FC = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewEligibility, setReviewEligibility] = useState<{
+    eligible: boolean;
+    has_purchased: boolean;
+    is_delivered: boolean;
+    has_reviewed: boolean;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && product?.id) {
+      api.get(`/products/${product.id}/review-eligibility`)
+        .then((res) => {
+          setReviewEligibility(res.data);
+          if (res.data.existing_review) {
+            setReviewRating(res.data.existing_review.rating);
+            setReviewText(res.data.existing_review.review);
+          }
+        })
+        .catch(() => setReviewEligibility(null));
+    } else {
+      setReviewEligibility(null);
+    }
+  }, [isAuthenticated, product?.id]);
 
   useEffect(() => {
     if (!slug) return;
@@ -477,50 +500,102 @@ export const ProductDetails: React.FC = () => {
 
             {/* Submit Review Box */}
             <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
-              <h3 className="font-serif text-lg font-bold text-[#111111]">Share Your Experience</h3>
-              <form onSubmit={handleReviewSubmit} className="space-y-4">
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Your Rating</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setReviewRating(star)}
-                        className="p-1 hover:scale-110 transition-transform cursor-pointer"
-                      >
-                        <Star className={`w-6 h-6 ${star <= reviewRating ? 'fill-[#D84B7E] text-[#D84B7E]' : 'text-gray-300'}`} />
-                      </button>
-                    ))}
+              <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-[#F1BCCE]">
+                <h3 className="font-serif text-lg font-bold text-[#111111]">Share Your Experience</h3>
+                {reviewEligibility?.eligible && (
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-full tracking-wider border border-emerald-300">
+                    ✓ Verified Delivered Buyer
+                  </span>
+                )}
+              </div>
+
+              {!isAuthenticated ? (
+                <div className="p-6 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl text-center space-y-3">
+                  <p className="text-xs text-gray-700">
+                    Please sign in to write a review for products delivered to your account.
+                  </p>
+                  <a
+                    href={`/login?redirect=/product/${slug}`}
+                    className="inline-block px-6 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all shadow-xs"
+                  >
+                    Sign In to Review
+                  </a>
+                </div>
+              ) : reviewEligibility?.eligible ? (
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div>
+                    <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                      Your Rating *
+                    </label>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setReviewRating(star)}
+                          className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              star <= reviewRating ? 'fill-[#D84B7E] text-[#D84B7E]' : 'text-gray-300'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">Written Review</label>
-                  <textarea
-                    rows={3}
-                    value={reviewText}
-                    onChange={(e) => setReviewText(e.target.value)}
-                    placeholder={
-                      isFashion
-                        ? 'Describe fabric comfort, quality, sizing fit, and elegance...'
-                        : isAccessories
-                        ? 'Describe material finish, shine, craftsmanship, and styling...'
-                        : 'Describe formulation texture, hydration, scent, and results...'
-                    }
-                    className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
-                    required
-                  />
-                </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
+                      Written Review *
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={reviewText}
+                      onChange={(e) => setReviewText(e.target.value)}
+                      placeholder={
+                        isFashion
+                          ? 'Describe fabric comfort, quality, sizing fit, and elegance...'
+                          : isAccessories
+                          ? 'Describe material finish, shine, craftsmanship, and styling...'
+                          : 'Describe formulation texture, hydration, scent, and results...'
+                      }
+                      className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                      required
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmittingReview}
-                  className="px-6 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer"
-                >
-                  Submit Review
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview}
+                    className="px-6 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    {isSubmittingReview
+                      ? 'Submitting...'
+                      : reviewEligibility.has_reviewed
+                      ? 'Update Review'
+                      : 'Submit Review'}
+                  </button>
+                </form>
+              ) : reviewEligibility?.has_purchased && !reviewEligibility?.is_delivered ? (
+                <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-1.5 text-amber-900">
+                  <span className="font-bold flex items-center gap-1.5 text-amber-800">
+                    ⏳ Review Available Once Delivered
+                  </span>
+                  <p className="text-gray-600">
+                    Your order for this item is currently in transit. You will be able to share your review thoughts once the package has been delivered.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl text-xs space-y-1.5 text-gray-700">
+                  <span className="font-bold flex items-center gap-1.5 text-[#111111]">
+                    🔒 Verified Delivered Purchase Required
+                  </span>
+                  <p className="text-gray-500">
+                    To maintain authentic customer experiences, reviews can only be submitted by clients who have ordered and received this product.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Reviews List */}

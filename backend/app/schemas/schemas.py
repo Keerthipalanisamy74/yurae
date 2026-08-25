@@ -50,6 +50,8 @@ class AddressBase(BaseModel):
     phone: str
     address_line1: str
     address_line2: Optional[str] = None
+    building_or_flat: Optional[str] = None
+    landmark: Optional[str] = None
     city: str
     state: str
     postal_code: str
@@ -134,6 +136,10 @@ class ProductBase(BaseModel):
     sku: Optional[str] = None
     brand: str = "Yurae Beauty"
     weight: Optional[str] = None
+    weight_kg: Optional[float] = 0.35
+    length_cm: Optional[float] = 15.0
+    breadth_cm: Optional[float] = 10.0
+    height_cm: Optional[float] = 8.0
     ingredients: Optional[str] = None
     how_to_use: Optional[str] = None
     skin_type: Optional[str] = None
@@ -157,6 +163,10 @@ class ProductUpdate(BaseModel):
     sku: Optional[str] = None
     brand: Optional[str] = None
     weight: Optional[str] = None
+    weight_kg: Optional[float] = None
+    length_cm: Optional[float] = None
+    breadth_cm: Optional[float] = None
+    height_cm: Optional[float] = None
     ingredients: Optional[str] = None
     how_to_use: Optional[str] = None
     skin_type: Optional[str] = None
@@ -291,7 +301,22 @@ class OrderCreate(BaseModel):
     new_address: Optional[AddressCreate] = None
     coupon_code: Optional[str] = None
     currency: str = "INR"
-    payment_method: str = "Mock Razorpay"
+    payment_method: str = "COD"
+    is_paid: bool = False
+    payment_id: Optional[str] = None
+
+class PaymentResponse(BaseModel):
+    id: int
+    order_id: int
+    payment_id: Optional[str] = None
+    payment_method: str
+    currency: str = "INR"
+    amount: float
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 class OrderResponse(BaseModel):
     id: int
@@ -307,9 +332,30 @@ class OrderResponse(BaseModel):
     total_amount: float
     payment_status: str
     order_status: str
+    
+    # Shipping & Fulfillment Fields
+    shipping_status: Optional[str] = "NOT_CREATED"
+    shiprocket_order_id: Optional[str] = None
+    shiprocket_shipment_id: Optional[str] = None
+    awb_code: Optional[str] = None
+    courier_name: Optional[str] = None
+    courier_id: Optional[int] = None
+    tracking_url: Optional[str] = None
+    shipping_label_url: Optional[str] = None
+    shipping_manifest_url: Optional[str] = None
+    pickup_scheduled_date: Optional[str] = None
+    pickup_token_number: Optional[str] = None
+    estimated_delivery_date: Optional[str] = None
+    shipping_error_log: Optional[str] = None
+    is_cod: Optional[bool] = False
+    cod_amount: Optional[float] = 0.0
+
     created_at: datetime
+    updated_at: Optional[datetime] = None
     items: List[OrderItemResponse] = []
+    payments: List[PaymentResponse] = []
     address: Optional[AddressResponse] = None
+    user: Optional[UserResponse] = None
 
     class Config:
         from_attributes = True
@@ -380,3 +426,200 @@ class AdminDashboardStats(BaseModel):
     pending_orders: int
     low_stock_products: int
     recent_orders: List[OrderResponse] = []
+
+# --- Contact Messages & Order Queries ---
+class ContactMessageCreate(BaseModel):
+    name: str
+    email: str
+    phone: Optional[str] = None
+    subject: Optional[str] = None
+    message: str
+    source: Optional[str] = "CONTACT_FORM"  # CONTACT_FORM or ORDER_QUERY
+    order_number: Optional[str] = None
+    rating: Optional[str] = None
+
+class ContactMessageUpdate(BaseModel):
+    status: Optional[str] = None  # UNREAD, READ, REPLIED, ARCHIVED
+    admin_notes: Optional[str] = None
+
+class ContactMessageResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    phone: Optional[str] = None
+    subject: Optional[str] = None
+    message: str
+    status: str
+    source: Optional[str] = "CONTACT_FORM"
+    order_number: Optional[str] = None
+    rating: Optional[str] = None
+    admin_notes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# --- Shipping & Fulfillment (Domestic India & Global International) ---
+class CourierOption(BaseModel):
+    courier_id: int
+    courier_name: str
+    rate: float
+    estimated_delivery_days: str
+    etd: Optional[str] = None
+    rating: Optional[float] = 4.8
+    is_cod_available: bool = True
+    is_recommended: bool = False
+    service_tier: str = "STANDARD"  # STANDARD, EXPRESS, DHL_PRIORITY
+    currency: str = "INR"
+
+class CustomsInfo(BaseModel):
+    declared_value: float
+    currency: str = "USD"
+    hs_code: str = "3304.99"
+    description: str = "Luxury Cosmetics & Skincare Products"
+    country_of_origin: str = "India"
+
+class ServiceabilityRequest(BaseModel):
+    pincode: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: str = "India"
+    weight_kg: Optional[float] = 0.45
+    length_cm: Optional[float] = 15.0
+    breadth_cm: Optional[float] = 10.0
+    height_cm: Optional[float] = 8.0
+    service_tier: Optional[str] = "STANDARD"
+    is_cod: bool = False
+    subtotal: Optional[float] = 0.0
+    currency: Optional[str] = "INR"
+
+class ServiceabilityResponse(BaseModel):
+    pincode: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: str = "India"
+    city: Optional[str] = None
+    state: Optional[str] = None
+    is_serviceable: bool
+    delivery_status_message: str
+    estimated_delivery: str
+    shipping_fee: float
+    is_free: bool
+    free_shipping_threshold: float
+    recommended_courier: Optional[str] = None
+    available_couriers: List[CourierOption] = []
+    currency: str = "INR"
+    is_international: bool = False
+    customs_notice: Optional[str] = None
+
+class ShipmentResponse(BaseModel):
+    id: int
+    order_id: int
+    provider: str
+    shipping_service_tier: str = "STANDARD"
+    destination_country: str = "India"
+    shipping_cost: float = 0.0
+    external_order_id: Optional[str] = None
+    external_shipment_id: Optional[str] = None
+    awb_code: Optional[str] = None
+    courier_id: Optional[int] = None
+    courier_name: Optional[str] = None
+    status: str
+    weight_kg: float
+    length_cm: float
+    breadth_cm: float
+    height_cm: float
+    label_url: Optional[str] = None
+    manifest_url: Optional[str] = None
+    invoice_url: Optional[str] = None
+    pickup_token: Optional[str] = None
+    pickup_date: Optional[str] = None
+    estimated_delivery: Optional[str] = None
+    customs_declared_value: Optional[float] = None
+    customs_currency: Optional[str] = None
+    customs_hs_code: Optional[str] = None
+    customs_description: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class ShippingTrackingEventResponse(BaseModel):
+    id: int
+    order_id: int
+    awb_code: Optional[str] = None
+    status: str
+    activity: str
+    location: Optional[str] = None
+    event_time: datetime
+
+    class Config:
+        from_attributes = True
+
+class TrackingResponse(BaseModel):
+    order_number: str
+    awb_code: Optional[str] = None
+    courier_name: Optional[str] = None
+    current_status: str
+    shipping_status: str
+    estimated_delivery: Optional[str] = None
+    tracking_url: Optional[str] = None
+    pickup_date: Optional[str] = None
+    events: List[ShippingTrackingEventResponse] = []
+
+class AWBAssignRequest(BaseModel):
+    courier_id: Optional[int] = None
+
+class PickupScheduleRequest(BaseModel):
+    pickup_date: Optional[str] = None
+
+class ShippingLabelResponse(BaseModel):
+    success: bool
+    label_url: Optional[str] = None
+    order_number: Optional[str] = None
+    awb_code: Optional[str] = None
+    manifest_url: Optional[str] = None
+    message: Optional[str] = "Shipping label retrieved successfully."
+
+class ShippingSettingsResponse(BaseModel):
+    shipping_provider: str
+    shipping_mode: str
+    cod_enabled: bool
+    flat_shipping_fee: float
+    free_shipping_threshold: float
+    cod_surcharge: float
+    default_package_weight_kg: float
+    default_package_length_cm: float
+    default_package_breadth_cm: float
+    default_package_height_cm: float
+    warehouse_contact_name: str
+    warehouse_email: str
+    warehouse_phone: str
+    warehouse_address: str
+    warehouse_address_2: Optional[str] = None
+    warehouse_city: str
+    warehouse_state: str
+    warehouse_pincode: str
+    warehouse_country: str
+    is_shiprocket_connected: bool
+
+class ShippingSettingsUpdate(BaseModel):
+    cod_enabled: Optional[bool] = None
+    flat_shipping_fee: Optional[float] = None
+    free_shipping_threshold: Optional[float] = None
+    cod_surcharge: Optional[float] = None
+    default_package_weight_kg: Optional[float] = None
+    default_package_length_cm: Optional[float] = None
+    default_package_breadth_cm: Optional[float] = None
+    default_package_height_cm: Optional[float] = None
+    warehouse_contact_name: Optional[str] = None
+    warehouse_email: Optional[str] = None
+    warehouse_phone: Optional[str] = None
+    warehouse_address: Optional[str] = None
+    warehouse_address_2: Optional[str] = None
+    warehouse_city: Optional[str] = None
+    warehouse_state: Optional[str] = None
+    warehouse_pincode: Optional[str] = None
+    warehouse_country: Optional[str] = None
+
+

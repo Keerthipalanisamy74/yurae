@@ -22,12 +22,21 @@ export const Footer: React.FC = () => {
           
           {/* Brand Philosophy */}
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="font-serif text-2xl font-bold tracking-[0.2em] text-[#F8A4C4]">
-              YURAE BEAUTY
-            </h2>
-            <p className="text-xs uppercase tracking-[0.25em] text-[#F8A4C4] font-semibold">
-              The Origin of Skincare
-            </p>
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo/logo-emblem.png"
+                alt="Yurae Beauty Logo"
+                className="w-13 h-13 sm:w-14 sm:h-14 object-contain drop-shadow-[0_2px_10px_rgba(248,164,196,0.35)] brightness-110"
+              />
+              <div>
+                <h2 className="font-serif text-2xl font-bold tracking-[0.2em] text-[#F8A4C4] leading-tight">
+                  YURAE BEAUTY
+                </h2>
+                <p className="text-[9.5px] uppercase tracking-[0.25em] text-[#F8A4C4]/80 font-semibold mt-0.5">
+                  The Origin of Skincare
+                </p>
+              </div>
+            </div>
             <p className="text-sm text-gray-300 font-light leading-relaxed max-w-sm">
               Rooted in ancient Korean botanical wisdom and refined modern science. We curate high-performance formulations encased in luxury rose petal pink and golden aesthetics.
             </p>

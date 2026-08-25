@@ -30,6 +30,59 @@ def get_product_reviews(product_id: int, db: Session = Depends(get_db)):
         })
     return result
 
+@router.get("/products/{product_id}/review-eligibility")
+def check_review_eligibility(
+    product_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    delivered_purchase = db.query(OrderItem).join(Order).filter(
+        Order.user_id == current_user.id,
+        OrderItem.product_id == product_id,
+        Order.order_status.in_(["Delivered", "delivered", "DELIVERED"])
+    ).first()
+
+    any_purchase = db.query(OrderItem).join(Order).filter(
+        Order.user_id == current_user.id,
+        OrderItem.product_id == product_id
+    ).first()
+
+    existing_review = db.query(Review).filter(
+        Review.user_id == current_user.id,
+        Review.product_id == product_id
+    ).first()
+
+    if delivered_purchase:
+        return {
+            "eligible": True,
+            "has_purchased": True,
+            "is_delivered": True,
+            "has_reviewed": bool(existing_review),
+            "existing_review": {
+                "rating": existing_review.rating,
+                "review": existing_review.review
+            } if existing_review else None,
+            "message": "You are eligible to review this delivered item."
+        }
+    elif any_purchase:
+        return {
+            "eligible": False,
+            "has_purchased": True,
+            "is_delivered": False,
+            "has_reviewed": False,
+            "existing_review": None,
+            "message": "Reviews can be submitted once your order has been delivered."
+        }
+    else:
+        return {
+            "eligible": False,
+            "has_purchased": False,
+            "is_delivered": False,
+            "has_reviewed": False,
+            "existing_review": None,
+            "message": "Only verified buyers who received this item can submit a review."
+        }
+
 @router.post("/products/{product_id}/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
 def create_review(
     product_id: int,
@@ -41,17 +94,28 @@ def create_review(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Verify if user has purchased the product
-    has_purchased = db.query(OrderItem).join(Order).filter(
+    # Verify if user has purchased and received the product (Delivered)
+    delivered_purchase = db.query(OrderItem).join(Order).filter(
         Order.user_id == current_user.id,
-        OrderItem.product_id == product_id
+        OrderItem.product_id == product_id,
+        Order.order_status.in_(["Delivered", "delivered", "DELIVERED"])
     ).first()
 
-    if not has_purchased:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only customers who have purchased this product can submit a review."
-        )
+    if not delivered_purchase:
+        any_purchase = db.query(OrderItem).join(Order).filter(
+            Order.user_id == current_user.id,
+            OrderItem.product_id == product_id
+        ).first()
+        if any_purchase:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reviews can only be submitted once your order has been delivered."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only customers who have purchased and received this product can submit a review."
+            )
 
     # Check for existing review
     existing = db.query(Review).filter(

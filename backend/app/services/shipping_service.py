@@ -643,7 +643,7 @@ class ShippingService:
         order.shipping_status = mapped_shipping_status
         order.order_status = mapped_order_status
 
-        if mapped_shipping_status == "DELIVERED" and order.is_cod:
+        if mapped_shipping_status == "DELIVERED" and order.payment_status in ["Pending", "PENDING"]:
             order.payment_status = "Paid"
 
         # Record Tracking Event
@@ -664,3 +664,84 @@ class ShippingService:
 
         logger.info(f"Webhook updated Order #{order.order_number} to {mapped_shipping_status} / {mapped_order_status}")
         return {"success": True, "message": f"Order #{order.order_number} updated to {mapped_shipping_status}"}
+
+    @classmethod
+    def validate_return_eligibility(cls, order: Order) -> Dict[str, Any]:
+        """
+        Enforces Yurae's 7-Day Luxury Return & Exchange Policy:
+        - Order must be in 'Delivered' or 'Confirmed'/'Paid' status.
+        - Request must be within 7 calendar days of delivery.
+        """
+        if not order:
+            return {"eligible": False, "reason": "Order not found."}
+
+        order_status = (order.order_status or "").upper()
+        shipping_status = (order.shipping_status or "").upper()
+
+        if order_status not in ["DELIVERED", "CONFIRMED", "SHIPPED"] and shipping_status not in ["DELIVERED"]:
+            return {
+                "eligible": False,
+                "reason": f"Returns or exchanges can only be initiated on delivered orders (Current status: {order.order_status})."
+            }
+
+        # Calculate days elapsed since delivery or order creation
+        reference_time = order.updated_at or order.created_at
+        if reference_time:
+            days_elapsed = (datetime.utcnow() - reference_time).days
+            if days_elapsed > 7 and order_status == "DELIVERED":
+                return {
+                    "eligible": False,
+                    "reason": f"The 7-day luxury return & exchange window expired {days_elapsed - 7} days ago."
+                }
+
+        return {
+            "eligible": True,
+            "reason": "Order is within the 7-day complimentary return & exchange window.",
+            "policy": "YURAE 7-Day Guarantee: Free size exchanges or 100% refund."
+        }
+
+    @classmethod
+    def create_return_request(
+        cls,
+        order: Order,
+        user_id: int,
+        request_type: str,
+        reason: str,
+        detailed_reason: Optional[str],
+        preferred_exchange_size: Optional[str],
+        refund_mode: Optional[str],
+        items: Optional[List[Dict[str, Any]]],
+        photos: Optional[List[str]],
+        db: Session
+    ) -> Any:
+        from app.models.models import ReturnRequest
+        import uuid
+
+        eligibility = cls.validate_return_eligibility(order)
+        if not eligibility["eligible"]:
+            raise ValueError(eligibility["reason"])
+
+        today_str = datetime.utcnow().strftime("%Y%m%d")
+        req_num = f"RET-{today_str}-{uuid.uuid4().hex[:6].upper()}"
+
+        photos_json = json.dumps(photos) if photos else None
+        items_json = json.dumps(items) if items else None
+
+        ret = ReturnRequest(
+            request_number=req_num,
+            order_id=order.id,
+            user_id=user_id,
+            request_type=request_type.upper(),
+            reason=reason,
+            detailed_reason=detailed_reason,
+            preferred_exchange_size=preferred_exchange_size,
+            refund_mode=refund_mode or "ORIGINAL_PAYMENT",
+            status="PENDING_REVIEW",
+            photos=photos_json,
+            items_json=items_json
+        )
+        db.add(ret)
+        db.commit()
+        db.refresh(ret)
+        return ret
+

@@ -14,10 +14,11 @@ import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
 import {
   AdminDashboardStats, Product, Order, User as CustomerUser,
-  Coupon, Category, CurrencyInfo, ContactMessage, ShippingSettings
+  Coupon, Category, CurrencyInfo, ContactMessage, ShippingSettings, ReturnRequest
 } from '../types';
 import { ProductFormModal } from '../components/common/ProductFormModal';
 import { InvoiceModal } from '../components/common/InvoiceModal';
+import { PackingSlipModal } from '../components/common/PackingSlipModal';
 
 export const AdminDashboard: React.FC = () => {
   const { user, isAdmin, logout } = useAuth();
@@ -25,10 +26,11 @@ export const AdminDashboard: React.FC = () => {
   const { formatRawPrice } = useCurrency();
   const navigate = useNavigate();
   const [adminInvoiceOrderId, setAdminInvoiceOrderId] = useState<string | number | null>(null);
+  const [packingSlipOrderId, setPackingSlipOrderId] = useState<number | null>(null);
   const [inventoryStockFilter, setInventoryStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
   const [inventorySearch, setInventorySearch] = useState<string>('');
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'products' | 'orders' | 'shipping' | 'contact_messages' | 'order_queries' | 'customers' | 'inventory' | 'coupons' | 'currencies' | 'database'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'products' | 'orders' | 'shipping' | 'returns' | 'contact_messages' | 'order_queries' | 'customers' | 'inventory' | 'coupons' | 'currencies' | 'database'>('overview');
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -40,6 +42,13 @@ export const AdminDashboard: React.FC = () => {
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [messageFilter, setMessageFilter] = useState<'ALL' | 'UNREAD' | 'READ' | 'REPLIED'>('ALL');
   const [orderQueryFilter, setOrderQueryFilter] = useState<'ALL' | 'UNREAD' | 'READ' | 'REPLIED'>('ALL');
+
+  // Customer Returns & Exchanges State
+  const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
+  const [returnFilter, setReturnFilter] = useState<'ALL' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'PICKUP_SCHEDULED' | 'COMPLETED'>('ALL');
+  const [returnSearch, setReturnSearch] = useState<string>('');
+  const [selectedPhotoModal, setSelectedPhotoModal] = useState<string | null>(null);
+  const [isUpdatingReturnId, setIsUpdatingReturnId] = useState<number | null>(null);
 
   // Database & System Environment Explorer State
   const [dbOverview, setDbOverview] = useState<any | null>(null);
@@ -327,6 +336,11 @@ export const AdminDashboard: React.FC = () => {
         .then((sRes) => setShippingSettings(sRes.data))
         .catch((err) => console.warn('Could not load shipping settings:', err));
 
+      // Fetch Customer Returns & Exchanges
+      api.get('/shipping/admin/returns')
+        .then((rRes) => setReturnRequests(rRes.data))
+        .catch((err) => console.warn('Could not load returns:', err));
+
       fetchDbOverview();
 
     } catch {
@@ -335,6 +349,22 @@ export const AdminDashboard: React.FC = () => {
       setLoading(false);
     }
   }, [showToast, fetchDbOverview]);
+
+  const handleUpdateReturnStatus = async (returnId: number, newStatus: string, adminNotes?: string) => {
+    try {
+      setIsUpdatingReturnId(returnId);
+      const res = await api.put(`/shipping/admin/returns/${returnId}/status`, {
+        status: newStatus,
+        admin_notes: adminNotes,
+      });
+      setReturnRequests((prev) => prev.map((r) => (r.id === returnId ? res.data : r)));
+      showToast(`Return Request #${res.data.request_number} updated to ${newStatus}!`, 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.detail || 'Failed to update return request', 'error');
+    } finally {
+      setIsUpdatingReturnId(null);
+    }
+  };
 
   // Shipping & Fulfillment Actions
   const handleCreateShipment = async (orderId: number) => {
@@ -902,6 +932,14 @@ export const AdminDashboard: React.FC = () => {
               label: `⚡ Restock & Low Stock Center (${products.filter((p) => (p.stock_quantity || 0) < 5).length})`,
             },
             { id: 'shipping', label: `🚚 Shipping & Fulfillment (${orders.filter((o) => o.shipping_status && o.shipping_status !== 'NOT_CREATED').length})` },
+            {
+              id: 'returns',
+              label: `🔄 Returns & Exchanges (${returnRequests.length})${
+                returnRequests.filter((r) => r.status === 'PENDING_REVIEW').length > 0
+                  ? ` • ${returnRequests.filter((r) => r.status === 'PENDING_REVIEW').length} Pending`
+                  : ''
+              }`,
+            },
             { id: 'products', label: `Products (${products.length})` },
             { id: 'orders', label: `Orders (${orders.length})` },
             {
@@ -1928,6 +1966,16 @@ export const AdminDashboard: React.FC = () => {
                                       <FileText className="w-3 h-3 text-[#D84B7E]" /> Invoice (PDF)
                                     </button>
 
+                                    {/* Print Packing Slip / Manifest */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setPackingSlipOrderId(ord.id)}
+                                      className="px-3 py-1.5 bg-white border border-[#F1BCCE] text-[#111111] font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-[#FCE7F0] hover:text-[#D84B7E] transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                                      title="Print Barcode Packing Slip Manifest"
+                                    >
+                                      <Package className="w-3 h-3 text-[#D84B7E]" /> Packing Slip
+                                    </button>
+
                                     {/* Download Label PDF */}
                                     {ord.awb_code && (
                                       <button
@@ -2210,6 +2258,311 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </form>
             )}
+          </div>
+        )}
+
+        {/* RETURNS & EXCHANGES TAB */}
+        {activeTab === 'returns' && (
+          <div className="space-y-8">
+            
+            {/* Header Banner */}
+            <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs flex flex-wrap justify-between items-center gap-4">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-[#111111] flex items-center gap-2">
+                  <RotateCcw className="w-5 h-5 text-[#D84B7E]" />
+                  Customer Returns & Size Exchanges Concierge
+                </h3>
+                <p className="text-xs text-gray-500 font-normal mt-1">
+                  Manage self-service 7-day returns, verify patron photo attachments, approve size swaps, generate reverse AWB courier manifests, and process refunds.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    api.get('/shipping/admin/returns').then((res) => setReturnRequests(res.data));
+                    showToast('Refreshed return requests', 'info');
+                  }}
+                  className="px-4 py-2 bg-white border border-[#F1BCCE] text-[#111111] text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#FCE7F0] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-[#D84B7E]" /> Refresh
+                </button>
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+              <div className="p-4 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs">
+                <span className="text-[11px] font-bold text-gray-500 uppercase">Total Requests</span>
+                <p className="font-serif text-2xl font-bold text-[#111111] mt-1">{returnRequests.length}</p>
+              </div>
+              <div className="p-4 bg-[#FFF8FA] border border-amber-300 rounded-2xl shadow-xs">
+                <span className="text-[11px] font-bold text-amber-700 uppercase">Pending Review</span>
+                <p className="font-serif text-2xl font-bold text-amber-600 mt-1">
+                  {returnRequests.filter((r) => r.status === 'PENDING_REVIEW').length}
+                </p>
+              </div>
+              <div className="p-4 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs">
+                <span className="text-[11px] font-bold text-blue-600 uppercase">Approved / Pickup</span>
+                <p className="font-serif text-2xl font-bold text-blue-600 mt-1">
+                  {returnRequests.filter((r) => r.status === 'APPROVED' || r.status === 'PICKUP_SCHEDULED').length}
+                </p>
+              </div>
+              <div className="p-4 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs">
+                <span className="text-[11px] font-bold text-emerald-600 uppercase">Completed</span>
+                <p className="font-serif text-2xl font-bold text-emerald-600 mt-1">
+                  {returnRequests.filter((r) => r.status === 'COMPLETED').length}
+                </p>
+              </div>
+              <div className="p-4 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs col-span-2 sm:col-span-1">
+                <span className="text-[11px] font-bold text-rose-600 uppercase">Rejected</span>
+                <p className="font-serif text-2xl font-bold text-rose-600 mt-1">
+                  {returnRequests.filter((r) => r.status === 'REJECTED').length}
+                </p>
+              </div>
+            </div>
+
+            {/* Filters & Search */}
+            <div className="p-4 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs flex flex-wrap justify-between items-center gap-4">
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: 'ALL', label: 'All Requests' },
+                  { id: 'PENDING_REVIEW', label: '⏳ Pending Review' },
+                  { id: 'APPROVED', label: '✅ Approved' },
+                  { id: 'PICKUP_SCHEDULED', label: '🚚 Reverse Pickup' },
+                  { id: 'COMPLETED', label: '✨ Completed' },
+                  { id: 'REJECTED', label: '❌ Rejected' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setReturnFilter(st.id as any)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      returnFilter === st.id
+                        ? 'bg-[#D84B7E] text-white shadow-xs'
+                        : 'bg-white border border-[#F1BCCE] text-gray-700 hover:bg-[#FCE7F0]'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+
+              <input
+                type="text"
+                placeholder="Search by Request #, Order #, Reason..."
+                value={returnSearch}
+                onChange={(e) => setReturnSearch(e.target.value)}
+                className="p-2.5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl text-xs outline-none focus:border-[#D84B7E] w-full sm:w-72"
+              />
+            </div>
+
+            {/* Returns Table */}
+            <div className="bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-[#F8D7E3]/60 text-gray-700 border-b border-[#F1BCCE] uppercase tracking-wider text-[11px]">
+                      <th className="p-4 font-bold">Request Ref & Date</th>
+                      <th className="p-4 font-bold">Order Details</th>
+                      <th className="p-4 font-bold">Request Type</th>
+                      <th className="p-4 font-bold">Customer Reason</th>
+                      <th className="p-4 font-bold">Photos</th>
+                      <th className="p-4 font-bold">Status & Reverse AWB</th>
+                      <th className="p-4 font-bold text-right">Concierge Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F1BCCE]">
+                    {returnRequests
+                      .filter((req) => {
+                        if (returnFilter !== 'ALL' && req.status !== returnFilter) return false;
+                        if (returnSearch.trim()) {
+                          const q = returnSearch.toLowerCase();
+                          const matchReq = req.request_number?.toLowerCase().includes(q);
+                          const matchReason = req.reason?.toLowerCase().includes(q);
+                          const matchNotes = req.detailed_reason?.toLowerCase().includes(q);
+                          return matchReq || matchReason || matchNotes;
+                        }
+                        return true;
+                      })
+                      .map((req) => {
+                        let parsedPhotos: string[] = [];
+                        try {
+                          parsedPhotos = req.photos ? JSON.parse(req.photos) : [];
+                        } catch {
+                          parsedPhotos = [];
+                        }
+
+                        let parsedItems: any[] = [];
+                        try {
+                          parsedItems = req.items_json ? JSON.parse(req.items_json) : [];
+                        } catch {
+                          parsedItems = [];
+                        }
+
+                        const isPending = req.status === 'PENDING_REVIEW';
+                        const isUpdating = isUpdatingReturnId === req.id;
+
+                        return (
+                          <tr key={req.id} className="hover:bg-[#FDF4F7] transition-colors">
+                            
+                            {/* Request Ref */}
+                            <td className="p-4">
+                              <span className="font-mono font-bold text-sm text-[#111111] block">
+                                {req.request_number}
+                              </span>
+                              <span className="text-[10px] text-gray-500 font-medium">
+                                {new Date(req.created_at).toLocaleDateString()} • {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </td>
+
+                            {/* Order Details */}
+                            <td className="p-4">
+                              <span className="font-bold text-[#111111] block">
+                                Order ID: #{req.order_id}
+                              </span>
+                              {parsedItems.length > 0 && (
+                                <div className="text-[11px] text-gray-600 mt-1 space-y-0.5">
+                                  {parsedItems.map((it, i) => (
+                                    <span key={i} className="block text-gray-700 font-medium">
+                                      • {it.product_name} (Qty: {it.quantity})
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Type */}
+                            <td className="p-4">
+                              {req.request_type === 'EXCHANGE' ? (
+                                <div>
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300 inline-block">
+                                    🔄 Size Exchange
+                                  </span>
+                                  {req.preferred_exchange_size && (
+                                    <span className="text-[11px] font-bold text-[#D84B7E] block mt-1">
+                                      Target Size: <strong className="text-black bg-[#F8D7E3] px-1.5 py-0.5 rounded">{req.preferred_exchange_size}</strong>
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 inline-block">
+                                    💰 Return for Refund
+                                  </span>
+                                  <span className="text-[10px] text-gray-500 block mt-1">
+                                    Mode: {req.refund_mode === 'STORE_CREDIT' ? 'Store Wallet' : 'Original Payment'}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Reason */}
+                            <td className="p-4 max-w-xs">
+                              <span className="font-bold text-[#111111] text-xs block">{req.reason}</span>
+                              {req.detailed_reason && (
+                                <p className="text-[11px] text-gray-600 mt-1 italic line-clamp-2">
+                                  "{req.detailed_reason}"
+                                </p>
+                              )}
+                            </td>
+
+                            {/* Photos */}
+                            <td className="p-4">
+                              {parsedPhotos.length > 0 ? (
+                                <div className="flex items-center gap-1.5">
+                                  {parsedPhotos.map((img, i) => (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      onClick={() => setSelectedPhotoModal(img)}
+                                      className="w-10 h-10 rounded-lg border border-[#F1BCCE] overflow-hidden hover:opacity-80 transition-opacity cursor-pointer shrink-0"
+                                      title="Click to view full patron inspection photo"
+                                    >
+                                      <img src={img} alt="" className="w-full h-full object-cover" />
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 italic text-[11px]">No photos</span>
+                              )}
+                            </td>
+
+                            {/* Status & Reverse AWB */}
+                            <td className="p-4">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border inline-block ${
+                                req.status === 'APPROVED' || req.status === 'PICKUP_SCHEDULED'
+                                  ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                  : req.status === 'COMPLETED'
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : req.status === 'REJECTED'
+                                  ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                  : 'bg-amber-100 text-amber-800 border-amber-300'
+                              }`}>
+                                {req.status}
+                              </span>
+
+                              {req.reverse_awb_code && (
+                                <div className="mt-1.5 space-y-0.5">
+                                  <span className="font-mono text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-2 py-0.5 rounded font-bold block">
+                                    Rev AWB: {req.reverse_awb_code}
+                                  </span>
+                                  <span className="text-[10px] text-gray-500 block">
+                                    {req.reverse_courier_name || 'Blue Dart Reverse'}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="p-4 text-right">
+                              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                {isPending && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={isUpdating}
+                                      onClick={() => handleUpdateReturnStatus(req.id, 'APPROVED', 'Request approved for complimentary reverse pickup.')}
+                                      className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-emerald-700 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                                    >
+                                      Approve & Dispatch Pickup
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isUpdating}
+                                      onClick={() => {
+                                        const note = window.prompt('Please enter reason for rejecting this return:');
+                                        if (note) handleUpdateReturnStatus(req.id, 'REJECTED', note);
+                                      }}
+                                      className="px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-rose-100 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+
+                                {(req.status === 'APPROVED' || req.status === 'PICKUP_SCHEDULED') && (
+                                  <button
+                                    type="button"
+                                    disabled={isUpdating}
+                                    onClick={() => handleUpdateReturnStatus(req.id, 'COMPLETED', 'Item received at warehouse. Quality inspection passed. Replacement/Refund processed.')}
+                                    className="px-3 py-1.5 bg-[#111111] text-white font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-[#D84B7E] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                                  >
+                                    Mark Completed
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -4234,6 +4587,36 @@ export const AdminDashboard: React.FC = () => {
           onClose={() => setAdminInvoiceOrderId(null)}
           orderIdentifier={adminInvoiceOrderId}
         />
+      )}
+
+      {/* Warehouse Packing Slip & Dispatch Manifest Modal */}
+      {packingSlipOrderId && (
+        <PackingSlipModal
+          orderId={packingSlipOrderId}
+          onClose={() => setPackingSlipOrderId(null)}
+        />
+      )}
+
+      {/* Patron Photo Lightbox Modal */}
+      {selectedPhotoModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setSelectedPhotoModal(null)}
+        >
+          <div className="relative max-w-3xl max-h-[85vh] bg-white p-2 rounded-2xl overflow-hidden shadow-2xl">
+            <img
+              src={selectedPhotoModal}
+              alt="Return inspection"
+              className="max-h-[80vh] w-auto object-contain rounded-xl"
+            />
+            <button
+              onClick={() => setSelectedPhotoModal(null)}
+              className="absolute top-4 right-4 p-2 bg-black/60 text-white rounded-full hover:bg-black cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

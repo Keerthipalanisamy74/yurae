@@ -802,12 +802,6 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
             Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
           </button>
 
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <span>Showing</span>
-            <span className="font-bold text-[#111111]">{filteredProducts.length}</span>
-            <span>rituals & pieces</span>
-          </div>
-
           {/* Sort Dropdown */}
           <div className="flex items-center gap-3 ml-auto">
             <span className="text-xs uppercase tracking-wider text-gray-500 font-bold hidden sm:inline">

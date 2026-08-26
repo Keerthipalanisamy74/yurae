@@ -2,23 +2,26 @@ import json
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Header, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request, Query, Response
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.core.config import settings
 from app.models.models import (
     Order, Address, User, Shipment, ShippingTrackingEvent,
-    ShippingWebhookEvent, ShippingSetting
+    ShippingWebhookEvent, ShippingSetting, ReturnRequest
 )
 from app.schemas.schemas import (
     ServiceabilityRequest, ServiceabilityResponse, CourierOption,
     ShipmentResponse, ShippingTrackingEventResponse,
     TrackingResponse, AWBAssignRequest, PickupScheduleRequest,
-    ShippingLabelResponse, ShippingSettingsResponse, ShippingSettingsUpdate
+    ShippingLabelResponse, ShippingSettingsResponse, ShippingSettingsUpdate,
+    ReturnRequestCreate, ReturnRequestResponse, ReturnStatusUpdate,
+    PackingSlipResponse
 )
 from app.api.deps import get_current_user, get_current_admin
 from app.services.shipping_service import ShippingService
 from app.services.shipping_provider import get_shipping_provider
+from app.services.packing_slip_service import PackingSlipService
 
 logger = logging.getLogger("yurae.shipping")
 
@@ -613,3 +616,210 @@ def update_shipping_settings(
 
     db.commit()
     return get_shipping_settings(current_admin, db)
+
+
+# ==========================================
+# PACKING SLIPS & WAREHOUSE DISPATCH
+# ==========================================
+
+@router.get("/orders/{order_id}/packing-slip", response_model=PackingSlipResponse)
+def get_order_packing_slip(
+    order_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Fetch structured luxury packing slip with barcode data and quality assurance checklist.
+    """
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    return PackingSlipService.get_packing_slip_data(order)
+
+
+@router.get("/orders/{order_id}/packing-slip/pdf")
+def download_order_packing_slip_pdf(
+    order_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Generate and download thermal/A4 luxury printable packing slip PDF.
+    """
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+
+    pdf_bytes = PackingSlipService.generate_packing_slip_pdf(order)
+    filename = f"packing_slip_{order.order_number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
+
+
+# ==========================================
+# SELF-SERVICE CUSTOMER RETURNS & EXCHANGES
+# ==========================================
+
+@router.post("/returns", response_model=ReturnRequestResponse, status_code=status.HTTP_201_CREATED)
+def submit_return_or_exchange_request(
+    req_in: ReturnRequestCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Customer: Submit a self-service exchange (size/variant change) or return for refund
+    under Yurae's 7-Day Luxury Guarantee.
+    """
+    order = db.query(Order).filter(Order.id == req_in.order_id, Order.user_id == current_user.id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found or does not belong to current user.")
+
+    try:
+        ret = ShippingService.create_return_request(
+            order=order,
+            user_id=current_user.id,
+            request_type=req_in.request_type,
+            reason=req_in.reason,
+            detailed_reason=req_in.detailed_reason,
+            preferred_exchange_size=req_in.preferred_exchange_size,
+            refund_mode=req_in.refund_mode,
+            items=req_in.items,
+            photos=req_in.photos,
+            db=db
+        )
+        return ret
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+
+@router.get("/returns", response_model=List[ReturnRequestResponse])
+def get_user_return_requests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Customer: View personal return/exchange request history and tracking status.
+    """
+    return db.query(ReturnRequest).filter(ReturnRequest.user_id == current_user.id).order_by(ReturnRequest.created_at.desc()).all()
+
+
+@router.get("/returns/{return_id}", response_model=ReturnRequestResponse)
+def get_return_request_detail(
+    return_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    ret = db.query(ReturnRequest).filter(ReturnRequest.id == return_id).first()
+    if not ret:
+        raise HTTPException(status_code=404, detail="Return request not found.")
+    if ret.user_id != current_user.id and current_user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Not authorized to view this return request.")
+    return ret
+
+
+@router.get("/admin/returns", response_model=List[ReturnRequestResponse])
+def get_all_returns_admin(
+    status: Optional[str] = None,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: List and filter all customer return/exchange requests.
+    """
+    query = db.query(ReturnRequest)
+    if status:
+        query = query.filter(ReturnRequest.status == status.upper())
+    return query.order_by(ReturnRequest.created_at.desc()).all()
+
+
+@router.put("/admin/returns/{return_id}/status", response_model=ReturnRequestResponse)
+def update_return_request_status(
+    return_id: int,
+    update_in: ReturnStatusUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin: Approve/reject return, schedule reverse courier pickup, or mark completed.
+    """
+    ret = db.query(ReturnRequest).filter(ReturnRequest.id == return_id).first()
+    if not ret:
+        raise HTTPException(status_code=404, detail="Return request not found.")
+
+    new_status = update_in.status.upper()
+    ret.status = new_status
+    if update_in.admin_notes is not None:
+        ret.admin_notes = update_in.admin_notes
+    if update_in.reverse_awb_code:
+        ret.reverse_awb_code = update_in.reverse_awb_code
+    elif new_status in ["APPROVED", "PICKUP_SCHEDULED"] and not ret.reverse_awb_code:
+        import uuid
+        ret.reverse_awb_code = f"REV-{ret.order.order_number[-6:]}-{uuid.uuid4().hex[:4].upper()}"
+        ret.reverse_courier_name = "Blue Dart Reverse Logistics"
+
+    if update_in.reverse_courier_name:
+        ret.reverse_courier_name = update_in.reverse_courier_name
+    if update_in.pickup_date:
+        ret.pickup_date = update_in.pickup_date
+    elif new_status == "PICKUP_SCHEDULED" and not ret.pickup_date:
+        ret.pickup_date = (datetime.utcnow()).strftime("%Y-%m-%d")
+
+    db.commit()
+    db.refresh(ret)
+    return ret
+
+
+# ==========================================
+# MULTI-CARRIER WEBHOOK ENDPOINTS
+# ==========================================
+
+@router.post("/webhooks/shiprocket")
+async def webhook_shiprocket(request: Request, db: Session = Depends(get_db)):
+    """
+    Receives tracking & status events from Shiprocket.
+    """
+    try:
+        body_bytes = await request.body()
+        payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+    except Exception:
+        payload = {}
+
+    payload["provider"] = "shiprocket"
+    return ShippingService.process_webhook_event(payload, db)
+
+
+@router.post("/webhooks/delhivery")
+async def webhook_delhivery(request: Request, db: Session = Depends(get_db)):
+    """
+    Receives tracking & status events from Delhivery Logistics.
+    """
+    try:
+        body_bytes = await request.body()
+        payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+    except Exception:
+        payload = {}
+
+    payload["provider"] = "delhivery"
+    return ShippingService.process_webhook_event(payload, db)
+
+
+@router.post("/webhooks/bluedart")
+async def webhook_bluedart(request: Request, db: Session = Depends(get_db)):
+    """
+    Receives tracking & status events from Blue Dart Express.
+    """
+    try:
+        body_bytes = await request.body()
+        payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+    except Exception:
+        payload = {}
+
+    payload["provider"] = "bluedart"
+    return ShippingService.process_webhook_event(payload, db)
+

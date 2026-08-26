@@ -48,12 +48,24 @@ class Settings(BaseSettings):
     # Payment Gateways (India Domestic & International)
     RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "rzp_test_your_key_id")
     RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "your_razorpay_key_secret")
+    RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "yurae_rzp_webhook_secret_2026")
 
     STRIPE_PUBLIC_KEY: str = os.getenv("STRIPE_PUBLIC_KEY", "")
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "yurae_stripe_webhook_secret_2026")
 
     PAYPAL_CLIENT_ID: str = os.getenv("PAYPAL_CLIENT_ID", "")
     PAYPAL_CLIENT_SECRET: str = os.getenv("PAYPAL_CLIENT_SECRET", "")
+
+    # GST & Legal Business Compliance (India)
+    SELLER_COMPANY_NAME: str = os.getenv("SELLER_COMPANY_NAME", "Yurae Beauty & Luxury Apparel Private Limited")
+    SELLER_GSTIN: str = os.getenv("SELLER_GSTIN", "33AAECY8721M1Z8")
+    SELLER_PAN: str = os.getenv("SELLER_PAN", "AAECY8721M")
+    SELLER_STATE: str = os.getenv("SELLER_STATE", "Tamil Nadu")
+    SELLER_STATE_CODE: str = os.getenv("SELLER_STATE_CODE", "33")
+    SELLER_ADDRESS: str = os.getenv("SELLER_ADDRESS", "74, Avenue Montaigne Botanical Complex, Anna Salai, Chennai, Tamil Nadu - 600002")
+    SELLER_EMAIL: str = os.getenv("SELLER_EMAIL", "concierge@yuraebeauty.com")
+    SELLER_PHONE: str = os.getenv("SELLER_PHONE", "+91 98765 43210")
 
     # Shipping & Order Fulfillment (Multi-Region: India Domestic & International)
     SHIPPING_PROVIDER: str = os.getenv("SHIPPING_PROVIDER", "shiprocket")

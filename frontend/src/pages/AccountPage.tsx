@@ -4,14 +4,15 @@ import {
   User, Package, MapPin, Key, LogOut, Star, X, CheckCircle2,
   MessageSquare, Truck, Copy, ExternalLink, Clock, ChevronRight,
   Calendar, Check, ShieldCheck, Loader2, FileText, Plus, Trash2, Edit, Home, Building2, Users,
-  Camera, Upload, Sparkles, Image as ImageIcon
+  Camera, Upload, Sparkles, Image as ImageIcon, RefreshCw, Undo2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
-import { Order, Address, TrackingResponse } from '../types';
+import { Order, Address, TrackingResponse, ReturnRequest } from '../types';
 import { useToast } from '../context/ToastContext';
 import { InvoiceModal } from '../components/common/InvoiceModal';
+import { ReturnRequestModal } from '../components/common/ReturnRequestModal';
 
 export const AccountPage: React.FC = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -23,6 +24,8 @@ export const AccountPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<string | number | null>(null);
+  const [selectedReturnOrder, setSelectedReturnOrder] = useState<Order | null>(null);
+  const [userReturnRequests, setUserReturnRequests] = useState<ReturnRequest[]>([]);
 
   // Address Modal State
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -84,6 +87,10 @@ export const AccountPage: React.FC = () => {
     api.get('/auth/addresses')
       .then((res) => setAddresses(res.data))
       .catch((err) => console.error(err));
+
+    api.get('/shipping/returns')
+      .then((res) => setUserReturnRequests(res.data))
+      .catch(() => {});
   }, [searchParams]);
 
   const handleOpenTracking = async (ord: Order) => {
@@ -526,7 +533,15 @@ export const AccountPage: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedReturnOrder(ord)}
+                                className="px-3.5 py-1.5 bg-[#FFF8FA] border border-[#F1BCCE] text-[#111111] font-bold text-xs uppercase tracking-wider rounded-full hover:border-[#D84B7E] hover:text-[#D84B7E] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                                title="Request 7-Day Size Exchange or Full Refund"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5 text-[#D84B7E]" /> 7-Day Exchange / Return
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => setSelectedInvoiceOrder(ord.order_number || ord.id)}
@@ -549,15 +564,17 @@ export const AccountPage: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-600">Payment:</span>
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold border ${
-                                ord.payment_status === 'Paid'
+                                ord.payment_status === 'Paid' || ord.order_status?.toLowerCase() === 'delivered'
                                   ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                                   : ord.payment_status === 'Pending'
                                   ? 'bg-amber-100 text-amber-800 border-amber-300'
                                   : 'bg-rose-100 text-rose-800 border-rose-300'
                               }`}>
-                                {ord.payment_status === 'Paid'
-                                  ? 'Paid'
-                                  : (ord.payments?.[0]?.payment_method?.toUpperCase() === 'COD'
+                                {ord.payment_status === 'Paid' || ord.order_status?.toLowerCase() === 'delivered'
+                                  ? (ord.is_cod || ord.payments?.[0]?.payment_method?.toUpperCase() === 'COD'
+                                    ? 'Paid (Cash on Delivery)'
+                                    : 'Paid')
+                                  : (ord.is_cod || ord.payments?.[0]?.payment_method?.toUpperCase() === 'COD'
                                     ? 'Pending (Cash on Delivery)'
                                     : 'Pending Payment')}
                               </span>
@@ -1422,6 +1439,17 @@ export const AccountPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Return & Exchange Modal */}
+      {selectedReturnOrder && (
+        <ReturnRequestModal
+          order={selectedReturnOrder}
+          onClose={() => setSelectedReturnOrder(null)}
+          onSuccess={() => {
+            api.get('/shipping/returns').then((res) => setUserReturnRequests(res.data)).catch(() => {});
+          }}
+        />
       )}
     </div>
   );

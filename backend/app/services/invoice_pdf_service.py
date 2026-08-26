@@ -9,6 +9,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from app.core.config import settings
 
 class InvoicePdfService:
     @staticmethod
@@ -145,11 +146,20 @@ class InvoicePdfService:
         story = []
 
         # 1. Header Grid (Brand on Left, Invoice Meta on Right)
-        seller_info = """
-        <b>Yurae Beauty & Luxury Apparel Private Limited</b><br/>
-        74, Avenue Montaigne Botanical Complex, Anna Salai<br/>
-        Chennai, Tamil Nadu - 600002, India<br/>
-        <b>GSTIN:</b> 33AAECY8721M1Z8 • <b>Email:</b> concierge@yuraebeauty.com
+        # 1. Header Grid (Brand on Left, Invoice Meta on Right)
+        seller_company = getattr(settings, 'SELLER_COMPANY_NAME', 'Yurae Beauty & Luxury Apparel Private Limited')
+        seller_gstin = getattr(settings, 'SELLER_GSTIN', '33AAECY8721M1Z8')
+        seller_pan = getattr(settings, 'SELLER_PAN', 'AAECY8721M')
+        seller_state = getattr(settings, 'SELLER_STATE', 'Tamil Nadu')
+        seller_state_code = getattr(settings, 'SELLER_STATE_CODE', '33')
+        seller_address = getattr(settings, 'SELLER_ADDRESS', '74, Avenue Montaigne Botanical Complex, Anna Salai, Chennai, Tamil Nadu - 600002')
+        seller_email = getattr(settings, 'SELLER_EMAIL', 'concierge@yuraebeauty.com')
+
+        seller_info = f"""
+        <b>{seller_company}</b><br/>
+        {seller_address}<br/>
+        <b>GSTIN:</b> {seller_gstin} • <b>PAN:</b> {seller_pan} • <b>State Code:</b> {seller_state_code}<br/>
+        <b>Email:</b> {seller_email} • <b>Origin State:</b> {seller_state}
         """
 
         addr = getattr(order, 'address', None)
@@ -195,17 +205,25 @@ class InvoicePdfService:
         story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#111111'), spaceAfter=12))
 
         # 2. Billed To & Shipping Coordinates
+        buyer_country = (addr.country if addr else "India").strip()
+        buyer_state = (addr.state if addr else "Tamil Nadu").strip()
+        is_export = buyer_country.lower() not in ("india", "in", "bharat")
+        is_intra_state = not is_export and (buyer_state.lower() == seller_state.lower() or seller_state.lower() in buyer_state.lower())
+
+        place_of_supply = "Export (Zero-Rated supply under LUT)" if is_export else f"{buyer_state}, India"
+
         buyer_address_html = f"""
         <b>{buyer_name}</b><br/>
         {addr.address_line1 if addr else 'Standard Delivery'}<br/>
         {f"{addr.address_line2}<br/>" if addr and addr.address_line2 else ""}
         {f"{addr.city}, {addr.state} - {addr.postal_code}" if addr else "Chennai, Tamil Nadu"}<br/>
-        {addr.country if addr else "India"}<br/>
+        {buyer_country}<br/>
         Phone: {buyer_phone} • Email: {buyer_email}
         """
 
         logistics_info_html = f"""
-        <b>Place of Supply:</b> {addr.state if addr else 'Tamil Nadu'}, {addr.country if addr else 'India'}<br/>
+        <b>Place of Supply:</b> {place_of_supply}<br/>
+        <b>GST Category:</b> {"Zero-Rated Export" if is_export else ("Intra-State (CGST + SGST)" if is_intra_state else "Inter-State (IGST)")}<br/>
         <b>Fulfillment Mode:</b> Express Luxury Logistics (Shiprocket)<br/>
         <b>AWB Tracking:</b> {order.awb_code if getattr(order, 'awb_code', None) else 'Assigned on Dispatch'}<br/>
         <b>Courier Partner:</b> {order.courier_name if getattr(order, 'courier_name', None) else 'Blue Dart Express'}
@@ -218,7 +236,7 @@ class InvoicePdfService:
                     Paragraph(buyer_address_html, box_text_style)
                 ],
                 [
-                    Paragraph("DISPATCH & LOGISTICS:", box_heading_style),
+                    Paragraph("DISPATCH & GST LOGISTICS:", box_heading_style),
                     Paragraph(logistics_info_html, box_text_style)
                 ]
             ]
@@ -252,7 +270,14 @@ class InvoicePdfService:
         curr = order.currency or "INR"
 
         for idx, it in enumerate(order.items):
-            hsn = "330499" if any(w in it.product_name.lower() for w in ["wash", "serum", "balm", "cream", "lotion", "toner"]) else "620443"
+            pname = it.product_name.lower()
+            if any(w in pname for w in ["wash", "serum", "balm", "cream", "lotion", "toner", "cleanser", "mist", "oil"]):
+                hsn = "33049900"
+            elif any(w in pname for w in ["ring", "necklace", "pendant", "bracelet", "earring", "jewelry", "jewellery", "pearl"]):
+                hsn = "71131120"
+            else:
+                hsn = "62044390"
+
             variant_desc = f"<br/><font color='#D84B7E' size='7'><b>{it.variant_info}</b></font>" if getattr(it, 'variant_info', None) else ""
             desc_html = f"<b>{it.product_name}</b>{variant_desc}"
 
@@ -280,16 +305,48 @@ class InvoicePdfService:
         story.append(items_table)
         story.append(Spacer(1, 12))
 
-        # 4. Totals & Tax Split Breakdown
+        # 4. Totals & Dynamic Tax Split Breakdown
         subtotal_val = getattr(order, 'subtotal', getattr(order, 'subtotal_amount', 0.0))
         discount_val = getattr(order, 'discount', getattr(order, 'discount_amount', 0.0)) or 0.0
         shipping_val = getattr(order, 'shipping_fee', getattr(order, 'shipping_amount', 0.0)) or 0.0
         tax_val = getattr(order, 'tax', 0.0) or 0.0
         total_val = getattr(order, 'total_amount', 0.0)
 
+        tax_rows = []
+        if is_export:
+            tax_rows = [
+                [
+                    "",
+                    Paragraph("<b>IGST (Zero-Rated Export):</b>", terms_text_style),
+                    Paragraph(f"{curr} 0.00", ParagraphStyle('TaxR', parent=table_cell_right, fontSize=7.5))
+                ]
+            ]
+        elif is_intra_state:
+            half_tax = tax_val / 2 if tax_val > 0 else (subtotal_val * 0.09)
+            tax_rows = [
+                [
+                    "",
+                    Paragraph("<b>CGST (9% Included):</b>", terms_text_style),
+                    Paragraph(f"{curr} {half_tax:,.2f}", ParagraphStyle('TaxR', parent=table_cell_right, fontSize=7.5))
+                ],
+                [
+                    "",
+                    Paragraph("<b>SGST (9% Included):</b>", terms_text_style),
+                    Paragraph(f"{curr} {half_tax:,.2f}", ParagraphStyle('TaxR2', parent=table_cell_right, fontSize=7.5))
+                ]
+            ]
+        else:
+            tax_rows = [
+                [
+                    "",
+                    Paragraph("<b>IGST (18% Included):</b>", terms_text_style),
+                    Paragraph(f"{curr} {tax_val:,.2f}", ParagraphStyle('TaxR', parent=table_cell_right, fontSize=7.5))
+                ]
+            ]
+
         totals_data = [
             [
-                Paragraph("<b>Terms & Conditions:</b><br/>1. Goods are eligible for exchange/return within 7 days under luxury return policy.<br/>2. Computer generated tax invoice; no physical signature required.", terms_text_style),
+                Paragraph("<b>Terms & Conditions:</b><br/>1. Goods are eligible for exchange/return within 7 days under luxury return policy.<br/>2. Computer generated tax invoice; no physical signature required.<br/>3. All disputes subject to Chennai, Tamil Nadu jurisdiction.", terms_text_style),
                 Paragraph("<b>Subtotal:</b>", table_cell_style),
                 Paragraph(f"{curr} {subtotal_val:,.2f}", table_cell_right)
             ],
@@ -303,16 +360,7 @@ class InvoicePdfService:
                 Paragraph("<b>Shipping & Handling:</b>", table_cell_style),
                 Paragraph(f"{curr} {shipping_val:,.2f}" if shipping_val > 0 else "FREE", table_cell_right)
             ],
-            [
-                "",
-                Paragraph("<b>CGST (Included):</b>", terms_text_style),
-                Paragraph(f"{curr} {tax_val / 2:,.2f}", ParagraphStyle('TaxR', parent=table_cell_right, fontSize=7.5))
-            ],
-            [
-                "",
-                Paragraph("<b>SGST (Included):</b>", terms_text_style),
-                Paragraph(f"{curr} {tax_val / 2:,.2f}", ParagraphStyle('TaxR2', parent=table_cell_right, fontSize=7.5))
-            ],
+            *tax_rows,
             [
                 "",
                 Paragraph("<b>GRAND TOTAL:</b>", ParagraphStyle('GT', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#111111'))),
@@ -320,13 +368,14 @@ class InvoicePdfService:
             ]
         ]
 
+        total_rows_count = len(totals_data)
         totals_table = Table(totals_data, colWidths=[90 * mm, 45 * mm, 35 * mm])
         totals_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('SPAN', (0, 0), (0, 5)),  # Span terms across left column
+            ('SPAN', (0, 0), (0, total_rows_count - 1)),  # Span terms across left column
             ('TOPPADDING', (0, 0), (-1, -1), 3),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-            ('LINEABOVE', (1, 5), (2, 5), 1.5, colors.HexColor('#111111')),  # Line above grand total
+            ('LINEABOVE', (1, total_rows_count - 1), (2, total_rows_count - 1), 1.5, colors.HexColor('#111111')),
         ]))
         story.append(totals_table)
         story.append(Spacer(1, 14))

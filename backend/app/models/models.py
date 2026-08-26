@@ -25,6 +25,7 @@ class User(Base):
     reviews = relationship("Review", back_populates="user")
     cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
     wishlist_items = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
+    return_requests = relationship("ReturnRequest", back_populates="user", cascade="all, delete-orphan")
 
 
 class Address(Base):
@@ -212,6 +213,7 @@ class Order(Base):
     payments = relationship("Payment", back_populates="order", cascade="all, delete-orphan")
     shipment = relationship("Shipment", back_populates="order", uselist=False, cascade="all, delete-orphan")
     tracking_events = relationship("ShippingTrackingEvent", back_populates="order", cascade="all, delete-orphan", order_by="ShippingTrackingEvent.event_time.desc()")
+    return_requests = relationship("ReturnRequest", back_populates="order", cascade="all, delete-orphan")
 
 
 class OrderItem(Base):
@@ -383,6 +385,32 @@ class StockNotification(Base):
 
     product = relationship("Product")
     variant = relationship("ProductVariant")
+
+
+class ReturnRequest(Base):
+    __tablename__ = "return_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_number = Column(String(50), unique=True, index=True, nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    request_type = Column(String(50), default="EXCHANGE")  # EXCHANGE or RETURN_REFUND
+    reason = Column(String(255), nullable=False)           # Size Too Large, Size Too Small, Defective Fabric, Color Mismatch, Skin Sensitivity, Wrong Item Delivered
+    detailed_reason = Column(Text, nullable=True)
+    preferred_exchange_size = Column(String(100), nullable=True)  # New size requested for exchange
+    refund_mode = Column(String(50), default="ORIGINAL_PAYMENT")  # ORIGINAL_PAYMENT or STORE_CREDIT
+    status = Column(String(50), default="PENDING_REVIEW")  # PENDING_REVIEW, APPROVED, REJECTED, PICKUP_SCHEDULED, COMPLETED
+    admin_notes = Column(Text, nullable=True)
+    photos = Column(LONGTEXT, nullable=True)               # JSON array of photo URLs or base64 data
+    items_json = Column(Text, nullable=True)               # JSON array of items being returned/exchanged
+    reverse_awb_code = Column(String(100), nullable=True)
+    reverse_courier_name = Column(String(100), nullable=True)
+    pickup_date = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    order = relationship("Order", back_populates="return_requests")
+    user = relationship("User", back_populates="return_requests")
 
 
 

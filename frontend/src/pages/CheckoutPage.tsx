@@ -396,6 +396,21 @@ export const CheckoutPage: React.FC = () => {
     showToast('Demo Card details auto-filled', 'info');
   };
 
+  const loadRazorpaySDK = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePlaceOrder = async () => {
     const finalName = name.trim() || (user ? `${user.first_name} ${user.last_name}` : 'Customer');
     const finalPhone = phone.trim() || user?.phone || '+91 98765 43210';
@@ -432,16 +447,14 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    try {
-      setIsProcessing(true);
-
-      // If online payment, provide smooth gateway authorization simulation
-      if (!isCod) {
-        await new Promise((r) => setTimeout(r, 600));
-      }
-
-      const paymentId = isCod ? undefined : `${paymentMethod.toLowerCase()}_${Math.random().toString(36).substring(2, 10)}`;
-
+    const submitOrderToBackend = async (paymentPayload: {
+      is_paid: boolean;
+      payment_id?: string;
+      razorpay_order_id?: string;
+      razorpay_payment_id?: string;
+      razorpay_signature?: string;
+      stripe_payment_intent_id?: string;
+    }) => {
       const res = await api.post('/orders', {
         new_address: {
           name: finalName,
@@ -459,8 +472,7 @@ export const CheckoutPage: React.FC = () => {
         coupon_code: appliedCoupon ? appliedCoupon.code : (initialCouponFromState || undefined),
         currency: currency,
         payment_method: paymentMethod,
-        is_paid: !isCod,
-        payment_id: paymentId,
+        ...paymentPayload,
       });
 
       setCreatedOrder(res.data);
@@ -481,7 +493,7 @@ export const CheckoutPage: React.FC = () => {
             country,
             is_default: false,
           });
-        } catch (e) {
+        } catch {
           // non-blocking
         }
       }
@@ -494,11 +506,89 @@ export const CheckoutPage: React.FC = () => {
       } else {
         showToast(`Payment of ${formatRawPrice(totalPayable, currency)} successful! Order confirmed as Paid.`, 'success');
       }
+    };
+
+    try {
+      setIsProcessing(true);
+
+      if (!isCod) {
+        // Step A: Initiate Payment on Server
+        const initRes = await api.post('/orders/initiate-payment', {
+          payment_method: paymentMethod,
+          currency: currency,
+          country: country,
+          coupon_code: appliedCoupon ? appliedCoupon.code : (initialCouponFromState || undefined),
+        });
+
+        const initData = initRes.data;
+
+        // Step B: If live Razorpay is available, launch live Razorpay Modal
+        if (paymentMethod === 'Razorpay' && !initData.is_sandbox && initData.key_id) {
+          const scriptLoaded = await loadRazorpaySDK();
+          if (scriptLoaded && (window as any).Razorpay) {
+            const options = {
+              key: initData.key_id,
+              amount: Math.round(initData.amount * 100),
+              currency: initData.currency,
+              name: 'Yurae Beauty Atelier',
+              description: `Order #${initData.order_number}`,
+              order_id: initData.gateway_order_id,
+              prefill: {
+                name: finalName,
+                email: email || user?.email,
+                contact: finalPhone,
+              },
+              theme: { color: '#D84B7E' },
+              handler: async (response: any) => {
+                try {
+                  await submitOrderToBackend({
+                    is_paid: true,
+                    payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                  });
+                } catch (err: any) {
+                  showToast(err.response?.data?.detail || 'Order creation failed after payment', 'error');
+                  setIsProcessing(false);
+                }
+              },
+              modal: {
+                ondismiss: () => {
+                  setIsProcessing(false);
+                  showToast('Payment window was dismissed.', 'info');
+                }
+              }
+            };
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+            return;
+          }
+        }
+
+        // Sandbox / Simulated Card or UPI authorization
+        await new Promise((r) => setTimeout(r, 600));
+        const paymentId = `${paymentMethod.toLowerCase()}_${Math.random().toString(36).substring(2, 10)}`;
+        await submitOrderToBackend({
+          is_paid: true,
+          payment_id: paymentId,
+          razorpay_order_id: initData.gateway_order_id,
+          stripe_payment_intent_id: initData.client_secret ? initData.gateway_order_id : undefined,
+        });
+      } else {
+        // COD Order
+        await submitOrderToBackend({
+          is_paid: false,
+          payment_id: undefined,
+        });
+      }
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Failed to place order. Please try again.';
       showToast(msg, 'error');
     } finally {
-      setIsProcessing(false);
+      if (paymentMethod !== 'Razorpay' || isCod) {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -1652,6 +1742,15 @@ export const CheckoutPage: React.FC = () => {
                   <span className="font-bold text-emerald-700">
                     {shippingEstimate.is_free ? 'FREE' : formatRawPrice(shippingEstimate.shipping_fee, currency)}
                   </span>
+                </div>
+
+                <div className="flex justify-between text-[11px] text-gray-500 pt-0.5">
+                  <span>
+                    {isIndia
+                      ? `GST (18% Included • ${state.trim().toLowerCase() === 'tamil nadu' ? 'CGST 9% + SGST 9%' : 'IGST 18%'})`
+                      : 'Taxes & Duties (Zero-Rated Export)'}
+                  </span>
+                  <span className="font-semibold text-emerald-700">Taxes Included</span>
                 </div>
 
                 <div className="flex justify-between text-sm font-serif font-bold text-[#111111] pt-3 border-t border-[#F1BCCE]">

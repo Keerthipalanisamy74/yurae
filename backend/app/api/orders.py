@@ -5,9 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.models import Order, OrderItem, Cart, CartItem, Product, Address, Payment, Coupon, User
-from app.schemas.schemas import OrderResponse, OrderCreate, OrderStatusUpdate
+from app.schemas.schemas import (
+    OrderResponse, OrderCreate, OrderStatusUpdate,
+    PaymentInitiateRequest, PaymentInitiateResponse
+)
 from app.api.deps import get_current_user, get_current_admin
 from app.api.cart import get_or_create_user_cart
+from app.core.config import settings
 from app.services.exchange_rate_service import ExchangeRateService, CURRENCY_METADATA
 from app.services.shipping_service import ShippingService
 from app.services.payment_service import PaymentService
@@ -18,6 +22,91 @@ def generate_order_number() -> str:
     today_str = datetime.utcnow().strftime("%Y%m%d")
     unique_suffix = str(uuid.uuid4().hex[:6]).upper()
     return f"YURAE-{today_str}-{unique_suffix}"
+
+@router.post("/initiate-payment", response_model=PaymentInitiateResponse)
+def initiate_payment(
+    init_in: PaymentInitiateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Pre-order payment initialization: creates Razorpay Order or Stripe PaymentIntent
+    so client can launch official checkout modal before finalizing the order.
+    """
+    cart = get_or_create_user_cart(current_user.id, db)
+    if not cart.items:
+        raise HTTPException(status_code=400, detail="Your beauty bag is empty.")
+
+    target_currency = (init_in.currency or "INR").upper()
+    rates = ExchangeRateService.get_rates(db)
+    if target_currency not in rates:
+        target_currency = "INR"
+
+    decimals = CURRENCY_METADATA.get(target_currency, {}).get("decimal_digits", 2)
+
+    inr_subtotal = 0.0
+    for item in cart.items:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if product and product.status == "ACTIVE":
+            base_unit_price = product.sale_price if product.sale_price else product.price
+            inr_subtotal += base_unit_price * item.quantity
+
+    subtotal = ExchangeRateService.convert_amount(
+        amount=inr_subtotal,
+        from_currency="INR",
+        to_currency=target_currency,
+        db=db
+    )
+
+    discount = 0.0
+    if init_in.coupon_code:
+        coupon = db.query(Coupon).filter(Coupon.code == init_in.coupon_code.upper(), Coupon.active == True).first()
+        if coupon and inr_subtotal >= coupon.minimum_order_amount:
+            if coupon.discount_type == "PERCENTAGE":
+                discount = (subtotal * coupon.discount_value) / 100.0
+            else:
+                converted_coupon_val = ExchangeRateService.convert_amount(
+                    amount=coupon.discount_value,
+                    from_currency="INR",
+                    to_currency=target_currency,
+                    db=db
+                )
+                discount = min(converted_coupon_val, subtotal)
+
+    shipping_calc = ShippingService.calculate_shipping(
+        country=init_in.country or "India",
+        subtotal=subtotal,
+        target_currency=target_currency,
+        db=db
+    )
+    shipping_fee = shipping_calc["shipping_fee"]
+
+    total_amount = max(0.0, subtotal - discount + shipping_fee)
+    total_amount = round(total_amount, decimals if decimals > 0 else 0)
+
+    order_num = generate_order_number()
+
+    pay_result = PaymentService.process_checkout_payment(
+        payment_method=init_in.payment_method,
+        amount=total_amount,
+        currency=target_currency,
+        order_number=order_num,
+        customer_info={"name": f"{current_user.first_name} {current_user.last_name}", "email": current_user.email}
+    )
+
+    is_sandbox = bool(pay_result.raw_data.get("is_sandbox", False))
+
+    return PaymentInitiateResponse(
+        success=pay_result.success,
+        order_number=order_num,
+        gateway_order_id=pay_result.gateway_order_id,
+        client_secret=pay_result.client_secret,
+        key_id=pay_result.raw_data.get("key_id") or pay_result.raw_data.get("publishable_key") or settings.RAZORPAY_KEY_ID,
+        amount=total_amount,
+        currency=target_currency,
+        is_sandbox=is_sandbox,
+        message=pay_result.message
+    )
 
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 def create_order(
@@ -88,11 +177,9 @@ def create_order(
         if product.stock_quantity < item.quantity:
             raise HTTPException(status_code=400, detail=f"Insufficient stock for '{product.name}'. Available: {product.stock_quantity}")
 
-        # Authoritative base price
         base_unit_price = product.sale_price if product.sale_price else product.price
         inr_subtotal += base_unit_price * item.quantity
 
-        # Unit price in transaction currency
         converted_unit_price = ExchangeRateService.convert_amount(
             amount=base_unit_price,
             from_currency="INR",
@@ -126,7 +213,6 @@ def create_order(
     if order_in.coupon_code:
         coupon = db.query(Coupon).filter(Coupon.code == order_in.coupon_code.upper(), Coupon.active == True).first()
         if coupon:
-            # Check minimum order amount in base currency (INR)
             if inr_subtotal >= coupon.minimum_order_amount:
                 if coupon.discount_type == "PERCENTAGE":
                     discount = (subtotal * coupon.discount_value) / 100.0
@@ -159,16 +245,7 @@ def create_order(
 
     order_num = generate_order_number()
 
-    # 7. Process payment via provider abstraction
-    pay_result = PaymentService.process_checkout_payment(
-        payment_method=order_in.payment_method,
-        amount=total_amount,
-        currency=target_currency,
-        order_number=order_num,
-        customer_info={"name": f"{current_user.first_name} {current_user.last_name}", "email": current_user.email}
-    )
-
-    # 8. Strict COD Validation (COD is strictly allowed ONLY for India)
+    # 7. Strict COD Validation (COD is strictly allowed ONLY for India)
     is_cod = order_in.payment_method.strip().upper() in ["COD", "CASH ON DELIVERY", "CASH_ON_DELIVERY", "CASH"]
     is_india = dest_country.strip().lower() in ["india", "in", "bharat"]
 
@@ -177,7 +254,43 @@ def create_order(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cash on Delivery (COD) is available only for Indian domestic deliveries. International orders require prepaid online payment."
         )
-    
+
+    # 8. Cryptographic Signature Verification for Prepaid Orders
+    final_payment_id = order_in.payment_id
+    if not is_cod and order_in.is_paid:
+        if order_in.razorpay_signature:
+            verify_res = PaymentService.verify_checkout_payment(
+                payment_method="Razorpay",
+                payment_id=order_in.razorpay_payment_id or order_in.payment_id or "",
+                order_id=order_in.razorpay_order_id or "",
+                payload={
+                    "razorpay_signature": order_in.razorpay_signature,
+                    "razorpay_order_id": order_in.razorpay_order_id,
+                    "razorpay_payment_id": order_in.razorpay_payment_id,
+                    "currency": target_currency
+                }
+            )
+            if not verify_res.success:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Payment signature verification failed: {verify_res.message}"
+                )
+            final_payment_id = order_in.razorpay_payment_id or final_payment_id
+
+        elif order_in.stripe_payment_intent_id:
+            verify_res = PaymentService.verify_checkout_payment(
+                payment_method="Stripe",
+                payment_id=order_in.stripe_payment_intent_id,
+                order_id="",
+                payload={"stripe_payment_intent_id": order_in.stripe_payment_intent_id, "currency": target_currency}
+            )
+            if not verify_res.success:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Stripe payment verification failed: {verify_res.message}"
+                )
+            final_payment_id = order_in.stripe_payment_intent_id or final_payment_id
+
     if is_cod or not order_in.is_paid:
         order_payment_status = "Pending"
         payment_status_db = "PENDING"
@@ -231,7 +344,7 @@ def create_order(
     # 10. Create Payment record
     pay_record = Payment(
         order_id=new_order.id,
-        payment_id=order_in.payment_id or pay_result.payment_id,
+        payment_id=final_payment_id or f"pay_{uuid.uuid4().hex[:10]}",
         payment_method=order_in.payment_method,
         currency=target_currency,
         amount=total_amount,
@@ -308,19 +421,42 @@ def get_order_invoice(identifier: str, current_user: User = Depends(get_current_
     buyer_phone = addr.phone if addr else (buyer_user.phone if buyer_user and buyer_user.phone else "N/A")
     payment_method = order.payments[0].payment_method if order.payments else ("Cash on Delivery (COD)" if order.is_cod else "Prepaid Online")
 
+    seller_company = getattr(settings, 'SELLER_COMPANY_NAME', 'Yurae Beauty & Luxury Apparel Private Limited')
+    seller_gstin = getattr(settings, 'SELLER_GSTIN', '33AAECY8721M1Z8')
+    seller_pan = getattr(settings, 'SELLER_PAN', 'AAECY8721M')
+    seller_state = getattr(settings, 'SELLER_STATE', 'Tamil Nadu')
+    seller_state_code = getattr(settings, 'SELLER_STATE_CODE', '33')
+    seller_address = getattr(settings, 'SELLER_ADDRESS', '74, Avenue Montaigne Botanical Complex, Anna Salai, Chennai, Tamil Nadu - 600002')
+    seller_email = getattr(settings, 'SELLER_EMAIL', 'concierge@yuraebeauty.com')
+    seller_phone = getattr(settings, 'SELLER_PHONE', '+91 98765 43210')
+
+    buyer_country = (addr.country if addr else "India").strip()
+    buyer_state = (addr.state if addr else "Tamil Nadu").strip()
+    is_export = buyer_country.lower() not in ("india", "in", "bharat")
+    is_intra_state = not is_export and (buyer_state.lower() == seller_state.lower() or seller_state.lower() in buyer_state.lower())
+
+    tax_val = order.tax or 0.0
+    cgst_val = round(tax_val / 2, 2) if is_intra_state else 0.0
+    sgst_val = round(tax_val / 2, 2) if is_intra_state else 0.0
+    igst_val = round(tax_val, 2) if (not is_intra_state and not is_export) else 0.0
+
     invoice_data = {
         "invoice_number": f"INV-{order.order_number}",
         "invoice_date": order.created_at.strftime("%d %B %Y") if order.created_at else "Today",
+        "place_of_supply": "Export (Zero-Rated supply under LUT)" if is_export else f"{buyer_state}, India",
+        "gst_category": "Zero-Rated Export" if is_export else ("Intra-State (CGST + SGST)" if is_intra_state else "Inter-State (IGST)"),
         "seller": {
-            "company_name": "Yurae Beauty & Luxury Apparel Private Limited",
-            "gstin": "33AAECY8721M1Z8",
-            "address": "74, Avenue Montaigne Botanical Complex, Anna Salai",
+            "company_name": seller_company,
+            "gstin": seller_gstin,
+            "pan": seller_pan,
+            "state_code": seller_state_code,
+            "address": seller_address,
             "city": "Chennai",
-            "state": "Tamil Nadu",
+            "state": seller_state,
             "postal_code": "600002",
             "country": "India",
-            "email": "concierge@yuraebeauty.com",
-            "phone": "+91 98765 43210"
+            "email": seller_email,
+            "phone": seller_phone
         },
         "buyer": {
             "name": buyer_name,
@@ -329,9 +465,9 @@ def get_order_invoice(identifier: str, current_user: User = Depends(get_current_
             "address_line1": addr.address_line1 if addr else "Standard Delivery Address",
             "address_line2": addr.address_line2 if addr else "",
             "city": addr.city if addr else "Chennai",
-            "state": addr.state if addr else "Tamil Nadu",
+            "state": buyer_state,
             "postal_code": addr.postal_code if addr else "600001",
-            "country": addr.country if addr else "India"
+            "country": buyer_country
         },
         "order_details": {
             "order_number": order.order_number,
@@ -343,8 +479,10 @@ def get_order_invoice(identifier: str, current_user: User = Depends(get_current_
             "discount": order.discount or 0.0,
             "shipping": order.shipping_fee or 0.0,
             "total": order.total_amount,
-            "cgst": round((order.tax or 0.0) / 2, 2),
-            "sgst": round((order.tax or 0.0) / 2, 2),
+            "cgst": cgst_val,
+            "sgst": sgst_val,
+            "igst": igst_val,
+            "is_export": is_export,
             "items": [
                 {
                     "product_name": item.product_name,
@@ -352,7 +490,7 @@ def get_order_invoice(identifier: str, current_user: User = Depends(get_current_
                     "quantity": item.quantity,
                     "unit_price": item.price,
                     "total_price": item.price * item.quantity,
-                    "hsn_code": "330499" if "wash" in item.product_name.lower() or "serum" in item.product_name.lower() or "balm" in item.product_name.lower() else "620443"
+                    "hsn_code": "33049900" if any(w in item.product_name.lower() for w in ["wash", "serum", "balm", "cream", "lotion", "toner", "cleanser", "mist", "oil"]) else ("71131120" if any(w in item.product_name.lower() for w in ["ring", "necklace", "pendant", "bracelet", "earring", "jewelry", "pearl"]) else "62044390")
                 }
                 for item in order.items
             ]
@@ -421,9 +559,24 @@ def update_order_status(
 
     if status_in.order_status:
         order.order_status = status_in.order_status
+        # If order is delivered, automatically mark COD / pending payment as Paid
+        if new_status == "DELIVERED" and (not status_in.payment_status or order.payment_status in ["Pending", "PENDING"]):
+            order.payment_status = "Paid"
+            if not order.shipping_status or order.shipping_status != "DELIVERED":
+                order.shipping_status = "DELIVERED"
+
     if status_in.payment_status:
         order.payment_status = status_in.payment_status
 
     db.commit()
     db.refresh(order)
+
+    # Automatic AWB Generation on transition to Processing
+    if new_status == "PROCESSING" and not order.awb_code:
+        try:
+            ShippingService.execute_automated_shipping_flow(order.id, db)
+            db.refresh(order)
+        except Exception as e:
+            print(f"Warning: Could not auto-generate shipment on status change to Processing for Order #{order.order_number}: {e}")
+
     return order

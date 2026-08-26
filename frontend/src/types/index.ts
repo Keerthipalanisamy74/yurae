@@ -317,5 +317,86 @@ export interface ShippingSettings {
   is_shiprocket_connected: boolean;
 }
 
+export interface ReturnRequest {
+  id: number;
+  request_number: string;
+  order_id: number;
+  user_id: number;
+  request_type: 'EXCHANGE' | 'RETURN_REFUND';
+  reason: string;
+  detailed_reason?: string;
+  preferred_exchange_size?: string;
+  refund_mode?: string;
+  status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'PICKUP_SCHEDULED' | 'COMPLETED';
+  admin_notes?: string;
+  photos?: string;
+  items_json?: string;
+  reverse_awb_code?: string;
+  reverse_courier_name?: string;
+  pickup_date?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface PackingSlipItem {
+  product_name: string;
+  variant_info?: string;
+  sku: string;
+  hsn_code: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+export interface PackingSlipData {
+  order_number: string;
+  awb_code?: string;
+  courier_name?: string;
+  routing_code?: string;
+  barcode_text: string;
+  order_date: string;
+  payment_method: string;
+  payment_status: string;
+  is_cod: boolean;
+  cod_amount: number;
+  total_quantity: number;
+  subtotal: number;
+  shipping_fee: number;
+  discount: number;
+  total_amount: number;
+  currency: string;
+  recipient: {
+    name: string;
+    phone: string;
+    email: string;
+    address_line1: string;
+    address_line2?: string;
+    building_or_flat?: string;
+    landmark?: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  };
+  sender: {
+    company_name: string;
+    warehouse: string;
+    address: string;
+    pincode: string;
+    contact: string;
+  };
+  items: {
+    product_name: string;
+    variant_info?: string;
+    sku: string;
+    hsn_code: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+  }[];
+  luxury_packaging_checklist: string[];
+}
+
+
 
 

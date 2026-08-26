@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Star, Heart, Plus, Minus, ShieldCheck, Truck, RotateCcw,
   ChevronDown, ChevronUp, Trash2, Edit, Bell, Mail, CheckCircle2,
-  Camera, Image as ImageIcon, X, ZoomIn, Upload, Sparkles, Share2
+  Camera, Image as ImageIcon, X, ZoomIn, Upload, Sparkles, Share2, Ruler
 } from 'lucide-react';
 import { Product, ProductVariant, Review, Category } from '../types';
 import { api } from '../services/api';
@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { ProductCard } from '../components/common/ProductCard';
 import { ProductFormModal } from '../components/common/ProductFormModal';
+import { SizeChartModal } from '../components/common/SizeChartModal';
 import { SEO } from '../components/common/SEO';
 
 export const ProductDetails: React.FC = () => {
@@ -50,10 +51,15 @@ export const ProductDetails: React.FC = () => {
   const [openAccordions, setOpenAccordions] = useState<{ [key: string]: boolean }>({
     description: true,
     ingredients: true,
+    size_chart: true,
     how_to_use: false,
     suitable_for: false,
     shipping: false,
   });
+
+  // Size Chart Guide Modal State
+  const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
+  const [accordionUnit, setAccordionUnit] = useState<'in' | 'cm'>('in');
 
   // Review Form state
   const [reviewRating, setReviewRating] = useState(5);
@@ -347,10 +353,24 @@ export const ProductDetails: React.FC = () => {
 
   const categorySlug = product.category?.slug?.toLowerCase() || '';
   const categoryName = product.category?.name?.toLowerCase() || '';
-  const isFashion = categorySlug === 'fashion' || categoryName.includes('fashion') || categoryName.includes('dress') || categoryName.includes('apparel') || categoryName.includes('kurti') || categoryName.includes('saree') || categoryName.includes('clothing');
-  const isAccessories = categorySlug === 'accessories' || categoryName.includes('accessories') || categoryName.includes('jewelry') || categoryName.includes('bag') || categoryName.includes('pendant') || categoryName.includes('ring') || categoryName.includes('earring');
+  const isFashion =
+    (categorySlug === 'fashion' ||
+      categoryName.includes('fashion') ||
+      categoryName === 'dresses' ||
+      categoryName === 'clothing' ||
+      categoryName === 'apparel') &&
+    categorySlug !== 'skincare' &&
+    categorySlug !== 'accessories';
+  const isAccessories =
+    categorySlug === 'accessories' ||
+    categoryName.includes('accessories') ||
+    categoryName.includes('jewelry') ||
+    categoryName.includes('bag') ||
+    categoryName.includes('pendant') ||
+    categoryName.includes('ring') ||
+    categoryName.includes('earring');
 
-  const calculatedRating = product.rating || (reviews.length > 0 ? Number((reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)) : 5.0);
+  const calculatedRating = product.avg_rating || (reviews.length > 0 ? Number((reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)) : 5.0);
   const effectivePrice = product.sale_price || product.price;
 
   return (
@@ -367,7 +387,7 @@ export const ProductDetails: React.FC = () => {
         sku={product.sku || `YURAE-${product.id}`}
         category={product.category?.name || 'Skincare'}
         ratingValue={calculatedRating}
-        reviewCount={product.reviews_count || reviews.length || 1}
+        reviewCount={product.review_count || reviews.length || 1}
         breadcrumbs={[
           { name: 'Home', url: '/' },
           { name: product.category?.name || 'Shop', url: `/shop?category=${product.category?.slug || ''}` },
@@ -476,20 +496,22 @@ export const ProductDetails: React.FC = () => {
                 </span>
               </div>
 
-              {/* Short Desc & Net Weight Badge */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {product.weight && (
-                  <span className="text-xs bg-[#FFF0F5] text-[#D84B7E] font-bold px-3 py-1 rounded-full border border-[#F1BCCE] flex items-center gap-1.5 shadow-2xs">
-                    <span>⚖️</span>
-                    <span>Net Wt: {product.weight}</span>
-                  </span>
-                )}
-                {product.skin_type && (
-                  <span className="text-xs bg-[#F8D7E3] text-[#111111] font-bold px-3 py-1 rounded-full border border-[#F1BCCE]">
-                    {product.skin_type}
-                  </span>
-                )}
-              </div>
+              {/* Badges: only show when there are no selectable variants and value is a genuine single attribute */}
+              {(!product.variants || product.variants.length === 0) && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {product.weight && (
+                    <span className="text-xs bg-[#FFF0F5] text-[#D84B7E] font-bold px-3 py-1 rounded-full border border-[#F1BCCE] flex items-center gap-1.5 shadow-2xs">
+                      <span>⚖️</span>
+                      <span>Net Wt: {product.weight}</span>
+                    </span>
+                  )}
+                  {product.skin_type && !product.skin_type.toLowerCase().includes('size') && (
+                    <span className="text-xs bg-[#F8D7E3] text-[#111111] font-bold px-3 py-1 rounded-full border border-[#F1BCCE]">
+                      {product.skin_type}
+                    </span>
+                  )}
+                </div>
+              )}
 
               <p className="text-sm text-gray-700 font-normal leading-relaxed pt-2">
                 {product.short_description || product.description}
@@ -499,16 +521,36 @@ export const ProductDetails: React.FC = () => {
             {/* Variants Selector */}
             {product.variants && product.variants.length > 0 && (
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs uppercase tracking-widest text-[#111111] font-bold block">
-                    Select {product.variants[0].variant_name}
-                  </label>
-                  {product.variants.some((v) => v.stock_quantity !== undefined && v.stock_quantity <= 0) && (
-                    <span className="text-[11px] text-[#D84B7E] font-medium flex items-center gap-1">
-                      <Bell className="w-3 h-3" /> Select a sold-out size to get a restock alert
-                    </span>
+                <div className="flex flex-wrap justify-between items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs uppercase tracking-widest text-[#111111] font-bold block">
+                      Select {product.variants[0].variant_name}
+                    </label>
+                    {selectedVariant && (
+                      <span className="text-xs text-[#D84B7E] font-bold">
+                        ({selectedVariant.variant_value})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Size Guide Button - strictly for Fashion category only */}
+                  {isFashion && (
+                    <button
+                      type="button"
+                      onClick={() => setIsSizeChartOpen(true)}
+                      className="text-xs text-[#D84B7E] font-bold hover:underline flex items-center gap-1.5 cursor-pointer bg-[#FDF4F7] hover:bg-[#FCE7F0] px-3 py-1 rounded-full border border-[#F1BCCE] transition-all shadow-2xs group"
+                    >
+                      <Ruler className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform" />
+                      <span>Size Guide &amp; Measurements</span>
+                    </button>
                   )}
                 </div>
+
+                {product.variants.some((v) => v.stock_quantity !== undefined && v.stock_quantity <= 0) && (
+                  <div className="text-[11px] text-[#D84B7E] font-medium flex items-center gap-1">
+                    <Bell className="w-3 h-3" /> Select a sold-out size to get a restock alert
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2.5">
                   {product.variants.map((variant) => {
                     const isSelected = selectedVariant?.id === variant.id;
@@ -544,15 +586,15 @@ export const ProductDetails: React.FC = () => {
               </div>
             )}
 
-            {/* Real-time Inventory Stock Status */}
+            {/* Real-time Inventory Stock Status - units count visible only to Admin */}
             {(() => {
               const currentStock = selectedVariant && selectedVariant.stock_quantity !== undefined
                 ? selectedVariant.stock_quantity
                 : product.stock_quantity;
 
-              return (
-                <div className="pt-1">
-                  {currentStock <= 0 ? (
+              if (currentStock <= 0) {
+                return (
+                  <div className="pt-1">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-300 shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                       <span>
@@ -561,25 +603,25 @@ export const ProductDetails: React.FC = () => {
                           : 'Out of Stock — Sold Out'}
                       </span>
                     </div>
-                  ) : currentStock < 5 ? (
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 via-orange-100 to-amber-100 text-amber-900 text-xs font-bold rounded-2xl border border-amber-300 shadow-sm animate-pulse">
-                      <span className="text-sm">⚡</span>
+                  </div>
+                );
+              }
+
+              if (isAdmin) {
+                return (
+                  <div className="pt-1">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 text-xs font-semibold rounded-full border border-amber-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                       <span>
-                        Low Stock Alert: Only {currentStock} {currentStock === 1 ? 'item' : 'items'} left
-                        {selectedVariant ? ` in size ${selectedVariant.variant_value}` : ' in stock'} — order soon!
+                        Admin Stock: {currentStock} units in stock
+                        {selectedVariant ? ` (${selectedVariant.variant_value})` : ''}
                       </span>
                     </div>
-                  ) : (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span>
-                        In Stock ({currentStock} units available
-                        {selectedVariant ? ` for size ${selectedVariant.variant_value}` : ''})
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
+                  </div>
+                );
+              }
+
+              return null;
             })()}
 
             {/* Quantity Selector & CTA Buttons */}
@@ -851,6 +893,195 @@ export const ProductDetails: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* FASHION SIZE CHART & GARMENT DIMENSIONS ACCORDION */}
+              {isFashion && (
+                <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
+                  <button
+                    onClick={() => toggleAccordion('size_chart')}
+                    className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Ruler className="w-4 h-4 text-[#D84B7E]" />
+                      Size Chart &amp; Garment Dimensions
+                    </span>
+                    {openAccordions.size_chart ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  </button>
+                  {openAccordions.size_chart && (() => {
+                    const text = `${product.name} ${product.category?.name || ''} ${product.description || ''}`.toLowerCase();
+                    const isKurti = text.includes('kurti') || text.includes('kurta') || text.includes('anarkali') || text.includes('ethnic');
+                    const isTop = text.includes('shirt') || text.includes('top') || text.includes('blouse') || text.includes('tee');
+                    const isBottom = text.includes('pant') || text.includes('trouser') || text.includes('jean') || text.includes('bottom') || text.includes('palazzo');
+                    const isSaree = text.includes('saree') || text.includes('blouse') || text.includes('lehenga');
+                    const isFootwear = text.includes('shoe') || text.includes('sandal') || text.includes('heel') || text.includes('footwear');
+
+                    const getAccordionRows = () => {
+                      if (isKurti) {
+                        return [
+                          { s: 'XS (34)', c1: accordionUnit === 'in' ? '33 - 34"' : '84 - 87 cm', c2: accordionUnit === 'in' ? '28 - 29"' : '71 - 74 cm', c3: accordionUnit === 'in' ? '36 - 37"' : '91 - 94 cm', c4: accordionUnit === 'in' ? '44"' : '112 cm' },
+                          { s: 'S (36)', c1: accordionUnit === 'in' ? '35 - 36"' : '88 - 92 cm', c2: accordionUnit === 'in' ? '30 - 31"' : '76 - 79 cm', c3: accordionUnit === 'in' ? '38 - 39"' : '96 - 99 cm', c4: accordionUnit === 'in' ? '45"' : '114 cm' },
+                          { s: 'M (38)', c1: accordionUnit === 'in' ? '37 - 38"' : '93 - 97 cm', c2: accordionUnit === 'in' ? '32 - 33"' : '81 - 84 cm', c3: accordionUnit === 'in' ? '40 - 41"' : '101 - 104 cm', c4: accordionUnit === 'in' ? '45.5"' : '115 cm' },
+                          { s: 'L (40)', c1: accordionUnit === 'in' ? '39 - 40"' : '98 - 102 cm', c2: accordionUnit === 'in' ? '34 - 35"' : '86 - 89 cm', c3: accordionUnit === 'in' ? '42 - 43"' : '106 - 109 cm', c4: accordionUnit === 'in' ? '46"' : '117 cm' },
+                          { s: 'XL (42)', c1: accordionUnit === 'in' ? '41 - 42"' : '103 - 108 cm', c2: accordionUnit === 'in' ? '36 - 37"' : '91 - 95 cm', c3: accordionUnit === 'in' ? '44 - 45"' : '111 - 115 cm', c4: accordionUnit === 'in' ? '46.5"' : '118 cm' },
+                          { s: 'XXL (44)', c1: accordionUnit === 'in' ? '43 - 45"' : '109 - 115 cm', c2: accordionUnit === 'in' ? '38 - 40"' : '96 - 102 cm', c3: accordionUnit === 'in' ? '46 - 48"' : '116 - 122 cm', c4: accordionUnit === 'in' ? '47"' : '119 cm' },
+                        ];
+                      }
+                      if (isTop) {
+                        return [
+                          { s: 'XS', c1: accordionUnit === 'in' ? '31 - 32"' : '78 - 82 cm', c2: accordionUnit === 'in' ? '24 - 25"' : '61 - 64 cm', c3: accordionUnit === 'in' ? '34 - 35"' : '86 - 89 cm', c4: accordionUnit === 'in' ? '24"' : '61 cm' },
+                          { s: 'S', c1: accordionUnit === 'in' ? '33 - 34"' : '83 - 87 cm', c2: accordionUnit === 'in' ? '26 - 27"' : '65 - 69 cm', c3: accordionUnit === 'in' ? '36 - 37"' : '90 - 94 cm', c4: accordionUnit === 'in' ? '25"' : '63 cm' },
+                          { s: 'M', c1: accordionUnit === 'in' ? '35 - 36"' : '88 - 92 cm', c2: accordionUnit === 'in' ? '28 - 29"' : '70 - 74 cm', c3: accordionUnit === 'in' ? '38 - 39"' : '95 - 99 cm', c4: accordionUnit === 'in' ? '25.5"' : '65 cm' },
+                          { s: 'L', c1: accordionUnit === 'in' ? '37 - 39"' : '93 - 99 cm', c2: accordionUnit === 'in' ? '30 - 32"' : '75 - 81 cm', c3: accordionUnit === 'in' ? '40 - 42"' : '100 - 106 cm', c4: accordionUnit === 'in' ? '26"' : '66 cm' },
+                          { s: 'XL', c1: accordionUnit === 'in' ? '40 - 42"' : '100 - 107 cm', c2: accordionUnit === 'in' ? '33 - 35"' : '82 - 89 cm', c3: accordionUnit === 'in' ? '43 - 45"' : '107 - 114 cm', c4: accordionUnit === 'in' ? '27"' : '68 cm' },
+                          { s: 'XXL', c1: accordionUnit === 'in' ? '43 - 45"' : '108 - 115 cm', c2: accordionUnit === 'in' ? '36 - 38"' : '90 - 97 cm', c3: accordionUnit === 'in' ? '46 - 48"' : '115 - 122 cm', c4: accordionUnit === 'in' ? '28"' : '71 cm' },
+                        ];
+                      }
+                      if (isBottom) {
+                        return [
+                          { s: 'XS (26)', c1: accordionUnit === 'in' ? '24 - 25"' : '61 - 64 cm', c2: accordionUnit === 'in' ? '34 - 35"' : '86 - 89 cm', c3: accordionUnit === 'in' ? '28"' : '71 cm', c4: accordionUnit === 'in' ? '38"' : '96 cm' },
+                          { s: 'S (28)', c1: accordionUnit === 'in' ? '26 - 27"' : '66 - 69 cm', c2: accordionUnit === 'in' ? '36 - 37"' : '91 - 94 cm', c3: accordionUnit === 'in' ? '28.5"' : '72 cm', c4: accordionUnit === 'in' ? '38.5"' : '98 cm' },
+                          { s: 'M (30)', c1: accordionUnit === 'in' ? '28 - 29"' : '71 - 74 cm', c2: accordionUnit === 'in' ? '38 - 39"' : '96 - 99 cm', c3: accordionUnit === 'in' ? '29"' : '74 cm', c4: accordionUnit === 'in' ? '39"' : '99 cm' },
+                          { s: 'L (32)', c1: accordionUnit === 'in' ? '30 - 32"' : '76 - 81 cm', c2: accordionUnit === 'in' ? '40 - 42"' : '101 - 106 cm', c3: accordionUnit === 'in' ? '29.5"' : '75 cm', c4: accordionUnit === 'in' ? '39.5"' : '100 cm' },
+                          { s: 'XL (34)', c1: accordionUnit === 'in' ? '33 - 35"' : '84 - 89 cm', c2: accordionUnit === 'in' ? '43 - 45"' : '109 - 114 cm', c3: accordionUnit === 'in' ? '30"' : '76 cm', c4: accordionUnit === 'in' ? '40"' : '102 cm' },
+                          { s: 'XXL (36)', c1: accordionUnit === 'in' ? '35 - 37"' : '89 - 94 cm', c2: accordionUnit === 'in' ? '45 - 47"' : '114 - 119 cm', c3: accordionUnit === 'in' ? '30"' : '76 cm', c4: accordionUnit === 'in' ? '40.5"' : '103 cm' },
+                        ];
+                      }
+                      if (isFootwear) {
+                        return [
+                          { s: 'UK 3', c1: 'US 5', c2: 'EU 36', c3: accordionUnit === 'in' ? '8.86"' : '22.5 cm', c4: 'IND 3' },
+                          { s: 'UK 4', c1: 'US 6', c2: 'EU 37', c3: accordionUnit === 'in' ? '9.17"' : '23.3 cm', c4: 'IND 4' },
+                          { s: 'UK 5', c1: 'US 7', c2: 'EU 38', c3: accordionUnit === 'in' ? '9.49"' : '24.1 cm', c4: 'IND 5' },
+                          { s: 'UK 6', c1: 'US 8', c2: 'EU 39', c3: accordionUnit === 'in' ? '9.84"' : '25.0 cm', c4: 'IND 6' },
+                          { s: 'UK 7', c1: 'US 9', c2: 'EU 40', c3: accordionUnit === 'in' ? '10.15"' : '25.8 cm', c4: 'IND 7' },
+                          { s: 'UK 8', c1: 'US 10', c2: 'EU 41', c3: accordionUnit === 'in' ? '10.47"' : '26.6 cm', c4: 'IND 8' },
+                        ];
+                      }
+                      // Default: Dresses & Gowns
+                      return [
+                        { s: 'XS', c1: accordionUnit === 'in' ? '31 - 32"' : '78 - 82 cm', c2: accordionUnit === 'in' ? '24 - 25"' : '61 - 64 cm', c3: accordionUnit === 'in' ? '34 - 35"' : '86 - 89 cm', c4: accordionUnit === 'in' ? '46"' : '117 cm' },
+                        { s: 'S', c1: accordionUnit === 'in' ? '33 - 34"' : '83 - 87 cm', c2: accordionUnit === 'in' ? '26 - 27"' : '65 - 69 cm', c3: accordionUnit === 'in' ? '36 - 37"' : '90 - 94 cm', c4: accordionUnit === 'in' ? '47"' : '119 cm' },
+                        { s: 'M', c1: accordionUnit === 'in' ? '35 - 36"' : '88 - 92 cm', c2: accordionUnit === 'in' ? '28 - 29"' : '70 - 74 cm', c3: accordionUnit === 'in' ? '38 - 39"' : '95 - 99 cm', c4: accordionUnit === 'in' ? '48"' : '122 cm' },
+                        { s: 'L', c1: accordionUnit === 'in' ? '37 - 39"' : '93 - 99 cm', c2: accordionUnit === 'in' ? '30 - 32"' : '75 - 81 cm', c3: accordionUnit === 'in' ? '40 - 42"' : '100 - 106 cm', c4: accordionUnit === 'in' ? '49"' : '124 cm' },
+                        { s: 'XL', c1: accordionUnit === 'in' ? '40 - 42"' : '100 - 107 cm', c2: accordionUnit === 'in' ? '33 - 35"' : '82 - 89 cm', c3: accordionUnit === 'in' ? '43 - 45"' : '107 - 114 cm', c4: accordionUnit === 'in' ? '50"' : '127 cm' },
+                        { s: 'XXL', c1: accordionUnit === 'in' ? '43 - 45"' : '108 - 115 cm', c2: accordionUnit === 'in' ? '36 - 38"' : '90 - 97 cm', c3: accordionUnit === 'in' ? '46 - 48"' : '115 - 122 cm', c4: accordionUnit === 'in' ? '51"' : '129 cm' },
+                      ];
+                    };
+
+                    const col1Header = isBottom ? 'Waist' : isFootwear ? 'US Size' : 'Bust';
+                    const col2Header = isBottom ? 'Hips' : isFootwear ? 'EU Size' : 'Waist';
+                    const col3Header = isBottom ? 'Inseam' : isFootwear ? 'Foot Length' : 'Hips';
+                    const col4Header = isBottom ? 'Length' : isFootwear ? 'Standard' : 'Length';
+
+                    return (
+                      <div className="px-6 pb-6 text-xs text-gray-700 space-y-3.5 border-t border-[#F1BCCE]">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-800">
+                              Silhouette Measurements:
+                            </span>
+                            <div className="bg-white p-0.5 rounded-lg border border-[#F1BCCE] flex items-center shadow-2xs text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => setAccordionUnit('in')}
+                                className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                                  accordionUnit === 'in' ? 'bg-[#D84B7E] text-white' : 'text-gray-600'
+                                }`}
+                              >
+                                in
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAccordionUnit('cm')}
+                                className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                                  accordionUnit === 'cm' ? 'bg-[#D84B7E] text-white' : 'text-gray-600'
+                                }`}
+                              >
+                                cm
+                              </button>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setIsSizeChartOpen(true)}
+                            className="text-[#D84B7E] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Ruler className="w-3 h-3" />
+                            <span>Full Guide &amp; Smart Fit Finder</span>
+                          </button>
+                        </div>
+
+                        <div className="overflow-x-auto rounded-xl border border-[#F1BCCE] bg-white shadow-2xs">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="bg-[#FCE7F0]/80 text-[#111111] border-b border-[#F1BCCE]">
+                                <th className="py-2.5 px-3 font-bold">Size</th>
+                                <th className="py-2.5 px-3 font-bold">{col1Header}</th>
+                                <th className="py-2.5 px-3 font-bold">{col2Header}</th>
+                                <th className="py-2.5 px-3 font-bold">{col3Header}</th>
+                                <th className="py-2.5 px-3 font-bold">{col4Header}</th>
+                                <th className="py-2.5 px-3 font-bold text-right">Select</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#FCE7F0]">
+                              {getAccordionRows().map((row) => {
+                                const isCur = selectedVariant && (
+                                  selectedVariant.variant_value.toUpperCase() === row.s.toUpperCase() ||
+                                  selectedVariant.variant_value.toUpperCase().startsWith(row.s.split(' ')[0].toUpperCase()) ||
+                                  row.s.toUpperCase().startsWith(selectedVariant.variant_value.toUpperCase())
+                                );
+                                return (
+                                  <tr
+                                    key={row.s}
+                                    className={`hover:bg-[#FFF8FA] transition-colors ${
+                                      isCur ? 'bg-[#FFF0F5] font-bold text-[#D84B7E]' : ''
+                                    }`}
+                                  >
+                                    <td className="py-2 px-3 font-bold">{row.s}</td>
+                                    <td className="py-2 px-3">{row.c1}</td>
+                                    <td className="py-2 px-3">{row.c2}</td>
+                                    <td className="py-2 px-3">{row.c3}</td>
+                                    <td className="py-2 px-3">{row.c4}</td>
+                                    <td className="py-2 px-3 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const clean = row.s.split(' ')[0];
+                                          const match = product.variants?.find((v) =>
+                                            v.variant_value.toLowerCase().startsWith(clean.toLowerCase()) ||
+                                            clean.toLowerCase().startsWith(v.variant_value.toLowerCase())
+                                          );
+                                          if (match) {
+                                            setSelectedVariant(match);
+                                            showToast(`✨ Selected Size ${match.variant_value}`, 'success');
+                                          } else {
+                                            showToast(`Size ${row.s} is not currently available for this piece`, 'info');
+                                          }
+                                        }}
+                                        className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold transition-all cursor-pointer ${
+                                          isCur
+                                            ? 'bg-[#D84B7E] text-white shadow-2xs'
+                                            : 'bg-[#FDF4F7] text-[#D84B7E] border border-[#F1BCCE] hover:bg-[#D84B7E] hover:text-white'
+                                        }`}
+                                      >
+                                        {isCur ? 'Selected ✓' : 'Pick'}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <p className="text-[11px] text-gray-500 italic">
+                          * Tailored fit. If in between sizes or desiring a flowy relaxed silhouette, we recommend sizing up.
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* Ingredients / Fabric / Material */}
               {product.ingredients && product.ingredients.trim() && (
@@ -1236,6 +1467,30 @@ export const ProductDetails: React.FC = () => {
             categories={categories}
             initialCategorySlug={product.category?.slug}
             onSuccess={handleProductEditSuccess}
+          />
+        )}
+
+        {/* Fashion Size Chart Modal - strictly for Fashion category */}
+        {isFashion && (
+          <SizeChartModal
+            isOpen={isSizeChartOpen}
+            onClose={() => setIsSizeChartOpen(false)}
+            productName={product.name}
+            categoryName={product.category?.name}
+            productDescription={product.description || product.short_description}
+            selectedSize={selectedVariant?.variant_value}
+            onSelectSize={(sizeName) => {
+              const found = product.variants?.find((v) =>
+                v.variant_value.toLowerCase().startsWith(sizeName.toLowerCase()) ||
+                sizeName.toLowerCase().startsWith(v.variant_value.toLowerCase())
+              );
+              if (found) {
+                setSelectedVariant(found);
+                showToast(`✨ Selected Size ${found.variant_value}`, 'success');
+              } else {
+                showToast(`Size ${sizeName} is not currently available for this piece`, 'info');
+              }
+            }}
           />
         )}
 

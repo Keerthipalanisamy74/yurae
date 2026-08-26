@@ -343,12 +343,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product: initialProduc
             </div>
 
             <div className="flex items-center gap-1.5">
-              {product.weight && (
+              {product.weight && (!product.variants || product.variants.length === 0) && (
                 <span className="text-[10px] bg-[#FFF0F5] text-[#D84B7E] px-2 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
                   {product.weight}
                 </span>
               )}
-              {product.skin_type && !isFashion && !isAccessories && !product.weight && (
+              {product.skin_type && !isFashion && !isAccessories && !product.skin_type.toLowerCase().includes('size') && !product.weight && (
                 <span className="text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-2 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
                   {product.skin_type.split(',')[0]}
                 </span>

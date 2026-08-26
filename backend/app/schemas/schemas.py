@@ -323,6 +323,23 @@ class OrderItemResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class PaymentInitiateRequest(BaseModel):
+    payment_method: str = "Razorpay"
+    currency: str = "INR"
+    country: Optional[str] = "India"
+    coupon_code: Optional[str] = None
+
+class PaymentInitiateResponse(BaseModel):
+    success: bool
+    order_number: str
+    gateway_order_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    key_id: Optional[str] = None
+    amount: float
+    currency: str
+    is_sandbox: bool = False
+    message: str
+
 class OrderCreate(BaseModel):
     address_id: Optional[int] = None
     new_address: Optional[AddressCreate] = None
@@ -331,6 +348,10 @@ class OrderCreate(BaseModel):
     payment_method: str = "COD"
     is_paid: bool = False
     payment_id: Optional[str] = None
+    razorpay_order_id: Optional[str] = None
+    razorpay_payment_id: Optional[str] = None
+    razorpay_signature: Optional[str] = None
+    stripe_payment_intent_id: Optional[str] = None
 
 class PaymentResponse(BaseModel):
     id: int
@@ -667,6 +688,79 @@ class StockNotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Customer Returns & Exchanges ---
+class ReturnRequestCreate(BaseModel):
+    order_id: int
+    request_type: str = "EXCHANGE"  # EXCHANGE or RETURN_REFUND
+    reason: str
+    detailed_reason: Optional[str] = None
+    preferred_exchange_size: Optional[str] = None
+    refund_mode: Optional[str] = "ORIGINAL_PAYMENT"  # ORIGINAL_PAYMENT or STORE_CREDIT
+    items: Optional[List[Dict[str, Any]]] = None
+    photos: Optional[List[str]] = None
+
+class ReturnStatusUpdate(BaseModel):
+    status: str  # PENDING_REVIEW, APPROVED, REJECTED, PICKUP_SCHEDULED, COMPLETED
+    admin_notes: Optional[str] = None
+    reverse_awb_code: Optional[str] = None
+    reverse_courier_name: Optional[str] = None
+    pickup_date: Optional[str] = None
+
+class ReturnRequestResponse(BaseModel):
+    id: int
+    request_number: str
+    order_id: int
+    user_id: int
+    request_type: str
+    reason: str
+    detailed_reason: Optional[str] = None
+    preferred_exchange_size: Optional[str] = None
+    refund_mode: Optional[str] = None
+    status: str
+    admin_notes: Optional[str] = None
+    photos: Optional[str] = None
+    items_json: Optional[str] = None
+    reverse_awb_code: Optional[str] = None
+    reverse_courier_name: Optional[str] = None
+    pickup_date: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# --- Packing Slip ---
+class PackingSlipItem(BaseModel):
+    product_name: str
+    variant_info: Optional[str] = None
+    sku: str
+    hsn_code: str
+    quantity: int
+    unit_price: float
+    total_price: float
+
+class PackingSlipResponse(BaseModel):
+    order_number: str
+    awb_code: Optional[str] = None
+    courier_name: Optional[str] = None
+    routing_code: Optional[str] = None
+    barcode_text: str
+    order_date: str
+    payment_method: str
+    payment_status: str
+    is_cod: bool
+    cod_amount: float
+    total_quantity: int
+    subtotal: float
+    shipping_fee: float
+    discount: float
+    total_amount: float
+    currency: str
+    recipient: Dict[str, Any]
+    sender: Dict[str, Any]
+    items: List[PackingSlipItem]
+    luxury_packaging_checklist: List[str]
 
 
 

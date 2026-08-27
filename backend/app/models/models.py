@@ -413,4 +413,184 @@ class ReturnRequest(Base):
     user = relationship("User", back_populates="return_requests")
 
 
+class Warehouse(Base):
+    __tablename__ = "warehouses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    code = Column(String(50), unique=True, nullable=False)
+    contact_name = Column(String(100), nullable=False)
+    phone = Column(String(50), nullable=False)
+    email = Column(String(255), nullable=False)
+    address_line1 = Column(String(255), nullable=False)
+    address_line2 = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=False)
+    state = Column(String(100), nullable=False)
+    pincode = Column(String(20), nullable=False)
+    country = Column(String(100), default="India")
+    is_primary = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    pick_lists = relationship("PickList", back_populates="warehouse")
+    inventory_locations = relationship("ProductInventoryLocation", back_populates="warehouse")
+
+
+class ProductInventoryLocation(Base):
+    __tablename__ = "product_inventory_locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
+    zone = Column(String(50), default="A-Ground")
+    aisle = Column(String(50), default="A1")
+    rack = Column(String(50), default="R1")
+    shelf_bin = Column(String(50), default="B1")
+    batch_number = Column(String(100), nullable=True)
+    mfg_date = Column(String(50), nullable=True)
+    exp_date = Column(String(50), nullable=True)
+    stock_quantity = Column(Integer, default=0)
+    reserved_quantity = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    warehouse = relationship("Warehouse", back_populates="inventory_locations")
+    product = relationship("Product")
+
+
+class PickList(Base):
+    __tablename__ = "pick_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    picklist_number = Column(String(50), unique=True, index=True, nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), unique=True, nullable=False)
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=True)
+    assigned_staff_name = Column(String(100), nullable=True)
+    status = Column(String(50), default="PENDING")  # PENDING, PICKED, DISCREPANCY
+    picked_at = Column(DateTime, nullable=True)
+    notes = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    order = relationship("Order")
+    warehouse = relationship("Warehouse", back_populates="pick_lists")
+    items = relationship("PickListItem", back_populates="pick_list", cascade="all, delete-orphan")
+
+
+class PickListItem(Base):
+    __tablename__ = "pick_list_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    picklist_id = Column(Integer, ForeignKey("pick_lists.id"), nullable=False)
+    order_item_id = Column(Integer, ForeignKey("order_items.id"), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    product_name = Column(String(200), nullable=False)
+    sku = Column(String(100), nullable=False)
+    variant_info = Column(String(100), nullable=True)
+    shelf_location = Column(String(100), nullable=True)
+    barcode = Column(String(100), nullable=True)
+    quantity_required = Column(Integer, nullable=False)
+    quantity_picked = Column(Integer, default=0)
+    status = Column(String(50), default="PENDING")  # PENDING, PICKED, OUT_OF_STOCK, DAMAGED
+    notes = Column(String(255), nullable=True)
+
+    pick_list = relationship("PickList", back_populates="items")
+    order_item = relationship("OrderItem")
+    product = relationship("Product")
+
+
+class QualityCheckLog(Base):
+    __tablename__ = "quality_check_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    qc_inspector_name = Column(String(100), nullable=True)
+    status = Column(String(50), default="PASSED")  # PASSED, FAILED, RE_INSPECT
+    verification_checklist = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=False)
+    batch_number = Column(String(100), nullable=True)
+    expiry_date = Column(String(50), nullable=True)
+    defect_reason = Column(String(255), nullable=True)
+    corrective_action = Column(String(255), nullable=True)
+    notes = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order = relationship("Order")
+
+
+class PackingLog(Base):
+    __tablename__ = "packing_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    packer_name = Column(String(100), nullable=True)
+    box_type = Column(String(100), nullable=True)
+    packaging_checklist = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=False)
+    free_samples = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    total_weight_kg = Column(Float, default=0.5)
+    length_cm = Column(Float, default=15.0)
+    breadth_cm = Column(Float, default=10.0)
+    height_cm = Column(Float, default=8.0)
+    notes = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order = relationship("Order")
+
+
+class RefundRecord(Base):
+    __tablename__ = "refund_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    refund_number = Column(String(50), unique=True, index=True, nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    return_request_id = Column(Integer, ForeignKey("return_requests.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(10), default="INR")
+    refund_type = Column(String(50), default="FULL")  # FULL, PARTIAL, STORE_CREDIT
+    refund_mode = Column(String(50), default="ORIGINAL_PAYMENT")  # ORIGINAL_PAYMENT, BANK_TRANSFER, WALLET
+    gateway_refund_id = Column(String(100), nullable=True)
+    reason = Column(String(255), nullable=False)
+    status = Column(String(50), default="COMPLETED")  # INITIATED, COMPLETED, FAILED
+    admin_notes = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    order = relationship("Order")
+    user = relationship("User")
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    recipient_email = Column(String(255), nullable=True)
+    recipient_phone = Column(String(50), nullable=True)
+    channel = Column(String(50), default="EMAIL")  # EMAIL, SMS, WHATSAPP, WEBHOOK
+    event_type = Column(String(100), nullable=False)
+    subject = Column(String(255), nullable=False)
+    payload_preview = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    status = Column(String(50), default="SENT")  # SENT, FAILED, QUEUED
+    provider_message_id = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_id = Column(Integer, nullable=True)
+    actor_name = Column(String(100), default="System")
+    actor_role = Column(String(50), default="ADMIN")
+    action = Column(String(100), nullable=False)  # e.g., STATUS_CHANGE, QC_APPROVED, PACKED, REFUND_ISSUED, EDIT_PRODUCT
+    entity_type = Column(String(100), nullable=False)  # Order, Product, Shipment, PickListItem, User
+    entity_id = Column(String(100), nullable=False)
+    old_value_json = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    new_value_json = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 

@@ -15,6 +15,7 @@ export interface Address {
   address_type?: string; // 'Home' | 'Office' | 'Parents' | 'Other'
   name: string;
   phone: string;
+  street?: string;
   address_line1: string;
   address_line2?: string;
   building_or_flat?: string;

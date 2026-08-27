@@ -8,12 +8,17 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from app.database.session import get_db, engine, Base
-from app.models.models import Order, User, Product, Category, Coupon, Review, ExchangeRate, Shipment
+from app.models.models import (
+    Order, User, Product, Category, Coupon, Review, ExchangeRate, Shipment,
+    AuditLog, ContactMessage, ReturnRequest, StockNotification, QualityCheckLog,
+    PackingLog, Warehouse, ProductInventoryLocation, Address, Wishlist, CartItem, ProductVariant
+)
 from app.schemas.schemas import AdminDashboardStats, OrderResponse, UserResponse
 from app.api.deps import get_current_admin
 from app.core.config import settings, backend_env, root_env
 from app.database.migrate_all import run_full_schema_migration
 from app.database.seed import seed_db
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/admin", tags=["Admin Dashboard"])
 
@@ -822,3 +827,301 @@ def export_gstr1_summary_report(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+# ==============================================================================
+# 🌟 ENTERPRISE REVIEWS MODERATION & MANAGEMENT
+# ==============================================================================
+
+class ReviewStatusUpdate(BaseModel):
+    is_approved: Optional[bool] = None
+    featured: Optional[bool] = None
+    admin_reply: Optional[str] = None
+
+@router.get("/reviews")
+def get_all_reviews_admin(
+    status: Optional[str] = "ALL",
+    rating: Optional[int] = None,
+    search: Optional[str] = None,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Review)
+    if status == "APPROVED":
+        query = query.filter(Review.is_approved == True)
+    elif status == "PENDING":
+        query = query.filter(Review.is_approved == False)
+    
+    if rating:
+        query = query.filter(Review.rating == rating)
+    
+    reviews = query.order_by(Review.created_at.desc()).all()
+    results = []
+    for r in reviews:
+        if search:
+            s = search.lower()
+            if not (s in (r.review or "").lower() or (r.user and s in f"{r.user.first_name} {r.user.last_name}".lower()) or (r.product and s in r.product.name.lower())):
+                continue
+        results.append({
+            "id": r.id,
+            "product_id": r.product_id,
+            "product_name": r.product.name if r.product else "Unknown Product",
+            "product_image": r.product.images[0].image_url if r.product and r.product.images else None,
+            "user_id": r.user_id,
+            "user_name": f"{r.user.first_name} {r.user.last_name}" if r.user else "Anonymous Client",
+            "user_email": r.user.email if r.user else "",
+            "rating": r.rating,
+            "review": r.review,
+            "photo_url": r.photo_url,
+            "is_approved": r.is_approved,
+            "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else ""
+        })
+    return results
+
+@router.put("/reviews/{review_id}/moderate")
+def moderate_review(
+    review_id: int,
+    req: ReviewStatusUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    rev = db.query(Review).filter(Review.id == review_id).first()
+    if not rev:
+        raise HTTPException(status_code=404, detail="Review not found")
+    if req.is_approved is not None:
+        rev.is_approved = req.is_approved
+    db.commit()
+    return {"message": "Review status updated successfully", "is_approved": rev.is_approved}
+
+
+# ==============================================================================
+# 👤 CUSTOMER 360° PROFILE ENHANCEMENTS
+# ==============================================================================
+
+@router.get("/customers/{user_id}/detail")
+def get_customer_360_detail(
+    user_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    orders = db.query(Order).filter(Order.user_id == user_id).order_by(Order.created_at.desc()).all()
+    addresses = db.query(Address).filter(Address.user_id == user_id).all()
+    reviews = db.query(Review).filter(Review.user_id == user_id).all()
+    wishlist = db.query(Wishlist).filter(Wishlist.user_id == user_id).all()
+
+    total_spent = sum(o.total_amount for o in orders if o.payment_status == "Paid")
+    avg_order_value = (total_spent / len(orders)) if orders else 0.0
+
+    return {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
+        "role": user.role,
+        "is_active": user.is_active,
+        "created_at": user.created_at.strftime("%Y-%m-%d %H:%M") if user.created_at else "",
+        "metrics": {
+            "total_orders": len(orders),
+            "paid_orders": len([o for o in orders if o.payment_status == "Paid"]),
+            "lifetime_value": round(total_spent, 2),
+            "average_order_value": round(avg_order_value, 2),
+            "wishlist_count": len(wishlist),
+            "reviews_count": len(reviews)
+        },
+        "addresses": [
+            {
+                "id": a.id,
+                "street": a.street,
+                "city": a.city,
+                "state": a.state,
+                "postal_code": a.postal_code,
+                "country": a.country,
+                "phone": a.phone,
+                "is_default": a.is_default
+            } for a in addresses
+        ],
+        "recent_orders": [
+            {
+                "id": o.id,
+                "order_number": o.order_number,
+                "total_amount": o.total_amount,
+                "currency": o.currency,
+                "payment_status": o.payment_status,
+                "order_status": o.order_status,
+                "created_at": o.created_at.strftime("%Y-%m-%d %H:%M") if o.created_at else ""
+            } for o in orders[:10]
+        ]
+    }
+
+
+# ==============================================================================
+# 🤖 AI STUDIO: GENERATE PRODUCT COPY & SEO METADATA
+# ==============================================================================
+
+class AiCopyRequest(BaseModel):
+    product_name: str
+    category: str
+    key_ingredients_or_fabric: Optional[str] = ""
+    tone: Optional[str] = "Luxury & Sensory"
+    target_benefit: Optional[str] = ""
+
+@router.post("/ai/generate-copy")
+def generate_ai_product_copy(
+    req: AiCopyRequest,
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Simulates / delivers high-end e-commerce copy tailored to Korean botanical skincare and luxury fashion.
+    """
+    name = req.product_name.strip()
+    cat = req.category.strip().lower()
+    mat = req.key_ingredients_or_fabric.strip() or "Artisanal botanicals & bio-actives"
+
+    if "skin" in cat or "beauty" in cat or "serum" in name.lower() or "cream" in name.lower():
+        description = (
+            f"Immerse your daily ritual in the transcendent power of {name}. Infused with {mat}, "
+            f"this multi-corrective elixir deeply hydrates, refines epidermal texture, and unlocks glass-skin radiance. "
+            f"Formulated without parabens or artificial fragrance to honor sensitive skin barriers."
+        )
+        short_desc = f"Potent botanical formula powered by {mat} for luminous, glass-skin resilience."
+        how_to_use = "Dispense 3-4 drops onto clean fingertips. Gently press into face and décolletage morning and evening before barrier creams."
+        ingredients_list = f"{mat}, Centella Asiatica Extract, Niacinamide, Sodium Hyaluronate, Camellia Sinensis Leaf Water, Licorice Root Extract."
+        seo_title = f"{name} | Korean Botanical Skincare Ritual — Yurae Beauty"
+        seo_meta = f"Experience {name} formulated with {mat}. Nourish, calm, and reveal radiant glass skin with Yurae's clean luxury formulas."
+    elif "fashion" in cat or "dress" in name.lower() or "silk" in name.lower():
+        description = (
+            f"Elegance redefined with {name}. Tailored from premium {mat}, this piece features graceful drape, "
+            f"breathable touch, and timeless silhouette designed for effortless resort luxury and formal atelier aesthetics."
+        )
+        short_desc = f"Handcrafted luxury apparel tailored with {mat} for graceful, effortless silhouettes."
+        how_to_use = "Dry clean or gentle cold hand wash. Steam on low heat to maintain soft fabric sheen."
+        ingredients_list = f"100% Premium {mat}. Ethically sourced & artisanal stitched."
+        seo_title = f"{name} | Bespoke Luxury Fashion — Yurae Atelier"
+        seo_meta = f"Discover {name} crafted in bespoke {mat}. Effortless modern femininity and timeless comfort by Yurae."
+    else:
+        description = (
+            f"Discover the signature craft of {name}. Designed with meticulous attention to detail using {mat}, "
+            f"elevating your everyday luxury ensemble."
+        )
+        short_desc = f"Artisanal fine accent crafted with {mat}."
+        how_to_use = "Store in provided velvet pouch. Avoid direct exposure to perfume and water."
+        ingredients_list = f"Handcrafted with {mat}."
+        seo_title = f"{name} | Artisanal Fine Jewelry & Accents — Yurae"
+        seo_meta = f"Shop {name} featuring {mat}. Timeless craftsmanship and modern luxury accents by Yurae."
+
+    return {
+        "success": True,
+        "generated": {
+            "name": name,
+            "description": description,
+            "short_description": short_desc,
+            "how_to_use": how_to_use,
+            "ingredients": ingredients_list,
+            "seo_title": seo_title,
+            "seo_meta_description": seo_meta,
+            "suggested_tags": [cat.capitalize(), "Luxury", "Artisanal", "Bespoke", "New Arrival"]
+        }
+    }
+
+
+# ==============================================================================
+# 📦 BULK PRODUCT OPERATIONS
+# ==============================================================================
+
+class BulkProductAction(BaseModel):
+    product_ids: List[int]
+    action: str  # "PUBLISH", "UNPUBLISH", "ARCHIVE", "DELETE", "RESTOCK_ALL"
+    restock_quantity: Optional[int] = 10
+
+@router.post("/products/bulk-action")
+def execute_bulk_product_action(
+    req: BulkProductAction,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    if not req.product_ids:
+        raise HTTPException(status_code=400, detail="No products selected")
+
+    action = req.action.upper()
+    prods = db.query(Product).filter(Product.id.in_(req.product_ids)).all()
+
+    if action == "PUBLISH":
+        for p in prods:
+            p.status = "ACTIVE"
+        db.commit()
+        return {"message": f"Successfully published {len(prods)} products."}
+    elif action == "UNPUBLISH" or action == "DRAFT":
+        for p in prods:
+            p.status = "DRAFT"
+        db.commit()
+        return {"message": f"Successfully set {len(prods)} products to draft."}
+    elif action == "ARCHIVE":
+        for p in prods:
+            p.status = "ARCHIVED"
+        db.commit()
+        return {"message": f"Successfully archived {len(prods)} products."}
+    elif action == "RESTOCK_ALL":
+        for p in prods:
+            p.stock_quantity = (p.stock_quantity or 0) + (req.restock_quantity or 10)
+        db.commit()
+        return {"message": f"Successfully added {req.restock_quantity} units to {len(prods)} products."}
+    elif action == "DELETE":
+        for p in prods:
+            pid = p.id
+            db.execute(text("DELETE FROM pick_list_items WHERE product_id = :p OR order_item_id IN (SELECT id FROM (SELECT id FROM order_items WHERE product_id = :p) as tmp)"), {"p": pid})
+            db.execute(text("DELETE FROM product_inventory_locations WHERE product_id = :p"), {"p": pid})
+            db.execute(text("DELETE FROM stock_notifications WHERE product_id = :p"), {"p": pid})
+            db.execute(text("DELETE FROM cart_items WHERE product_id = :p"), {"p": pid})
+            db.execute(text("DELETE FROM wishlists WHERE product_id = :p"), {"p": pid})
+            db.execute(text("DELETE FROM reviews WHERE product_id = :p"), {"p": pid})
+            db.execute(text("DELETE FROM order_items WHERE product_id = :p"), {"p": pid})
+            db.execute(text("DELETE FROM product_variants WHERE product_id = :p"), {"p": pid})
+            db.execute(text("DELETE FROM product_images WHERE product_id = :p"), {"p": pid})
+            db.delete(p)
+        db.commit()
+        return {"message": f"Successfully deleted {len(prods)} products from the catalog."}
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported bulk action")
+
+
+# ==============================================================================
+# 👥 STAFF ROLES & PERMISSIONS MANAGEMENT
+# ==============================================================================
+
+class UserRoleUpdate(BaseModel):
+    role: str
+
+@router.get("/staff-members")
+def get_staff_members(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    staff = db.query(User).filter(User.role != "CUSTOMER").order_by(User.created_at.desc()).all()
+    return [
+        {
+            "id": u.id,
+            "name": f"{u.first_name} {u.last_name}",
+            "email": u.email,
+            "role": u.role,
+            "is_active": u.is_active,
+            "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else ""
+        } for u in staff
+    ]
+
+@router.put("/staff-members/{user_id}/role")
+def update_staff_role(
+    user_id: int,
+    req: UserRoleUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.role = req.role.upper()
+    db.commit()
+    return {"message": f"Updated role for {user.email} to {user.role}"}

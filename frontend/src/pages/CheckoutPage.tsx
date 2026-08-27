@@ -885,6 +885,210 @@ export const CheckoutPage: React.FC = () => {
     );
   }
 
+  // Reusable Order Summary, Items, Coupon, & Price Breakdown Box
+  const renderOrderSummaryAndCoupon = (isMobile: boolean = false) => (
+    <div className={`p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-5 shadow-xs ${!isMobile ? 'sticky top-24' : ''}`}>
+      <h3 className="font-serif text-lg font-bold text-[#111111] pb-3 border-b border-[#F1BCCE] flex items-center justify-between">
+        <span>Order Summary ({cart?.item_count || 0} items)</span>
+        {isMobile && (
+          <span className="text-xs font-bold text-[#D84B7E] font-serif">
+            {formatRawPrice(totalPayable, currency)}
+          </span>
+        )}
+      </h3>
+
+      {/* Items List */}
+      <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
+        {cart?.items.map((item) => (
+          <div key={item.id} className="flex gap-3 text-xs">
+            <img src={item.product.images[0]?.image_url} alt="" className="w-12 h-14 object-cover rounded-md border border-[#F1BCCE]" />
+            <div className="flex-1">
+              <p className="font-bold text-[#111111] line-clamp-1">{item.product.name}</p>
+              {item.variant && <p className="text-[11px] text-gray-500">{item.variant.variant_name}: {item.variant.variant_value}</p>}
+              <p className="text-gray-500">Qty: {item.quantity}</p>
+            </div>
+            <span className="font-bold text-[#111111]">
+              {formatPrice(item.price * item.quantity)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* COUPON & PROMO CODE SECTION */}
+      <div className="pt-4 border-t border-[#F1BCCE] space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wider text-[#D84B7E] font-bold flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5" />
+            Coupon / Promo Code
+          </span>
+          {availableCoupons.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
+              className="text-[11px] text-[#111111] hover:text-[#D84B7E] font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#D84B7E]" />
+              {showAvailableCoupons ? 'Hide Offers' : `Offers (${availableCoupons.length})`}
+              {showAvailableCoupons ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </div>
+
+        {/* If Coupon Applied */}
+        {appliedCoupon ? (
+          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold text-xs text-emerald-900">{appliedCoupon.code}</span>
+                  <span className="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded font-bold">Applied</span>
+                </div>
+                <p className="text-[11px] text-emerald-700 font-medium">
+                  You save {formatPrice(discountInINR)} ({appliedCoupon.discount_type === 'PERCENTAGE' ? `${appliedCoupon.discount_value}% off` : 'Flat Discount'})
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleRemoveCoupon}
+              className="p-1.5 text-emerald-800 hover:text-red-600 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+              title="Remove coupon"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          /* Coupon Input Form */
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={couponInput}
+                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleApplyCoupon();
+                  }
+                }}
+                placeholder="Enter code (e.g. YURAE10)"
+                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase outline-none focus:border-[#D84B7E] placeholder:font-sans placeholder:normal-case placeholder:font-normal"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => handleApplyCoupon()}
+              disabled={isApplyingCoupon || !couponInput.trim()}
+              className="px-4 py-2 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl hover:bg-[#111111] disabled:opacity-50 transition-colors cursor-pointer shrink-0"
+            >
+              {isApplyingCoupon ? '...' : 'Apply'}
+            </button>
+          </div>
+        )}
+
+        {/* Available Offers Quick Picker */}
+        {showAvailableCoupons && availableCoupons.length > 0 && (
+          <div className="p-3 bg-[#FCE7F0]/80 border border-[#F1BCCE] rounded-xl space-y-2.5 max-h-48 overflow-y-auto">
+            <span className="text-[10px] uppercase tracking-widest text-[#111111] font-bold block">
+              Available Store Offers:
+            </span>
+            {availableCoupons.map((c) => {
+              const isEligible = subtotalInINR >= c.minimum_order_amount;
+              const isCurrentlyApplied = appliedCoupon?.code === c.code;
+              return (
+                <div
+                  key={c.id}
+                  className={`p-2.5 rounded-lg border transition-all flex items-center justify-between gap-2 ${
+                    isCurrentlyApplied
+                      ? 'bg-emerald-50 border-emerald-300'
+                      : 'bg-white border-[#F1BCCE]'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-xs text-[#D84B7E] bg-[#F8D7E3] px-2 py-0.5 rounded border border-[#F1BCCE]">
+                        {c.code}
+                      </span>
+                      <span className="text-xs font-bold text-[#111111]">
+                        {c.discount_type === 'PERCENTAGE' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-500">
+                      {c.minimum_order_amount > 0 ? `Min. spend ${formatPrice(c.minimum_order_amount)}` : 'No minimum spend'}
+                    </p>
+                  </div>
+
+                  {isCurrentlyApplied ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                      Active
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleApplyCoupon(c.code)}
+                      disabled={!isEligible}
+                      className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all cursor-pointer ${
+                        isEligible
+                          ? 'bg-[#111111] text-white hover:bg-[#D84B7E]'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {isEligible ? 'Apply' : `Add ${formatPrice(c.minimum_order_amount - subtotalInINR)}`}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Price Breakdown */}
+      <div className="pt-4 border-t border-[#F1BCCE] space-y-2.5 text-xs">
+        <div className="flex justify-between text-gray-600">
+          <span>Bag Subtotal</span>
+          <span className="font-bold text-[#111111]">{formatPrice(subtotalInINR)}</span>
+        </div>
+
+        {discountInINR > 0 && (
+          <div className="flex justify-between text-emerald-700 font-bold">
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              Discount ({appliedCoupon?.code})
+            </span>
+            <span>-{formatPrice(discountInINR)}</span>
+          </div>
+        )}
+
+        <div className="flex justify-between text-gray-600">
+          <span>Estimated Shipping ({country})</span>
+          <span className="font-bold text-emerald-700">
+            {shippingEstimate.is_free ? 'FREE' : formatRawPrice(shippingEstimate.shipping_fee, currency)}
+          </span>
+        </div>
+
+        <div className="flex justify-between text-[11px] text-gray-500 pt-0.5">
+          <span>
+            {isIndia
+              ? `GST (18% Included • ${state.trim().toLowerCase() === 'tamil nadu' ? 'CGST 9% + SGST 9%' : 'IGST 18%'})`
+              : 'Taxes & Duties (Zero-Rated Export)'}
+          </span>
+          <span className="font-semibold text-emerald-700">Taxes Included</span>
+        </div>
+
+        <div className="flex justify-between text-sm font-serif font-bold text-[#111111] pt-3 border-t border-[#F1BCCE]">
+          <span>Total Payable</span>
+          <span className="text-[#D84B7E] font-bold text-lg">
+            {formatRawPrice(totalPayable, currency)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="pb-32 xl:pb-24 pt-6 sm:pt-8 bg-[#FDF4F7]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -1365,6 +1569,11 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
+            {/* MOBILE ONLY: Order Summary & Coupon / Promo Code (Before Payment Selection) */}
+            <div className="block lg:hidden">
+              {renderOrderSummaryAndCoupon(true)}
+            </div>
+
             {/* Step 4: Payment Architecture Selection */}
             <div className="p-6 sm:p-8 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-6 shadow-xs">
               <div className="flex items-center justify-between">
@@ -1546,7 +1755,7 @@ export const CheckoutPage: React.FC = () => {
               )}
             </div>
 
-            {/* Place Order CTA Button */}
+            {/* Place Order CTA Button (Payment Completion as Last Action) */}
             <button
               onClick={handlePlaceOrder}
               disabled={isProcessing}
@@ -1564,203 +1773,9 @@ export const CheckoutPage: React.FC = () => {
 
           </div>
 
-          {/* RIGHT: Order Summary & Coupon Card */}
-          <div className="space-y-6">
-            <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-5 shadow-xs sticky top-24">
-              <h3 className="font-serif text-lg font-bold text-[#111111] pb-3 border-b border-[#F1BCCE]">
-                Order Summary ({cart?.item_count} items)
-              </h3>
-
-              {/* Items List */}
-              <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
-                {cart?.items.map((item) => (
-                  <div key={item.id} className="flex gap-3 text-xs">
-                    <img src={item.product.images[0]?.image_url} alt="" className="w-12 h-14 object-cover rounded-md border border-[#F1BCCE]" />
-                    <div className="flex-1">
-                      <p className="font-bold text-[#111111] line-clamp-1">{item.product.name}</p>
-                      {item.variant && <p className="text-[11px] text-gray-500">{item.variant.variant_name}: {item.variant.variant_value}</p>}
-                      <p className="text-gray-500">Qty: {item.quantity}</p>
-                    </div>
-                    <span className="font-bold text-[#111111]">
-                      {formatPrice(item.price * item.quantity)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* COUPON & PROMO CODE SECTION */}
-              <div className="pt-4 border-t border-[#F1BCCE] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-[#D84B7E] font-bold flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5" />
-                    Coupon / Promo Code
-                  </span>
-                  {availableCoupons.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
-                      className="text-[11px] text-[#111111] hover:text-[#D84B7E] font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Sparkles className="w-3 h-3 text-[#D84B7E]" />
-                      {showAvailableCoupons ? 'Hide Offers' : `Offers (${availableCoupons.length})`}
-                      {showAvailableCoupons ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    </button>
-                  )}
-                </div>
-
-                {/* If Coupon Applied */}
-                {appliedCoupon ? (
-                  <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between gap-2 shadow-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                        <Check className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-xs text-emerald-900">{appliedCoupon.code}</span>
-                          <span className="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded font-bold">Applied</span>
-                        </div>
-                        <p className="text-[11px] text-emerald-700 font-medium">
-                          You save {formatPrice(discountInINR)} ({appliedCoupon.discount_type === 'PERCENTAGE' ? `${appliedCoupon.discount_value}% off` : 'Flat Discount'})
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemoveCoupon}
-                      className="p-1.5 text-emerald-800 hover:text-red-600 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
-                      title="Remove coupon"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  /* Coupon Input Form */
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        value={couponInput}
-                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleApplyCoupon();
-                          }
-                        }}
-                        placeholder="Enter code (e.g. YURAE10)"
-                        className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase outline-none focus:border-[#D84B7E] placeholder:font-sans placeholder:normal-case placeholder:font-normal"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyCoupon()}
-                      disabled={isApplyingCoupon || !couponInput.trim()}
-                      className="px-4 py-2 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl hover:bg-[#111111] disabled:opacity-50 transition-colors cursor-pointer shrink-0"
-                    >
-                      {isApplyingCoupon ? '...' : 'Apply'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Available Offers Quick Picker */}
-                {showAvailableCoupons && availableCoupons.length > 0 && (
-                  <div className="p-3 bg-[#FCE7F0]/80 border border-[#F1BCCE] rounded-xl space-y-2.5 max-h-48 overflow-y-auto">
-                    <span className="text-[10px] uppercase tracking-widest text-[#111111] font-bold block">
-                      Available Store Offers:
-                    </span>
-                    {availableCoupons.map((c) => {
-                      const isEligible = subtotalInINR >= c.minimum_order_amount;
-                      const isCurrentlyApplied = appliedCoupon?.code === c.code;
-                      return (
-                        <div
-                          key={c.id}
-                          className={`p-2.5 rounded-lg border transition-all flex items-center justify-between gap-2 ${
-                            isCurrentlyApplied
-                              ? 'bg-emerald-50 border-emerald-300'
-                              : 'bg-white border-[#F1BCCE]'
-                          }`}
-                        >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-bold text-xs text-[#D84B7E] bg-[#F8D7E3] px-2 py-0.5 rounded border border-[#F1BCCE]">
-                                {c.code}
-                              </span>
-                              <span className="text-xs font-bold text-[#111111]">
-                                {c.discount_type === 'PERCENTAGE' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-gray-500">
-                              {c.minimum_order_amount > 0 ? `Min. spend ${formatPrice(c.minimum_order_amount)}` : 'No minimum spend'}
-                            </p>
-                          </div>
-
-                          {isCurrentlyApplied ? (
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
-                              Active
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleApplyCoupon(c.code)}
-                              disabled={!isEligible}
-                              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all cursor-pointer ${
-                                isEligible
-                                  ? 'bg-[#111111] text-white hover:bg-[#D84B7E]'
-                                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              }`}
-                            >
-                              {isEligible ? 'Apply' : `Add ${formatPrice(c.minimum_order_amount - subtotalInINR)}`}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Price Breakdown */}
-              <div className="pt-4 border-t border-[#F1BCCE] space-y-2.5 text-xs">
-                <div className="flex justify-between text-gray-600">
-                  <span>Bag Subtotal</span>
-                  <span className="font-bold text-[#111111]">{formatPrice(subtotalInINR)}</span>
-                </div>
-
-                {discountInINR > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-bold">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                      Discount ({appliedCoupon?.code})
-                    </span>
-                    <span>-{formatPrice(discountInINR)}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-gray-600">
-                  <span>Estimated Shipping ({country})</span>
-                  <span className="font-bold text-emerald-700">
-                    {shippingEstimate.is_free ? 'FREE' : formatRawPrice(shippingEstimate.shipping_fee, currency)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between text-[11px] text-gray-500 pt-0.5">
-                  <span>
-                    {isIndia
-                      ? `GST (18% Included • ${state.trim().toLowerCase() === 'tamil nadu' ? 'CGST 9% + SGST 9%' : 'IGST 18%'})`
-                      : 'Taxes & Duties (Zero-Rated Export)'}
-                  </span>
-                  <span className="font-semibold text-emerald-700">Taxes Included</span>
-                </div>
-
-                <div className="flex justify-between text-sm font-serif font-bold text-[#111111] pt-3 border-t border-[#F1BCCE]">
-                  <span>Total Payable</span>
-                  <span className="text-[#D84B7E] font-bold text-lg">
-                    {formatRawPrice(totalPayable, currency)}
-                  </span>
-                </div>
-              </div>
-            </div>
+          {/* RIGHT: Order Summary & Coupon Card (Desktop Only) */}
+          <div className="hidden lg:block space-y-6">
+            {renderOrderSummaryAndCoupon(false)}
           </div>
 
         </div>

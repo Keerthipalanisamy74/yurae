@@ -88,6 +88,311 @@ def toggle_customer_status(
     db.commit()
     return {"message": "Customer active status updated", "is_active": user.is_active}
 
+@router.get("/customers/{user_id}/detail")
+def get_customer_360_detail(
+    user_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Customer profile not found")
+
+    total_orders = db.query(Order).filter(Order.user_id == user_id).count()
+    paid_orders = db.query(Order).filter(
+        Order.user_id == user_id,
+        Order.payment_status.in_(["Paid", "PAID", "SUCCESS", "Success"])
+    ).count()
+    
+    ltv_result = db.query(func.sum(Order.total_amount)).filter(
+        Order.user_id == user_id,
+        Order.payment_status.in_(["Paid", "PAID", "SUCCESS", "Success"])
+    ).scalar()
+    lifetime_value = float(ltv_result) if ltv_result else 0.0
+    average_order_value = round(lifetime_value / (paid_orders if paid_orders > 0 else 1), 2)
+    
+    wishlist_count = db.query(Wishlist).filter(Wishlist.user_id == user_id).count()
+    reviews_count = db.query(Review).filter(Review.user_id == user_id).count()
+
+    addresses = []
+    for a in user.addresses:
+        street_parts = [a.building_or_flat, a.address_line1, a.address_line2, a.landmark]
+        street_clean = ", ".join([p for p in street_parts if p])
+        addresses.append({
+            "id": a.id,
+            "street": street_clean or a.address_line1,
+            "city": a.city,
+            "state": a.state,
+            "postal_code": a.postal_code,
+            "country": a.country,
+            "phone": a.phone,
+            "is_default": bool(a.is_default)
+        })
+
+    recent_orders = []
+    user_orders = db.query(Order).filter(Order.user_id == user_id).order_by(Order.created_at.desc()).limit(15).all()
+    for o in user_orders:
+        recent_orders.append({
+            "id": o.id,
+            "order_number": o.order_number,
+            "total_amount": float(o.total_amount),
+            "currency": o.currency,
+            "payment_status": o.payment_status,
+            "order_status": o.order_status,
+            "created_at": o.created_at.isoformat() if o.created_at else datetime.utcnow().isoformat()
+        })
+
+    return {
+        "id": user.id,
+        "first_name": user.first_name or "",
+        "last_name": user.last_name or "",
+        "email": user.email,
+        "role": user.role,
+        "is_active": bool(user.is_active),
+        "created_at": user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat(),
+        "metrics": {
+            "total_orders": total_orders,
+            "paid_orders": paid_orders,
+            "lifetime_value": round(lifetime_value, 2),
+            "average_order_value": average_order_value,
+            "wishlist_count": wishlist_count,
+            "reviews_count": reviews_count
+        },
+        "addresses": addresses,
+        "recent_orders": recent_orders
+    }
+
+class TestEmailRequest(BaseModel):
+    recipient_email: str
+    template_name: Optional[str] = "WELCOME_REGISTRATION"
+
+@router.get("/smtp-settings")
+def get_smtp_settings_admin(
+    current_admin: User = Depends(get_current_admin)
+):
+    from app.services.email_service import EmailService
+    cfg = EmailService.get_smtp_config()
+    pwd = cfg.get("password", "")
+    masked_pwd = (pwd[:2] + "*" * (len(pwd) - 4) + pwd[-2:]) if len(pwd) >= 6 else ("******" if pwd else "")
+    return {
+        "mode": cfg.get("mode", "smtp"),
+        "smtp_host": cfg.get("host"),
+        "smtp_port": cfg.get("port"),
+        "smtp_username": cfg.get("username"),
+        "smtp_password_masked": masked_pwd,
+        "has_password": bool(pwd),
+        "from_name": cfg.get("brand_name", "Yurae Beauty"),
+        "from_support": cfg.get("from_support"),
+        "from_orders": cfg.get("from_orders"),
+        "from_noreply": cfg.get("from_noreply"),
+        "from_admin": cfg.get("from_admin"),
+        "from_marketing": cfg.get("from_marketing"),
+        "frontend_url": cfg.get("frontend_url"),
+    }
+
+@router.get("/email-logs")
+def get_email_logs_admin(
+    status: Optional[str] = None,
+    template: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    from app.models.models import EmailLog
+    query = db.query(EmailLog)
+    if status:
+        query = query.filter(EmailLog.status == status.upper())
+    if template:
+        query = query.filter(EmailLog.template_name == template)
+    if search:
+        search_fmt = f"%{search}%"
+        query = query.filter(
+            (EmailLog.recipient_email.ilike(search_fmt)) |
+            (EmailLog.subject.ilike(search_fmt)) |
+            (EmailLog.sender_email.ilike(search_fmt))
+        )
+    
+    total = query.count()
+    logs = query.order_by(EmailLog.created_at.desc()).offset(offset).limit(limit).all()
+
+    return {
+        "total": total,
+        "logs": [
+            {
+                "id": l.id,
+                "recipient_email": l.recipient_email,
+                "sender_email": l.sender_email,
+                "sender_name": l.sender_name,
+                "subject": l.subject,
+                "template_name": l.template_name,
+                "status": l.status,
+                "error_message": l.error_message,
+                "related_order_id": l.related_order_id,
+                "related_user_id": l.related_user_id,
+                "created_at": l.created_at.isoformat() if l.created_at else None
+            }
+            for l in logs
+        ]
+    }
+
+@router.post("/email-logs/{log_id}/retry")
+def retry_failed_email_admin(
+    log_id: int,
+    current_admin: User = Depends(get_current_admin)
+):
+    from app.services.email_service import EmailService
+    success = EmailService.retry_email_log(log_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to re-dispatch email. Please verify SMTP credentials.")
+    return {"message": "Email re-dispatched successfully!", "success": True}
+
+@router.post("/test-email")
+def send_test_email_admin(
+    body: TestEmailRequest,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    from app.services.email_service import EmailService
+    from app.services import email_templates
+    recipient = body.recipient_email.strip()
+    if not recipient:
+        raise HTTPException(status_code=400, detail="Recipient email is required")
+    
+    cfg = EmailService.get_smtp_config()
+    frontend_url = cfg["frontend_url"]
+    tmpl = (body.template_name or "WELCOME_REGISTRATION").upper()
+
+    # Mock user & order models for rich rendering in test mode
+    class MockUser:
+        id = 999
+        first_name = "Kiruthika"
+        last_name = "Palanisamy"
+        email = recipient
+        phone = "+91 98765 43210"
+
+    class MockAddress:
+        name = "Kiruthika Palanisamy"
+        address_line1 = "101 Luxury Avenue, Anna Nagar"
+        address_line2 = "Near Botanical Garden"
+        city = "Chennai"
+        state = "Tamil Nadu"
+        postal_code = "600001"
+        country = "India"
+        phone = "+91 98765 43210"
+
+    class MockItem:
+        product_name = "Korean Ginseng & Centella Radiance Elixir"
+        variant_info = "50ml Bottle"
+        quantity = 1
+        price = 1290.0
+
+    class MockPayment:
+        payment_method = "Prepaid UPI / Card"
+        status = "SUCCESS"
+
+    class MockOrder:
+        id = 888
+        order_number = f"YURAE-{datetime.now().strftime('%Y%m%d')}-DEMO"
+        total_amount = 1290.0
+        subtotal = 1290.0
+        currency = "INR"
+        tax = 0.0
+        discount = 0.0
+        shipping_fee = 0.0
+        order_status = "Confirmed"
+        payment_status = "Paid"
+        is_cod = False
+        awb_code = "BD-EXP-98234176"
+        courier_name = "Blue Dart Express"
+        created_at = datetime.utcnow()
+        items = [MockItem()]
+        payments = [MockPayment()]
+        address = MockAddress()
+        user = MockUser()
+
+    class MockContact:
+        id = 1042
+        name = "Kiruthika Palanisamy"
+        email = recipient
+        phone = "+91 98765 43210"
+        subject = "Skincare Routine Consultation"
+        message = "Could you recommend which serum to layer before the botanical barrier cream for sensitive skin?"
+
+    class MockRefund:
+        id = 12
+        refund_number = "RFD-20260827-DEMO"
+        amount = 1290.0
+        currency = "INR"
+        refund_mode = "ORIGINAL_PAYMENT"
+
+    # Select template renderer
+    if "ORDER_CONFIRM" in tmpl:
+        rendered = email_templates.render_order_confirmation(MockOrder(), MockUser(), frontend_url)
+        sender_role = "orders"
+    elif "PACKED" in tmpl:
+        rendered = email_templates.render_order_packed(MockOrder(), MockUser(), frontend_url)
+        sender_role = "orders"
+    elif "SHIPPED" in tmpl:
+        rendered = email_templates.render_order_shipped(MockOrder(), {"awb_code": "BD-EXP-98234176", "courier_name": "Blue Dart Express", "tracking_url": f"{frontend_url}/track/DEMO"}, MockUser(), frontend_url)
+        sender_role = "orders"
+    elif "OUT_FOR_DELIVERY" in tmpl:
+        rendered = email_templates.render_out_for_delivery(MockOrder(), None, MockUser(), frontend_url)
+        sender_role = "orders"
+    elif "DELIVERED" in tmpl:
+        rendered = email_templates.render_order_delivered(MockOrder(), MockUser(), frontend_url)
+        sender_role = "orders"
+    elif "CANCEL" in tmpl:
+        rendered = email_templates.render_order_cancelled(MockOrder(), "Order cancelled per customer request", MockUser(), frontend_url)
+        sender_role = "orders"
+    elif "REFUND" in tmpl:
+        rendered = email_templates.render_refund_notification(MockOrder(), MockRefund(), MockUser(), frontend_url)
+        sender_role = "orders"
+    elif "OTP" in tmpl:
+        rendered = email_templates.render_otp_email("Kiruthika", "482910", "Security Verification Code", 15, frontend_url)
+        sender_role = "noreply"
+    elif "PASSWORD_RESET" in tmpl or "PASSWORD_CHANGE" in tmpl:
+        rendered = email_templates.render_password_reset_confirmation("Kiruthika", frontend_url)
+        sender_role = "noreply"
+    elif "CONTACT_ACK" in tmpl or "CONTACT_FORM" in tmpl:
+        rendered = email_templates.render_contact_acknowledgement(MockContact(), frontend_url)
+        sender_role = "support"
+    elif "ADMIN_ORDER" in tmpl:
+        rendered = email_templates.render_admin_order_alert(MockOrder(), MockUser(), f"{frontend_url}/admin")
+        sender_role = "admin"
+    elif "ADMIN_CONTACT" in tmpl:
+        rendered = email_templates.render_admin_contact_alert(MockContact(), f"{frontend_url}/admin")
+        sender_role = "admin"
+    elif "BACK_IN_STOCK" in tmpl or "STOCK" in tmpl:
+        rendered = email_templates.render_back_in_stock_alert("Korean Ginseng & Centella Radiance Elixir", "50ml", f"{frontend_url}/shop", frontend_url)
+        sender_role = "marketing"
+    else: # Welcome Registration
+        rendered = email_templates.render_welcome_email(MockUser(), frontend_url)
+        sender_role = "noreply"
+
+    success = EmailService._send_email_sync(
+        to_email=recipient,
+        subject=f"[Test] {rendered['subject']}",
+        html_content=rendered["html"],
+        text_content=rendered["text"],
+        sender_role=sender_role,
+        template_name=f"TEST_{tmpl}"
+    )
+
+    if not success and cfg["mode"] == "smtp" and cfg["password"]:
+        raise HTTPException(
+            status_code=500,
+            detail="Live SMTP delivery failed. Please verify SMTP host/port and App Password credentials in backend/.env"
+        )
+
+    return {
+        "message": f"Test email for template [{tmpl}] sent to {recipient} via {sender_role}@yuraebeauty.com!",
+        "success": True,
+        "template": tmpl,
+        "sender": sender_role
+    }
+
 @router.get("/inventory")
 def get_inventory(
     low_stock_threshold: int = 15,
@@ -894,68 +1199,7 @@ def moderate_review(
     return {"message": "Review status updated successfully", "is_approved": rev.is_approved}
 
 
-# ==============================================================================
-# 👤 CUSTOMER 360° PROFILE ENHANCEMENTS
-# ==============================================================================
-
-@router.get("/customers/{user_id}/detail")
-def get_customer_360_detail(
-    user_id: int,
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    orders = db.query(Order).filter(Order.user_id == user_id).order_by(Order.created_at.desc()).all()
-    addresses = db.query(Address).filter(Address.user_id == user_id).all()
-    reviews = db.query(Review).filter(Review.user_id == user_id).all()
-    wishlist = db.query(Wishlist).filter(Wishlist.user_id == user_id).all()
-
-    total_spent = sum(o.total_amount for o in orders if o.payment_status == "Paid")
-    avg_order_value = (total_spent / len(orders)) if orders else 0.0
-
-    return {
-        "id": user.id,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "email": user.email,
-        "role": user.role,
-        "is_active": user.is_active,
-        "created_at": user.created_at.strftime("%Y-%m-%d %H:%M") if user.created_at else "",
-        "metrics": {
-            "total_orders": len(orders),
-            "paid_orders": len([o for o in orders if o.payment_status == "Paid"]),
-            "lifetime_value": round(total_spent, 2),
-            "average_order_value": round(avg_order_value, 2),
-            "wishlist_count": len(wishlist),
-            "reviews_count": len(reviews)
-        },
-        "addresses": [
-            {
-                "id": a.id,
-                "street": a.street,
-                "city": a.city,
-                "state": a.state,
-                "postal_code": a.postal_code,
-                "country": a.country,
-                "phone": a.phone,
-                "is_default": a.is_default
-            } for a in addresses
-        ],
-        "recent_orders": [
-            {
-                "id": o.id,
-                "order_number": o.order_number,
-                "total_amount": o.total_amount,
-                "currency": o.currency,
-                "payment_status": o.payment_status,
-                "order_status": o.order_status,
-                "created_at": o.created_at.strftime("%Y-%m-%d %H:%M") if o.created_at else ""
-            } for o in orders[:10]
-        ]
-    }
+# Customer 360 profile endpoint is defined in Customer Management section above
 
 
 # ==============================================================================

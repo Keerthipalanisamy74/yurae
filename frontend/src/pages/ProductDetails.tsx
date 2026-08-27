@@ -394,10 +394,10 @@ export const ProductDetails: React.FC = () => {
           { name: product.name, url: `/product/${product.id}` },
         ]}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumbs */}
-        <nav className="text-xs uppercase tracking-widest text-gray-500 mb-8 flex items-center gap-2">
+        <nav className="text-xs uppercase tracking-widest text-gray-500 mb-6 flex items-center gap-2">
           <Link to="/" className="hover:text-[#D84B7E]">Home</Link>
           <span>/</span>
           <Link to={`/shop?category=${product.category?.slug}`} className="hover:text-[#D84B7E]">
@@ -408,11 +408,11 @@ export const ProductDetails: React.FC = () => {
         </nav>
 
         {/* Product Hero Details Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           
-          {/* LEFT: IMAGE GALLERY */}
-          <div className="space-y-4">
-            <div className="relative aspect-4/5 w-full bg-[#FFF8FA] rounded-3xl overflow-hidden shadow-md border border-[#F1BCCE]">
+          {/* LEFT: IMAGE GALLERY (Medium Luxury Size) */}
+          <div className="lg:col-span-5 space-y-3 sticky top-24">
+            <div className="relative aspect-4/5 max-h-[460px] w-full bg-[#FFF8FA] rounded-2xl overflow-hidden shadow-xs border border-[#F1BCCE]">
               <img
                 src={selectedImage}
                 alt={product.name}
@@ -420,22 +420,23 @@ export const ProductDetails: React.FC = () => {
               />
               <button
                 onClick={() => toggleWishlist(product)}
-                className={`absolute top-4 right-4 p-3 rounded-full shadow-lg transition-all cursor-pointer ${
+                className={`absolute top-3 right-3 p-2.5 rounded-full shadow-md transition-all cursor-pointer ${
                   isSaved ? 'bg-[#D84B7E] text-[#FDF4F7]' : 'bg-white/85 backdrop-blur-md text-[#111111] hover:scale-110'
                 }`}
+                title="Save to wishlist"
               >
-                <Heart className={`w-5 h-5 ${isSaved ? 'fill-[#FDF4F7]' : ''}`} />
+                <Heart className={`w-4 h-4 ${isSaved ? 'fill-[#FDF4F7]' : ''}`} />
               </button>
             </div>
 
             {/* Thumbnail Selectors */}
             {product.images && product.images.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto pb-2">
+              <div className="flex gap-2.5 overflow-x-auto pb-1">
                 {product.images.map((img) => (
                   <button
                     key={img.id}
                     onClick={() => setSelectedImage(img.image_url)}
-                    className={`w-20 h-24 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                    className={`w-14 h-18 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
                       selectedImage === img.image_url ? 'border-[#D84B7E] scale-105' : 'border-[#F1BCCE] opacity-70 hover:opacity-100'
                     }`}
                   >
@@ -447,33 +448,33 @@ export const ProductDetails: React.FC = () => {
           </div>
 
           {/* RIGHT: DETAILS & PURCHASING */}
-          <div className="space-y-8">
+          <div className="lg:col-span-7 space-y-5">
             
-            <div className="space-y-3 pb-6 border-b border-[#F1BCCE]">
-              <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">
+            <div className="space-y-2 pb-4 border-b border-[#F1BCCE]">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-[#D84B7E] font-bold">
                 {product.category?.name || 'Collection'}
               </span>
-              <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#111111]">
+              <h1 className="font-serif text-xl sm:text-2xl font-bold text-[#111111] leading-snug">
                 {product.name}
               </h1>
 
               {/* Rating */}
               <a
                 href="#client-reviews"
-                className="flex items-center gap-3 pt-1 group hover:opacity-85 transition-opacity cursor-pointer inline-flex"
+                className="flex items-center gap-2 pt-0.5 group hover:opacity-85 transition-opacity cursor-pointer inline-flex"
                 title="Jump to reviews"
               >
                 <div className="flex text-[#D84B7E]">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-4 h-4 ${
+                      className={`w-3.5 h-3.5 ${
                         i < Math.round(product.avg_rating || 5) ? 'fill-[#D84B7E]' : 'text-gray-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-xs font-bold text-[#111111] group-hover:underline">
+                <span className="text-[11px] font-bold text-[#111111] group-hover:underline">
                   {product.avg_rating || 5.0} ({product.review_count || reviews.length} client reviews)
                 </span>
                 <span className="text-[11px] text-[#D84B7E] font-bold group-hover:underline">
@@ -482,16 +483,16 @@ export const ProductDetails: React.FC = () => {
               </a>
 
               {/* Price with Currency Conversion */}
-              <div className="flex items-baseline gap-3 pt-3">
-                <span className="font-serif text-3xl font-bold text-[#111111]">
+              <div className="flex items-baseline gap-2.5 pt-2">
+                <span className="font-serif text-2xl font-bold text-[#111111]">
                   {formatPrice(currentBasePrice)}
                 </span>
                 {product.sale_price && (
-                  <span className="text-base text-gray-400 line-through">
+                  <span className="text-sm text-gray-400 line-through">
                     {formatPrice(product.price)}
                   </span>
                 )}
-                <span className="text-[11px] bg-[#F8D7E3] text-[#D84B7E] px-2.5 py-0.5 rounded-full font-bold border border-[#F1BCCE]">
+                <span className="text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-2 py-0.5 rounded-full font-bold border border-[#F1BCCE]">
                   Taxes Included
                 </span>
               </div>
@@ -500,34 +501,34 @@ export const ProductDetails: React.FC = () => {
               {(!product.variants || product.variants.length === 0) && (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {product.weight && (
-                    <span className="text-xs bg-[#FFF0F5] text-[#D84B7E] font-bold px-3 py-1 rounded-full border border-[#F1BCCE] flex items-center gap-1.5 shadow-2xs">
+                    <span className="text-[11px] bg-[#FFF0F5] text-[#D84B7E] font-bold px-2.5 py-0.5 rounded-full border border-[#F1BCCE] flex items-center gap-1.5 shadow-2xs">
                       <span>⚖️</span>
                       <span>Net Wt: {product.weight}</span>
                     </span>
                   )}
                   {product.skin_type && !product.skin_type.toLowerCase().includes('size') && (
-                    <span className="text-xs bg-[#F8D7E3] text-[#111111] font-bold px-3 py-1 rounded-full border border-[#F1BCCE]">
+                    <span className="text-[11px] bg-[#F8D7E3] text-[#111111] font-bold px-2.5 py-0.5 rounded-full border border-[#F1BCCE]">
                       {product.skin_type}
                     </span>
                   )}
                 </div>
               )}
 
-              <p className="text-sm text-gray-700 font-normal leading-relaxed pt-2">
+              <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed pt-1">
                 {product.short_description || product.description}
               </p>
             </div>
 
             {/* Variants Selector */}
             {product.variants && product.variants.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="flex flex-wrap justify-between items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs uppercase tracking-widest text-[#111111] font-bold block">
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[11px] uppercase tracking-wider text-[#111111] font-bold block">
                       Select {product.variants[0].variant_name}
                     </label>
                     {selectedVariant && (
-                      <span className="text-xs text-[#D84B7E] font-bold">
+                      <span className="text-[11px] text-[#D84B7E] font-bold">
                         ({selectedVariant.variant_value})
                       </span>
                     )}
@@ -538,20 +539,20 @@ export const ProductDetails: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsSizeChartOpen(true)}
-                      className="text-xs text-[#D84B7E] font-bold hover:underline flex items-center gap-1.5 cursor-pointer bg-[#FDF4F7] hover:bg-[#FCE7F0] px-3 py-1 rounded-full border border-[#F1BCCE] transition-all shadow-2xs group"
+                      className="text-[11px] text-[#D84B7E] font-bold hover:underline flex items-center gap-1 cursor-pointer bg-[#FDF4F7] hover:bg-[#FCE7F0] px-2.5 py-0.5 rounded-full border border-[#F1BCCE] transition-all shadow-2xs group"
                     >
-                      <Ruler className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform" />
-                      <span>Size Guide &amp; Measurements</span>
+                      <Ruler className="w-3 h-3 group-hover:rotate-45 transition-transform" />
+                      <span>Size Guide</span>
                     </button>
                   )}
                 </div>
 
                 {product.variants.some((v) => v.stock_quantity !== undefined && v.stock_quantity <= 0) && (
-                  <div className="text-[11px] text-[#D84B7E] font-medium flex items-center gap-1">
+                  <div className="text-[10px] text-[#D84B7E] font-medium flex items-center gap-1">
                     <Bell className="w-3 h-3" /> Select a sold-out size to get a restock alert
                   </div>
                 )}
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-2">
                   {product.variants.map((variant) => {
                     const isSelected = selectedVariant?.id === variant.id;
                     const isVariantOutOfStock = variant.stock_quantity !== undefined && variant.stock_quantity <= 0;
@@ -560,20 +561,20 @@ export const ProductDetails: React.FC = () => {
                         key={variant.id}
                         type="button"
                         onClick={() => setSelectedVariant(variant)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
                           isVariantOutOfStock && isSelected
-                            ? 'bg-rose-50 border-[#D84B7E] text-[#D84B7E] ring-2 ring-[#F1BCCE] shadow-sm scale-105'
+                            ? 'bg-rose-50 border-[#D84B7E] text-[#D84B7E] ring-2 ring-[#F1BCCE] shadow-xs scale-102'
                             : isVariantOutOfStock
                             ? 'bg-gray-100 text-gray-500 border-gray-200 hover:border-[#F1BCCE] hover:text-[#111111]'
                             : isSelected
-                            ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105'
+                            ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-xs scale-102'
                             : 'bg-[#FFF8FA] border-[#F1BCCE] text-[#111111] hover:border-[#D84B7E]'
                         }`}
                       >
                         <span>{variant.variant_value}</span>
                         {variant.additional_price > 0 && <span>(+{formatPrice(variant.additional_price)})</span>}
                         {isVariantOutOfStock && (
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
                             isSelected ? 'bg-[#D84B7E] text-white' : 'bg-red-100 text-red-700'
                           }`}>
                             Sold Out 🔔
@@ -586,7 +587,7 @@ export const ProductDetails: React.FC = () => {
               </div>
             )}
 
-            {/* Real-time Inventory Stock Status - units count visible only to Admin */}
+            {/* Real-time Inventory Stock Status */}
             {(() => {
               const currentStock = selectedVariant && selectedVariant.stock_quantity !== undefined
                 ? selectedVariant.stock_quantity
@@ -594,9 +595,9 @@ export const ProductDetails: React.FC = () => {
 
               if (currentStock <= 0) {
                 return (
-                  <div className="pt-1">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-300 shadow-2xs">
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                  <div className="pt-0.5">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-300 shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
                       <span>
                         {selectedVariant
                           ? `Size ${selectedVariant.variant_value} Out of Stock`
@@ -609,8 +610,8 @@ export const ProductDetails: React.FC = () => {
 
               if (isAdmin) {
                 return (
-                  <div className="pt-1">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 text-xs font-semibold rounded-full border border-amber-300">
+                  <div className="pt-0.5">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-amber-50 text-amber-800 text-[11px] font-semibold rounded-full border border-amber-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                       <span>
                         Admin Stock: {currentStock} units in stock
@@ -635,27 +636,27 @@ export const ProductDetails: React.FC = () => {
               const hasSubscribedForCurrent = Boolean(notifiedVariants[variantKey]);
 
               return (
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 pt-1">
                   {isOutOfStock ? (
-                    <div className="p-5 bg-[#FFF0F5] border border-[#F1BCCE] rounded-3xl space-y-4 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2.5 bg-white text-[#D84B7E] rounded-2xl border border-[#F1BCCE] shrink-0 shadow-2xs">
-                          <Bell className="w-5 h-5 animate-bounce" />
+                    <div className="p-4 bg-[#FFF0F5] border border-[#F1BCCE] rounded-2xl space-y-3 shadow-xs">
+                      <div className="flex items-start gap-2.5">
+                        <div className="p-2 bg-white text-[#D84B7E] rounded-xl border border-[#F1BCCE] shrink-0 shadow-2xs">
+                          <Bell className="w-4 h-4 animate-bounce" />
                         </div>
                         <div>
-                          <h4 className="font-serif text-base font-bold text-[#111111]">
+                          <h4 className="font-serif text-sm font-bold text-[#111111]">
                             {selectedVariant
                               ? `Size ${selectedVariant.variant_value} is Currently Sold Out`
                               : 'This Item is Currently Sold Out'}
                           </h4>
-                          <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
+                          <p className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">
                             Leave your email below to receive an instant priority notification the moment inventory is restocked.
                           </p>
                         </div>
                       </div>
 
                       {hasSubscribedForCurrent ? (
-                        <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-800 text-xs font-bold flex items-center gap-2.5">
+                        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>
                             ✓ You're on the priority list! We'll alert you at <span className="underline font-bold">{notifyEmail}</span> the moment {selectedVariant ? `Size ${selectedVariant.variant_value}` : 'this item'} returns.
@@ -665,20 +666,20 @@ export const ProductDetails: React.FC = () => {
                         <form onSubmit={handleSubscribeStockAlert} className="space-y-2">
                           <div className="flex flex-col sm:flex-row gap-2">
                             <div className="relative flex-1">
-                              <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                              <Mail className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
                               <input
                                 type="email"
                                 value={notifyEmail}
                                 onChange={(e) => setNotifyEmail(e.target.value)}
                                 required
                                 placeholder="Enter your email address..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#F1BCCE] rounded-full text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                                className="w-full pl-9 pr-3 py-2 bg-white border border-[#F1BCCE] rounded-full text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
                               />
                             </div>
                             <button
                               type="submit"
                               disabled={isSubmittingNotify}
-                              className="px-6 py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-sm cursor-pointer shrink-0 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                              className="px-5 py-2 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50 flex items-center justify-center gap-1.5"
                             >
                               <Bell className="w-3.5 h-3.5" />
                               {isSubmittingNotify ? 'Registering...' : 'Notify Me'}
@@ -692,26 +693,26 @@ export const ProductDetails: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                        <div className="flex items-center justify-between border border-[#F1BCCE] rounded-full bg-[#FFF8FA] px-3 py-1.5 min-h-[44px]">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <div className="flex items-center justify-between border border-[#F1BCCE] rounded-xl bg-[#FFF8FA] px-2.5 py-1 min-h-[40px]">
                           <button
                             type="button"
                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
                             disabled={isOutOfStock}
-                            className="p-1.5 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30 touch-target flex items-center justify-center"
+                            className="p-1 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30 flex items-center justify-center"
                             aria-label="Decrease quantity"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="px-4 text-sm font-bold text-[#111111]">{quantity}</span>
+                          <span className="px-3 text-xs font-bold text-[#111111]">{quantity}</span>
                           <button
                             type="button"
                             onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))}
                             disabled={isOutOfStock || quantity >= currentStock}
-                            className="p-1.5 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30 touch-target flex items-center justify-center"
+                            className="p-1 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30 flex items-center justify-center"
                             aria-label="Increase quantity"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
@@ -719,9 +720,9 @@ export const ProductDetails: React.FC = () => {
                           type="button"
                           onClick={handleAddToCart}
                           disabled={isOutOfStock}
-                          className="flex-1 py-3.5 px-6 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed touch-target min-h-[44px] active:scale-98"
+                          className="flex-1 py-3 px-5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl hover:bg-[#111111] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed min-h-[40px] active:scale-98"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-3.5 h-3.5" />
                           {isFashion
                             ? 'Add to Bag'
                             : isAccessories
@@ -734,7 +735,7 @@ export const ProductDetails: React.FC = () => {
                         type="button"
                         onClick={handleBuyNow}
                         disabled={isOutOfStock}
-                        className="w-full py-3.5 px-6 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all shadow-md cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed touch-target min-h-[44px] active:scale-98"
+                        className="w-full py-3 px-5 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-xs cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed min-h-[40px] active:scale-98"
                       >
                         Buy Now — Express Checkout
                       </button>
@@ -744,59 +745,59 @@ export const ProductDetails: React.FC = () => {
               );
             })()}
 
-              {isAdmin && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <button
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="w-full py-3 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md touch-target min-h-[44px]"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Admin: Edit Product & Photos
-                  </button>
-                  <button
-                    onClick={handleDeleteThisProduct}
-                    className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer touch-target min-h-[44px]"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Admin: Delete Product
-                  </button>
-                </div>
-              )}
+            {isAdmin && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="w-full py-2.5 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  Admin: Edit Product & Photos
+                </button>
+                <button
+                  onClick={handleDeleteThisProduct}
+                  className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Admin: Delete Product
+                </button>
+              </div>
+            )}
 
             {/* INSTANT SOCIAL SHARING BAR */}
-            <div className="p-4 sm:p-5 bg-gradient-to-br from-[#FFF8FA] via-[#FDF4F7] to-[#FFF0F5] border border-[#F1BCCE] rounded-3xl space-y-3 shadow-2xs">
+            <div className="p-3.5 sm:p-4 bg-gradient-to-br from-[#FFF8FA] via-[#FDF4F7] to-[#FFF0F5] border border-[#F1BCCE] rounded-2xl space-y-2.5 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-[#FCE7F0] border border-[#F1BCCE] flex items-center justify-center text-[#D84B7E] shrink-0">
-                    <Share2 className="w-3.5 h-3.5" />
+                  <div className="w-6 h-6 rounded-full bg-[#FCE7F0] border border-[#F1BCCE] flex items-center justify-center text-[#D84B7E] shrink-0">
+                    <Share2 className="w-3 h-3" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#111111]">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#111111]">
                       {isFashion
                         ? 'Share Outfit with Friends'
                         : isAccessories
                         ? 'Share Style with Friends'
                         : 'Share Beauty with Friends'}
                     </h4>
-                    <p className="text-[10px] text-gray-500">
+                    <p className="text-[9px] text-gray-500">
                       Send to your group chat, stories, or moodboard
                     </p>
                   </div>
                 </div>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#D84B7E] bg-pink-100/70 px-2.5 py-0.5 rounded-full border border-[#F1BCCE]">
+                <span className="text-[8px] font-bold uppercase tracking-widest text-[#D84B7E] bg-pink-100/70 px-2 py-0.5 rounded-full border border-[#F1BCCE]">
                   Instant Share
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
                 {/* WhatsApp */}
                 <button
                   type="button"
                   onClick={handleWhatsAppShare}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#E8F8F0] hover:bg-[#D1F2E0] text-[#1B6F45] border border-[#BDE5D0] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 touch-target min-h-[44px] group"
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-[#E8F8F0] hover:bg-[#D1F2E0] text-[#1B6F45] border border-[#BDE5D0] rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95"
                   title="Share on WhatsApp"
                 >
-                  <svg className="w-4 h-4 fill-[#25D366] shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 fill-[#25D366] shrink-0" viewBox="0 0 24 24">
                     <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.072-1.042-.062-.239-.078-.544-.197-1.258-.507-1.874-.814-3.072-2.73-3.167-2.855-.095-.126-.757-1.007-.757-1.922s.475-1.365.644-1.554c.168-.189.367-.236.49-.236.122 0 .245.001.353.007.113.006.264-.042.413.315.153.367.522 1.272.568 1.365.046.094.076.204.015.326-.061.122-.092.198-.183.305-.091.107-.193.24-.275.322-.092.091-.188.19-.081.374.107.183.476.786 1.021 1.272.702.627 1.294.821 1.478.913.184.092.291.077.399-.046.108-.123.46-.537.583-.721.123-.184.246-.153.414-.092.169.061 1.072.506 1.256.598.184.092.307.138.353.215.046.077.046.444-.098.849z"/>
                     <path d="M12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.66 1.434 5.176L2 22l4.981-1.393A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.167c-1.637 0-3.155-.47-4.437-1.282l-.318-.202-2.956.826.837-2.883-.223-.335A8.136 8.136 0 013.833 12c0-4.503 3.664-8.167 8.167-8.167 4.503 0 8.167 3.664 8.167 8.167 0 4.503-3.664 8.167-8.167 8.167z"/>
                   </svg>
@@ -807,10 +808,10 @@ export const ProductDetails: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleInstagramShare}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#FDF0F5] hover:bg-[#FCE2EC] text-[#B82B60] border border-[#F6C2D6] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group"
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-[#FDF0F5] hover:bg-[#FCE2EC] text-[#B82B60] border border-[#F6C2D6] rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95"
                   title="Share on Instagram"
                 >
-                  <svg className="w-4 h-4 fill-[#E1306C] shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 fill-[#E1306C] shrink-0" viewBox="0 0 24 24">
                     <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                   </svg>
                   <span>Instagram</span>
@@ -820,10 +821,10 @@ export const ProductDetails: React.FC = () => {
                 <button
                   type="button"
                   onClick={handlePinterestShare}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#FFF0F2] hover:bg-[#FDE2E6] text-[#C4122C] border border-[#F7C6CD] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group"
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-[#FFF0F2] hover:bg-[#FDE2E6] text-[#C4122C] border border-[#F7C6CD] rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95"
                   title="Pin on Pinterest"
                 >
-                  <svg className="w-4 h-4 fill-[#E60023] shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 fill-[#E60023] shrink-0" viewBox="0 0 24 24">
                     <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.098.119.112.224.083.345-.09.375-.291 1.199-.33 1.365-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 12-5.373 12-12 0-6.628-5.393-12-12-12z"/>
                   </svg>
                   <span>Pinterest</span>
@@ -833,7 +834,7 @@ export const ProductDetails: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group border ${
+                  className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 border ${
                     copiedLink
                       ? 'bg-emerald-600 text-white border-emerald-600'
                       : 'bg-white hover:bg-[#FDF4F7] text-[#111111] border-[#F1BCCE]'
@@ -842,12 +843,12 @@ export const ProductDetails: React.FC = () => {
                 >
                   {copiedLink ? (
                     <>
-                      <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
                       <span>Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Share2 className="w-4 h-4 text-[#D84B7E] shrink-0 group-hover:rotate-12 transition-transform" />
+                      <Share2 className="w-3.5 h-3.5 text-[#D84B7E] shrink-0" />
                       <span>Copy Link</span>
                     </>
                   )}
@@ -856,39 +857,39 @@ export const ProductDetails: React.FC = () => {
             </div>
 
             {/* Key Trust Signals */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-[#F1BCCE] text-center">
-              <div className="flex flex-col items-center gap-1.5 p-3 bg-[#FCE7F0]/60 rounded-xl border border-[#F1BCCE]/60">
-                <ShieldCheck className="w-5 h-5 text-[#D84B7E]" />
-                <span className="text-[10px] uppercase font-bold text-[#111111]">100% Authentic</span>
+            <div className="grid grid-cols-3 gap-2.5 pt-4 border-t border-[#F1BCCE] text-center">
+              <div className="flex flex-col items-center gap-1 p-2.5 bg-[#FCE7F0]/60 rounded-xl border border-[#F1BCCE]/60">
+                <ShieldCheck className="w-4 h-4 text-[#D84B7E]" />
+                <span className="text-[9px] uppercase font-bold text-[#111111]">100% Authentic</span>
               </div>
-              <div className="flex flex-col items-center gap-1.5 p-3 bg-[#FCE7F0]/60 rounded-xl border border-[#F1BCCE]/60">
-                <Truck className="w-5 h-5 text-[#D84B7E]" />
-                <span className="text-[10px] uppercase font-bold text-[#111111]">Worldwide Express</span>
+              <div className="flex flex-col items-center gap-1 p-2.5 bg-[#FCE7F0]/60 rounded-xl border border-[#F1BCCE]/60">
+                <Truck className="w-4 h-4 text-[#D84B7E]" />
+                <span className="text-[9px] uppercase font-bold text-[#111111]">Worldwide Express</span>
               </div>
-              <div className="flex flex-col items-center gap-1.5 p-3 bg-[#FCE7F0]/60 rounded-xl border border-[#F1BCCE]/60">
-                <RotateCcw className="w-5 h-5 text-[#D84B7E]" />
-                <span className="text-[10px] uppercase font-bold text-[#111111]">7 Days Return</span>
+              <div className="flex flex-col items-center gap-1 p-2.5 bg-[#FCE7F0]/60 rounded-xl border border-[#F1BCCE]/60">
+                <RotateCcw className="w-4 h-4 text-[#D84B7E]" />
+                <span className="text-[9px] uppercase font-bold text-[#111111]">7 Days Return</span>
               </div>
             </div>
 
             {/* EXPANDABLE ACCORDIONS */}
-            <div className="space-y-3 pt-6 border-t border-[#F1BCCE]">
+            <div className="space-y-2.5 pt-4 border-t border-[#F1BCCE]">
               
               {/* Description */}
-              <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
+              <div className="border border-[#F1BCCE] rounded-xl overflow-hidden bg-[#FFF8FA]">
                 <button
                   onClick={() => toggleAccordion('description')}
-                  className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
+                  className="w-full px-4 py-3 flex justify-between items-center text-left font-serif text-sm font-bold text-[#111111] cursor-pointer"
                 >
                   {isFashion
                     ? 'Description & Fit Details'
                     : isAccessories
                     ? 'Description & Craftsmanship'
                     : 'Description & Formulations'}
-                  {openAccordions.description ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  {openAccordions.description ? <ChevronUp className="w-3.5 h-3.5 text-[#D84B7E]" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
                 </button>
                 {openAccordions.description && (
-                  <div className="px-6 pb-6 text-sm text-gray-700 font-normal leading-relaxed border-t border-[#F1BCCE]">
+                  <div className="px-4 pb-4 text-xs text-gray-700 font-normal leading-relaxed border-t border-[#F1BCCE]">
                     <p>
                       {product.description || (isFashion
                         ? 'Designed with premium luxury fabrics, comfortable tailoring, and refined silhouettes by Yurae.'
@@ -899,19 +900,18 @@ export const ProductDetails: React.FC = () => {
                   </div>
                 )}
               </div>
-
               {/* FASHION SIZE CHART & GARMENT DIMENSIONS ACCORDION */}
               {isFashion && (
-                <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
+                <div className="border border-[#F1BCCE] rounded-xl overflow-hidden bg-[#FFF8FA]">
                   <button
                     onClick={() => toggleAccordion('size_chart')}
-                    className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
+                    className="w-full px-4 py-3 flex justify-between items-center text-left font-serif text-sm font-bold text-[#111111] cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
-                      <Ruler className="w-4 h-4 text-[#D84B7E]" />
+                      <Ruler className="w-3.5 h-3.5 text-[#D84B7E]" />
                       Size Chart &amp; Garment Dimensions
                     </span>
-                    {openAccordions.size_chart ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                    {openAccordions.size_chart ? <ChevronUp className="w-3.5 h-3.5 text-[#D84B7E]" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
                   </button>
                   {openAccordions.size_chart && (() => {
                     const text = `${product.name} ${product.category?.name || ''} ${product.description || ''}`.toLowerCase();
@@ -979,7 +979,7 @@ export const ProductDetails: React.FC = () => {
                     const col4Header = isBottom ? 'Length' : isFootwear ? 'Standard' : 'Length';
 
                     return (
-                      <div className="px-6 pb-6 text-xs text-gray-700 space-y-3.5 border-t border-[#F1BCCE]">
+                      <div className="px-4 pb-4 text-xs text-gray-700 space-y-3 border-t border-[#F1BCCE]">
                         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-gray-800">
@@ -1010,7 +1010,7 @@ export const ProductDetails: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setIsSizeChartOpen(true)}
-                            className="text-[#D84B7E] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                            className="text-[#D84B7E] font-bold hover:underline flex items-center gap-1 cursor-pointer text-xs"
                           >
                             <Ruler className="w-3 h-3" />
                             <span>Full Guide &amp; Smart Fit Finder</span>
@@ -1021,12 +1021,12 @@ export const ProductDetails: React.FC = () => {
                           <table className="w-full text-left text-xs border-collapse">
                             <thead>
                               <tr className="bg-[#FCE7F0]/80 text-[#111111] border-b border-[#F1BCCE]">
-                                <th className="py-2.5 px-3 font-bold">Size</th>
-                                <th className="py-2.5 px-3 font-bold">{col1Header}</th>
-                                <th className="py-2.5 px-3 font-bold">{col2Header}</th>
-                                <th className="py-2.5 px-3 font-bold">{col3Header}</th>
-                                <th className="py-2.5 px-3 font-bold">{col4Header}</th>
-                                <th className="py-2.5 px-3 font-bold text-right">Select</th>
+                                <th className="py-2 px-2.5 font-bold">Size</th>
+                                <th className="py-2 px-2.5 font-bold">{col1Header}</th>
+                                <th className="py-2 px-2.5 font-bold">{col2Header}</th>
+                                <th className="py-2 px-2.5 font-bold">{col3Header}</th>
+                                <th className="py-2 px-2.5 font-bold">{col4Header}</th>
+                                <th className="py-2 px-2.5 font-bold text-right">Select</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-[#FCE7F0]">
@@ -1043,12 +1043,12 @@ export const ProductDetails: React.FC = () => {
                                       isCur ? 'bg-[#FFF0F5] font-bold text-[#D84B7E]' : ''
                                     }`}
                                   >
-                                    <td className="py-2 px-3 font-bold">{row.s}</td>
-                                    <td className="py-2 px-3">{row.c1}</td>
-                                    <td className="py-2 px-3">{row.c2}</td>
-                                    <td className="py-2 px-3">{row.c3}</td>
-                                    <td className="py-2 px-3">{row.c4}</td>
-                                    <td className="py-2 px-3 text-right">
+                                    <td className="py-1.5 px-2.5 font-bold">{row.s}</td>
+                                    <td className="py-1.5 px-2.5">{row.c1}</td>
+                                    <td className="py-1.5 px-2.5">{row.c2}</td>
+                                    <td className="py-1.5 px-2.5">{row.c3}</td>
+                                    <td className="py-1.5 px-2.5">{row.c4}</td>
+                                    <td className="py-1.5 px-2.5 text-right">
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -1064,7 +1064,7 @@ export const ProductDetails: React.FC = () => {
                                             showToast(`Size ${row.s} is not currently available for this piece`, 'info');
                                           }
                                         }}
-                                        className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold transition-all cursor-pointer ${
+                                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-all cursor-pointer ${
                                           isCur
                                             ? 'bg-[#D84B7E] text-white shadow-2xs'
                                             : 'bg-[#FDF4F7] text-[#D84B7E] border border-[#F1BCCE] hover:bg-[#D84B7E] hover:text-white'
@@ -1080,7 +1080,7 @@ export const ProductDetails: React.FC = () => {
                           </table>
                         </div>
 
-                        <p className="text-[11px] text-gray-500 italic">
+                        <p className="text-[10px] text-gray-500 italic">
                           * Tailored fit. If in between sizes or desiring a flowy relaxed silhouette, we recommend sizing up.
                         </p>
                       </div>
@@ -1091,20 +1091,20 @@ export const ProductDetails: React.FC = () => {
 
               {/* Ingredients / Fabric / Material */}
               {product.ingredients && product.ingredients.trim() && (
-                <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
+                <div className="border border-[#F1BCCE] rounded-xl overflow-hidden bg-[#FFF8FA]">
                   <button
                     onClick={() => toggleAccordion('ingredients')}
-                    className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
+                    className="w-full px-4 py-3 flex justify-between items-center text-left font-serif text-sm font-bold text-[#111111] cursor-pointer"
                   >
                     {isFashion
                       ? 'Fabric & Material Composition'
                       : isAccessories
                       ? 'Material & Finish Details'
                       : 'Hero Ingredients & Actives'}
-                    {openAccordions.ingredients ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                    {openAccordions.ingredients ? <ChevronUp className="w-3.5 h-3.5 text-[#D84B7E]" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
                   </button>
                   {openAccordions.ingredients && (
-                    <div className="px-6 pb-6 text-sm text-gray-700 font-normal leading-relaxed border-t border-[#F1BCCE]">
+                    <div className="px-4 pb-4 text-xs text-gray-700 font-normal leading-relaxed border-t border-[#F1BCCE]">
                       <p>{product.ingredients}</p>
                     </div>
                   )}
@@ -1113,20 +1113,20 @@ export const ProductDetails: React.FC = () => {
 
               {/* How to Use / Garment Care Guide */}
               {product.how_to_use && product.how_to_use.trim() && (
-                <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
+                <div className="border border-[#F1BCCE] rounded-xl overflow-hidden bg-[#FFF8FA]">
                   <button
                     onClick={() => toggleAccordion('how_to_use')}
-                    className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
+                    className="w-full px-4 py-3 flex justify-between items-center text-left font-serif text-sm font-bold text-[#111111] cursor-pointer"
                   >
                     {isFashion
                       ? 'Garment Care & Sizing Guide'
                       : isAccessories
                       ? 'Jewelry Care & Preservation'
                       : 'Ritual & Application Guide'}
-                    {openAccordions.how_to_use ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                    {openAccordions.how_to_use ? <ChevronUp className="w-3.5 h-3.5 text-[#D84B7E]" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
                   </button>
                   {openAccordions.how_to_use && (
-                    <div className="px-6 pb-6 text-sm text-gray-700 font-normal leading-relaxed border-t border-[#F1BCCE]">
+                    <div className="px-4 pb-4 text-xs text-gray-700 font-normal leading-relaxed border-t border-[#F1BCCE]">
                       <p>{product.how_to_use}</p>
                     </div>
                   )}
@@ -1134,18 +1134,18 @@ export const ProductDetails: React.FC = () => {
               )}
 
               {/* Shipping & Delivery Info */}
-              <div className="border border-[#F1BCCE] rounded-2xl overflow-hidden bg-[#FFF8FA]">
+              <div className="border border-[#F1BCCE] rounded-xl overflow-hidden bg-[#FFF8FA]">
                 <button
                   onClick={() => toggleAccordion('shipping')}
-                  className="w-full px-6 py-4 flex justify-between items-center text-left font-serif text-base font-bold text-[#111111] cursor-pointer"
+                  className="w-full px-4 py-3 flex justify-between items-center text-left font-serif text-sm font-bold text-[#111111] cursor-pointer"
                 >
                   Global Shipping & Delivery
-                  {openAccordions.shipping ? <ChevronUp className="w-4 h-4 text-[#D84B7E]" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  {openAccordions.shipping ? <ChevronUp className="w-3.5 h-3.5 text-[#D84B7E]" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
                 </button>
                 {openAccordions.shipping && (
-                  <div className="px-6 pb-6 text-xs text-gray-600 font-normal leading-relaxed space-y-2 border-t border-[#F1BCCE]">
+                  <div className="px-4 pb-4 text-xs text-gray-600 font-normal leading-relaxed space-y-1.5 border-t border-[#F1BCCE]">
                     <p>• <strong>Domestic India</strong>: Express courier delivery in 2-4 business days.</p>
-                    <p>• <strong>International (US, UK, Europe, Asia, Australia)</strong>: Priority international shipping delivered in 4-8 business days with live tracking.</p>
+                    <p>• <strong>International</strong>: Priority international shipping delivered in 4-8 business days with live tracking.</p>
                     <p>• Free shipping applies automatically on qualifying orders above {formatPrice(1500)} ({currentCurrencyInfo.symbol}{currentCurrencyInfo.free_shipping_threshold}).</p>
                   </div>
                 )}
@@ -1158,50 +1158,50 @@ export const ProductDetails: React.FC = () => {
         </div>
 
         {/* CLIENT REVIEWS SECTION */}
-        <section id="client-reviews" className="mt-20 pt-12 border-t border-[#F1BCCE]">
-          <div className="max-w-3xl mx-auto space-y-8">
-            <div className="text-center space-y-2">
-              <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Feedback</span>
-              <h2 className="font-serif text-3xl font-bold text-[#111111]">
+        <section id="client-reviews" className="mt-16 pt-10 border-t border-[#F1BCCE]">
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="text-center space-y-1.5">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-[#D84B7E] font-bold">Client Feedback</span>
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#111111]">
                 {isFashion || isAccessories ? 'Client Reviews' : 'Ritual Reviews'}
               </h2>
             </div>
 
             {/* Submit Review Box */}
-            <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 shadow-xs">
+            <div className="p-5 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-3.5 shadow-xs">
               <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-[#F1BCCE]">
-                <h3 className="font-serif text-lg font-bold text-[#111111]">
+                <h3 className="font-serif text-base font-bold text-[#111111]">
                   {reviewEligibility?.has_reviewed ? 'Edit Your Review' : 'Share Your Experience'}
                 </h3>
                 {reviewEligibility?.is_delivered ? (
-                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-full tracking-wider border border-emerald-300">
+                  <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase rounded-full tracking-wider border border-emerald-300">
                     ✓ Verified Delivered Buyer
                   </span>
                 ) : reviewEligibility?.has_purchased ? (
-                  <span className="px-3 py-1 bg-pink-100 text-[#D84B7E] text-[10px] font-bold uppercase rounded-full tracking-wider border border-[#F1BCCE]">
+                  <span className="px-2.5 py-0.5 bg-pink-100 text-[#D84B7E] text-[9px] font-bold uppercase rounded-full tracking-wider border border-[#F1BCCE]">
                     ✓ Verified Customer
                   </span>
                 ) : isAuthenticated ? (
-                  <span className="px-3 py-1 bg-white text-gray-700 text-[10px] font-bold uppercase rounded-full tracking-wider border border-[#F1BCCE]">
+                  <span className="px-2.5 py-0.5 bg-white text-gray-700 text-[9px] font-bold uppercase rounded-full tracking-wider border border-[#F1BCCE]">
                     ★ Community Review
                   </span>
                 ) : null}
               </div>
 
               {!isAuthenticated ? (
-                <div className="p-6 bg-[#FDF4F7] border border-[#F1BCCE] rounded-2xl text-center space-y-3">
+                <div className="p-5 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl text-center space-y-2.5">
                   <p className="text-xs text-gray-700">
                     Please sign in to write a review and share your {isFashion ? 'fashion look' : isAccessories ? 'styling photo' : 'skincare glow'}.
                   </p>
                   <a
                     href={`/login?redirect=/product/${slug}`}
-                    className="inline-block px-6 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all shadow-xs"
+                    className="inline-block px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all shadow-xs"
                   >
                     Sign In to Write a Review
                   </a>
                 </div>
               ) : (
-                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                <form onSubmit={handleReviewSubmit} className="space-y-3.5">
                   <div>
                     <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">
                       Your Rating *

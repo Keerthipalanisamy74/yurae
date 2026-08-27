@@ -97,7 +97,13 @@ class RefundService:
             db=db
         )
 
-        # Customer Notification
+        # Customer Notification & Branded Refund Email Receipt
+        try:
+            from app.services.email_service import EmailService
+            EmailService.send_refund_email(order, refund_rec)
+        except Exception as email_err:
+            logger.warning(f"Could not dispatch refund receipt email: {email_err}")
+
         NotificationService.send_order_milestone_notification(
             order=order,
             event_type="REFUND_PROCESSED",

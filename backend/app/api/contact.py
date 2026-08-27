@@ -40,6 +40,15 @@ def submit_contact_message(
     db.add(new_msg)
     db.commit()
     db.refresh(new_msg)
+
+    # Dispatch Customer Acknowledgement from support@yuraebeauty.com & Alert to admin@yuraebeauty.com
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_contact_acknowledgement(new_msg)
+        EmailService.send_admin_contact_alert(new_msg)
+    except Exception as email_err:
+        pass
+
     return new_msg
 
 @router.get("", response_model=List[ContactMessageResponse])

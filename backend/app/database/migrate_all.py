@@ -107,6 +107,14 @@ def run_full_schema_migration():
             except Exception as e:
                 print(f"[MIGRATION] Type sync notice for `{tbl}.{col}`: {e}")
 
+        # Ensure full emoji & multilingual UTF-8 support for logs & messages
+        for tbl in ["email_logs", "notification_logs", "audit_logs", "contact_messages"]:
+            try:
+                conn.execute(text(f"ALTER TABLE `{tbl}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                conn.commit()
+            except Exception as e:
+                pass
+
     # 3. Ensure default exchange rates exist
     from app.database.session import SessionLocal
     from app.models.models import ExchangeRate

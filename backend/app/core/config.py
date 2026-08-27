@@ -117,6 +117,31 @@ class Settings(BaseSettings):
     WAREHOUSE_PINCODE: str = os.getenv("WAREHOUSE_PINCODE", "560066")
     WAREHOUSE_COUNTRY: str = os.getenv("WAREHOUSE_COUNTRY", "India")
     
+    # ==============================================================================
+    # ✉️ PRODUCTION TRANSACTIONAL EMAIL INFRASTRUCTURE (yuraebeauty.com)
+    # ==============================================================================
+    EMAIL_SERVICE_MODE: str = os.getenv("EMAIL_SERVICE_MODE", "smtp")
+    EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "smtp")
+    
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", os.getenv("SMTP_USER", "yuraebeautyofficial@gmail.com"))
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() in ("true", "1", "yes")
+    SMTP_USE_SSL: bool = os.getenv("SMTP_USE_SSL", "false").lower() in ("true", "1", "yes")
+    SMTP_TIMEOUT_SECONDS: int = int(os.getenv("SMTP_TIMEOUT_SECONDS", "15"))
+
+    # Professional Role Email Addresses for yuraebeauty.com
+    EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "Yurae Beauty")
+    EMAIL_FROM_SUPPORT: str = os.getenv("EMAIL_FROM_SUPPORT", "support@yuraebeauty.com")
+    EMAIL_FROM_ORDERS: str = os.getenv("EMAIL_FROM_ORDERS", "orders@yuraebeauty.com")
+    EMAIL_FROM_NOREPLY: str = os.getenv("EMAIL_FROM_NOREPLY", "noreply@yuraebeauty.com")
+    EMAIL_FROM_ADMIN: str = os.getenv("EMAIL_FROM_ADMIN", "admin@yuraebeauty.com")
+    EMAIL_FROM_MARKETING: str = os.getenv("EMAIL_FROM_MARKETING", "marketing@yuraebeauty.com")
+
+    # Frontend / Application URL for Email Deep Links
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://yuraebeauty.com")
+    
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -125,3 +150,4 @@ class Settings(BaseSettings):
     ]
 
 settings = Settings()
+

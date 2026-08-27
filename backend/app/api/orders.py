@@ -579,4 +579,21 @@ def update_order_status(
         except Exception as e:
             print(f"Warning: Could not auto-generate shipment on status change to Processing for Order #{order.order_number}: {e}")
 
+    # Milestone Transactional Customer Email Notifications (orders@yuraebeauty.com)
+    if new_status and new_status != old_status:
+        try:
+            from app.services.email_service import EmailService
+            if new_status in ["PROCESSING", "PACKED"]:
+                EmailService.send_order_packed(order)
+            elif new_status in ["SHIPPED", "IN_TRANSIT"]:
+                EmailService.send_shipping_notification(order)
+            elif new_status in ["OUT_FOR_DELIVERY"]:
+                EmailService.send_out_for_delivery(order)
+            elif new_status in ["DELIVERED"]:
+                EmailService.send_delivery_notification(order)
+            elif new_status in ["CANCELLED", "CANCELED"]:
+                EmailService.send_cancellation_email(order, "Order cancelled by store administrator")
+        except Exception as email_err:
+            print(f"Warning: Could not send status update email for Order #{order.order_number}: {email_err}")
+
     return order

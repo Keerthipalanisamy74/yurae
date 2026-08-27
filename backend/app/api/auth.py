@@ -40,6 +40,13 @@ def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
     db.add(cart)
     db.commit()
 
+    # Dispatch branded welcome email asynchronously
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_welcome_email(new_user)
+    except Exception as e:
+        pass
+
     token = create_access_token(subject=new_user.id, role=new_user.role)
     return Token(access_token=token, token_type="bearer", user=new_user)
 
@@ -139,6 +146,12 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
     user.reset_otp = None
     user.reset_otp_expires_at = None
     db.commit()
+
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_password_changed_email(user.email, user.first_name or "Valued Patron")
+    except Exception:
+        pass
 
     return {"message": "Your password has been successfully reset. You can now login with your new password."}
 

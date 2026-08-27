@@ -593,4 +593,25 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class EmailLog(Base):
+    __tablename__ = "email_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recipient_email = Column(String(255), index=True, nullable=False)
+    sender_email = Column(String(255), nullable=False)
+    sender_name = Column(String(100), nullable=True)
+    subject = Column(String(255), nullable=False)
+    template_name = Column(String(100), index=True, nullable=False)
+    status = Column(String(50), default="SENT", index=True)  # SENT, FAILED, SIMULATED, RETRIED
+    error_message = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    related_order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    related_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    html_content = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    order = relationship("Order")
+    user = relationship("User")
+
+
+
 

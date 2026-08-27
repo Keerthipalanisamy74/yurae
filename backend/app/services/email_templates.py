@@ -892,3 +892,66 @@ def render_back_in_stock_alert(
     html = _base_layout(subject, preheader, body, frontend_url, footer_support_email="support@yuraebeauty.com", show_unsubscribe=True)
     text = f"Great news! {product_name}{size_label} is back in stock. Order now at: {target_url}"
     return {"subject": subject, "html": html, "text": text}
+
+
+# ==============================================================================
+# 15. 💌 CONCIERGE SUPPORT REPLY TO CUSTOMER (support@yuraebeauty.com)
+# ==============================================================================
+def render_contact_reply(
+    contact_message: Any,
+    reply_text: str,
+    frontend_url: str = "https://yuraebeauty.com"
+) -> Dict[str, str]:
+    name = getattr(contact_message, 'name', 'Valued Patron')
+    msg_id = getattr(contact_message, 'id', 'NEW')
+    subject_input = getattr(contact_message, 'subject', 'General Inquiry') or 'Concierge Consultation'
+
+    subject = f"Re: {subject_input} [Ticket #{msg_id}] — Yurae Concierge"
+    preheader = f"Hello {name}, our concierge team has replied to your inquiry."
+
+    formatted_reply = reply_text.replace("\n", "<br>")
+
+    body = f"""
+    <div style="text-align: center; margin-bottom: 24px;">
+      <span style="display: inline-block; background-color: #FCE7F0; color: #D84B7E; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; padding: 6px 16px; border-radius: 20px;">
+        Concierge Response
+      </span>
+      <h1 style="font-family: 'Georgia', serif; font-size: 22px; font-weight: 700; color: #111111; margin: 16px 0 8px 0;">
+        Hello {name},
+      </h1>
+      <p style="font-size: 13px; line-height: 1.6; color: #555555; margin: 0 auto; max-width: 480px;">
+        Thank you for contacting Yurae Beauty. Our concierge atelier has reviewed your message regarding <strong>"{subject_input}"</strong>.
+      </p>
+    </div>
+
+    <!-- Official Response Box -->
+    <div style="background-color: #FFF8FA; border: 1px solid #F1BCCE; border-radius: 18px; padding: 24px 20px; margin: 24px 0;">
+      <div style="font-size: 11px; color: #D84B7E; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold; margin-bottom: 10px;">
+        Official Response from Yurae Concierge:
+      </div>
+      <div style="font-size: 14px; line-height: 1.8; color: #222222;">
+        {formatted_reply}
+      </div>
+    </div>
+
+    <!-- Original Inquiry Quote Box -->
+    <div style="background-color: #FAFAFA; border: 1px solid #EEEEEE; border-radius: 12px; padding: 14px 16px; margin: 20px 0; font-size: 12px; line-height: 1.6; color: #666666;">
+      <strong style="color: #444444;">Your Original Message (Ticket #{msg_id}):</strong><br>
+      <span style="font-style: italic;">"{getattr(contact_message, 'message', '')}"</span>
+    </div>
+
+    <p style="font-size: 12px; color: #777777; line-height: 1.6; text-align: center; margin-top: 24px;">
+      If you have further questions or wish to continue the conversation, simply reply directly to this email.
+    </p>
+
+    <div style="text-align: center; margin-top: 20px;">
+      <a href="{frontend_url}/shop" target="_blank" style="display: inline-block; background-color: #D84B7E; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 30px; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 4px 15px rgba(216, 75, 126, 0.25);">
+        Explore Yurae Formulations →
+      </a>
+    </div>
+    """
+
+    html = _base_layout(subject, preheader, body, frontend_url, footer_support_email="support@yuraebeauty.com")
+    text = f"Hello {name},\n\nOur response to your inquiry #{msg_id}:\n\n{reply_text}\n\nOriginal Message:\n{getattr(contact_message, 'message', '')}\n\nBest regards,\nYurae Concierge Atelier"
+    return {"subject": subject, "html": html, "text": text}
+

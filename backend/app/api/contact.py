@@ -97,8 +97,53 @@ def update_contact_message(
     if update_in.admin_notes is not None:
         msg.admin_notes = update_in.admin_notes
 
+from pydantic import BaseModel
+
+class ContactReplyRequest(BaseModel):
+    reply_message: str
+
+@router.put("/{message_id}/read", response_model=ContactMessageResponse)
+def mark_contact_message_read(
+    message_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    msg = db.query(ContactMessage).filter(ContactMessage.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    if msg.status == "UNREAD":
+        msg.status = "READ"
+        db.commit()
+        db.refresh(msg)
+    return msg
+
+@router.post("/{message_id}/reply", response_model=ContactMessageResponse)
+def reply_contact_message(
+    message_id: int,
+    req: ContactReplyRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    msg = db.query(ContactMessage).filter(ContactMessage.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    reply_text = req.reply_message.strip()
+    if not reply_text:
+        raise HTTPException(status_code=400, detail="Reply message cannot be empty.")
+
+    msg.status = "REPLIED"
+    msg.admin_notes = reply_text
     db.commit()
     db.refresh(msg)
+
+    # Dispatch branded concierge response email directly to customer
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_contact_reply(msg, reply_text)
+    except Exception as e:
+        pass
+
     return msg
 
 @router.delete("/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -113,3 +158,4 @@ def delete_contact_message(
     db.delete(msg)
     db.commit()
     return None
+

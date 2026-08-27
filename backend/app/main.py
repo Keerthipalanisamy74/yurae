@@ -46,6 +46,7 @@ app.include_router(coupons.router, prefix=settings.API_V1_STR)
 app.include_router(reviews.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(contact.router, prefix=settings.API_V1_STR)
+app.include_router(contact.router, prefix="/api/contact-messages", tags=["Contact Messages Alias"])
 app.include_router(seo.router)
 
 # Generic Webhook Route Alias

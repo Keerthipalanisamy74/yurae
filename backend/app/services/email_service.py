@@ -30,6 +30,7 @@ from app.services.email_templates import (
     render_order_cancelled,
     render_refund_notification,
     render_contact_acknowledgement,
+    render_contact_reply,
     render_admin_order_alert,
     render_admin_contact_alert,
     render_back_in_stock_alert
@@ -478,6 +479,22 @@ class EmailService:
             text_content=rendered["text"],
             sender_role="support",
             template_name="CONTACT_ACKNOWLEDGEMENT"
+        )
+
+    @classmethod
+    def send_contact_reply(cls, contact_message: Any, reply_text: str) -> None:
+        """Sends concierge response email directly to the customer from support@yuraebeauty.com."""
+        if not getattr(contact_message, 'email', None):
+            return
+        cfg = cls.get_smtp_config()
+        rendered = render_contact_reply(contact_message, reply_text, cfg["frontend_url"])
+        cls._send_async(
+            to_email=contact_message.email,
+            subject=rendered["subject"],
+            html_content=rendered["html"],
+            text_content=rendered["text"],
+            sender_role="support",
+            template_name="CONTACT_REPLY"
         )
 
     @classmethod

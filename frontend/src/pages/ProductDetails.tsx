@@ -198,8 +198,8 @@ export const ProductDetails: React.FC = () => {
         await api.delete(`/products/${product.id}`);
         showToast(`Product "${product.name}" deleted successfully`, 'success');
         navigate('/shop');
-      } catch {
-        showToast('Failed to delete product', 'error');
+      } catch (err: any) {
+        showToast(err?.response?.data?.detail || 'Failed to delete product', 'error');
       }
     }
   };

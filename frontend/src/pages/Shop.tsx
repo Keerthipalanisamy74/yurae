@@ -241,9 +241,9 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   });
 
   const getCategoryTitle = () => {
-    if (currentCategory === 'skincare') return 'Botanical Skincare';
-    if (currentCategory === 'fashion') return 'Luxury Fashion & Silks';
-    if (currentCategory === 'accessories') return 'Refined Accessories';
+    if (currentCategory === 'skincare') return 'Yurae Skin';
+    if (currentCategory === 'fashion') return 'Yurae Fashion';
+    if (currentCategory === 'accessories') return 'Yurae Accessories';
     return 'All Products & Collections';
   };
 
@@ -277,8 +277,8 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
       await api.delete(`/products/${productId}`);
       setProducts((prev) => prev.filter((p) => p.id !== productId));
       showToast('Product deleted successfully', 'success');
-    } catch {
-      showToast('Failed to delete product', 'error');
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to delete product', 'error');
     }
   };
 
@@ -288,8 +288,8 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
         await api.delete('/products/clear/all');
         setProducts([]);
         showToast('All products deleted successfully', 'success');
-      } catch {
-        showToast('Failed to clear products', 'error');
+      } catch (err: any) {
+        showToast(err?.response?.data?.detail || 'Failed to clear products', 'error');
       }
     }
   };
@@ -370,9 +370,9 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
             <div className="flex flex-col gap-2">
               {[
                 { id: 'all', label: '✨ All Categories', desc: 'Browse all products' },
-                { id: 'skincare', label: '🌸 Botanical Skincare', desc: 'Serums, toners & creams' },
-                { id: 'fashion', label: '👗 Fashion & Dresses', desc: 'Silks, linens & apparel' },
-                { id: 'accessories', label: '💍 Refined Accessories', desc: 'Jewelry, bags & pieces' },
+                { id: 'skincare', label: '🌸 Yurae Skin', desc: 'Serums, toners & creams' },
+                { id: 'fashion', label: '👗 Yurae Fashion', desc: 'Silks, linens & apparel' },
+                { id: 'accessories', label: '💍 Yurae Accessories', desc: 'Jewelry, bags & pieces' },
               ].map((cat) => {
                 const isActive = currentCategory === cat.id;
                 return (

@@ -397,6 +397,21 @@ export interface PackingSlipData {
   luxury_packaging_checklist: string[];
 }
 
+export interface PickListItem {
+  id: number;
+  product_name: string;
+  sku: string;
+  variant_info?: string;
+  shelf_location: string;
+  quantity_required: number;
+  quantity_picked: number;
+  status: 'PENDING' | 'PICKED' | 'SHORTAGE' | 'DAMAGED';
+}
 
-
-
+export interface PickList {
+  id: number;
+  picklist_number: string;
+  assigned_staff_name: string;
+  status: string;
+  items: PickListItem[];
+}

@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Heart, User as UserIcon, ShoppingBag, Menu, X, LogOut } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Search, Heart, User as UserIcon, ShoppingBag, Menu, X, LogOut,
+  Sparkles, ChevronRight, Package, Truck, RotateCcw, HelpCircle,
+  Phone, ArrowRight, Layers
+} from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
@@ -26,10 +31,33 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu on location change
+  // Close menu on location change
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const navLinks = [
     { name: 'Home', path: '/' },
@@ -49,18 +77,20 @@ export const Navbar: React.FC = () => {
         }`}
       >
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center justify-between gap-1.5 sm:gap-4">
-          {/* Left Zone: Hamburger (screens < xl) + Brand Logo */}
+          
+          {/* Left Zone: Hamburger Menu Toggle + Brand Logo */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Hamburger Button (screens < xl) */}
+            {/* Three Lines (Hamburger) Menu Button */}
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="xl:hidden p-2 text-[#111111] hover:text-[#D84B7E] transition-colors cursor-pointer shrink-0 -ml-1 rounded-lg touch-target flex items-center justify-center"
-              aria-label="Toggle menu"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 text-[#111111] hover:text-[#D84B7E] hover:bg-[#FCE7F0]/60 transition-all cursor-pointer shrink-0 -ml-1 rounded-xl touch-target flex items-center justify-center border border-transparent hover:border-[#F1BCCE]"
+              aria-label="Open Navigation Menu"
+              title="Explore Menu & Categories"
             >
-              {isMobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
-            {/* Brand Logo & Title: Top-Left Position */}
+            {/* Brand Logo & Title */}
             <Link
               to="/"
               className="flex items-center gap-2 sm:gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D84B7E] rounded-xl py-0.5 shrink-0"
@@ -90,7 +120,7 @@ export const Navbar: React.FC = () => {
             </Link>
           </div>
 
-          {/* Center Zone: Navigation Links with Equal Balanced Spacing */}
+          {/* Center Zone: Navigation Links for Desktop */}
           <nav className="hidden xl:flex items-center justify-center gap-3.5 2xl:gap-7 shrink-0 px-2 lg:px-4">
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path;
@@ -169,85 +199,258 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Mobile / Tablet Dropdown Menu (screens < xl) */}
+      {/* LUXURY SIDE NAVIGATION DRAWER (Opens when clicking the Three Lines icon) */}
+      <AnimatePresence>
         {isMobileMenuOpen && (
-          <>
-            <div
-              className="fixed inset-0 top-[60px] bg-black/40 backdrop-blur-xs z-30 xl:hidden animate-in fade-in"
+          <div className="fixed inset-0 z-50 flex">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
               onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-xs cursor-pointer"
             />
-            <div className="relative z-40 xl:hidden bg-[#FFF8FA] border-b border-[#F1BCCE] px-4 sm:px-6 py-6 space-y-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center gap-3 pb-3 border-b border-[#F1BCCE]">
-                <img
-                  src="/logo/logo-emblem.png"
-                  alt="Yurae Beauty"
-                  className="w-9 h-9 object-contain"
-                />
-                <div>
-                  <span className="font-serif text-sm font-bold tracking-[0.2em] text-[#111111] block">
-                    YURAE BEAUTY
-                  </span>
-                  <span className="text-[8px] uppercase tracking-[0.25em] text-[#D84B7E] font-semibold block">
-                    The Origin of Skincare
-                  </span>
+
+            {/* Drawer Panel */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="relative z-50 w-full max-w-sm sm:max-w-md bg-[#FFF8FA] h-full shadow-2xl flex flex-col border-r border-[#F1BCCE] overflow-hidden"
+            >
+              {/* Drawer Header */}
+              <div className="p-4 sm:p-5 border-b border-[#F1BCCE] bg-[#FDF4F7] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo/logo-emblem.png"
+                    alt="Yurae Beauty Emblem"
+                    className="w-9 h-9 object-contain drop-shadow-xs"
+                  />
+                  <div>
+                    <span className="font-serif text-sm font-bold tracking-[0.16em] text-[#111111] block">
+                      YURAE BEAUTY
+                    </span>
+                    <span className="text-[8px] uppercase tracking-[0.2em] text-[#D84B7E] font-semibold block">
+                      The Origin of Skincare
+                    </span>
+                  </div>
                 </div>
+
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 hover:bg-[#F8D7E3] text-gray-700 hover:text-[#111111] rounded-full transition-colors cursor-pointer touch-target flex items-center justify-center"
+                  aria-label="Close navigation menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="pb-3 border-b border-[#F1BCCE] flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wider font-bold text-gray-500">Currency</span>
-                <CurrencySelector variant="mobile" />
-              </div>
+              {/* Drawer Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+                
+                {/* 1. MAIN STORE NAVIGATION */}
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2 block mb-1">
+                    Store Navigation
+                  </span>
+                  {navLinks.map((link) => {
+                    const isActive = location.pathname === link.path;
+                    return (
+                      <Link
+                        key={link.name}
+                        to={link.path}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center justify-between text-xs uppercase tracking-wider font-bold py-2.5 px-3 rounded-xl transition-colors ${
+                          isActive
+                            ? 'bg-[#D84B7E] text-white shadow-xs'
+                            : 'text-[#111111] hover:bg-[#FCE7F0] hover:text-[#D84B7E]'
+                        }`}
+                      >
+                        <span>{link.name}</span>
+                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                      </Link>
+                    );
+                  })}
 
-              <div className="space-y-1">
-                {navLinks.map((link) => (
                   <Link
-                    key={link.name}
-                    to={link.path}
+                    to="/shop"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block text-sm uppercase tracking-wider font-bold text-[#111111] hover:text-[#D84B7E] py-2.5 px-2 rounded-xl hover:bg-[#FCE7F0]/60 transition-colors touch-target justify-start"
+                    className="w-full py-2.5 px-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#111111] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer mt-2"
                   >
-                    {link.name}
+                    <Layers className="w-3.5 h-3.5" />
+                    Explore Full Store Catalog
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
-                ))}
-              </div>
+                </div>
 
-              {isAuthenticated ? (
-                <div className="pt-2 border-t border-[#F1BCCE] space-y-2">
-                  {isAdmin && (
-                    <Link
-                      to="/admin"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block text-xs uppercase tracking-widest font-bold text-[#FDF4F7] bg-[#D84B7E] py-3 px-4 rounded-xl text-center shadow-xs"
-                    >
-                      Admin Management Panel
-                    </Link>
-                  )}
+                {/* 3. QUICK SERVICES & DISCOVERY */}
+                <div className="pt-2 border-t border-[#F1BCCE]/60 space-y-1">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2 block mb-1">
+                    Discovery &amp; Orders
+                  </span>
+                  <Link
+                    to="/track"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors"
+                  >
+                    <Package className="w-4 h-4 text-[#D84B7E]" />
+                    <span className="font-semibold">Track Your Order</span>
+                  </Link>
+                  <Link
+                    to="/wishlist"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-between text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Heart className="w-4 h-4 text-[#D84B7E]" />
+                      <span className="font-semibold">Saved Wishlist</span>
+                    </div>
+                    {wishlist.length > 0 && (
+                      <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-2 py-0.5 rounded-full">
+                        {wishlist.length}
+                      </span>
+                    )}
+                  </Link>
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
-                      logout();
+                      openCart();
                     }}
-                    className="w-full text-xs uppercase tracking-widest font-bold text-rose-700 bg-rose-50 border border-rose-200 py-3 px-4 rounded-xl text-center cursor-pointer hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
+                    className="w-full flex items-center justify-between text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors cursor-pointer"
                   >
-                    <LogOut className="w-4 h-4" /> Sign Out ({user?.first_name || 'Account'})
+                    <div className="flex items-center gap-2.5">
+                      <ShoppingBag className="w-4 h-4 text-[#D84B7E]" />
+                      <span className="font-semibold">Shopping Bag</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-2 py-0.5 rounded-full">
+                      {itemCount}
+                    </span>
                   </button>
                 </div>
-              ) : (
-                <div className="pt-2 border-t border-[#F1BCCE]">
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="block text-xs uppercase tracking-widest font-bold text-[#111111] bg-[#F8D7E3] py-3 px-4 rounded-xl text-center hover:bg-[#D84B7E] hover:text-white transition-colors"
-                  >
-                    Sign In / Register
-                  </Link>
+
+                {/* 4. CUSTOMER CARE & POLICIES */}
+                <div className="pt-2 border-t border-[#F1BCCE]/60 space-y-1">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2 block mb-1">
+                    Customer Care &amp; Policies
+                  </span>
+                  <div className="grid grid-cols-2 gap-1 text-[11px]">
+                    <Link
+                      to="/shipping-policy"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-1.5 p-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FCE7F0] transition-colors"
+                    >
+                      <Truck className="w-3.5 h-3.5 text-[#D84B7E]" />
+                      <span>Shipping</span>
+                    </Link>
+                    <Link
+                      to="/return-policy"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-1.5 p-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FCE7F0] transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-[#D84B7E]" />
+                      <span>Returns</span>
+                    </Link>
+                    <Link
+                      to="/faq"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-1.5 p-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FCE7F0] transition-colors"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 text-[#D84B7E]" />
+                      <span>FAQs</span>
+                    </Link>
+                    <Link
+                      to="/contact"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-1.5 p-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FCE7F0] transition-colors"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-[#D84B7E]" />
+                      <span>Concierge</span>
+                    </Link>
+                  </div>
                 </div>
-              )}
-            </div>
-          </>
+
+                {/* 5. CURRENCY SELECTOR */}
+                <div className="pt-2 border-t border-[#F1BCCE]/60 flex items-center justify-between px-2">
+                  <span className="text-[11px] uppercase tracking-wider font-bold text-gray-600">
+                    Store Currency
+                  </span>
+                  <CurrencySelector variant="mobile" />
+                </div>
+
+              </div>
+
+              {/* Drawer Footer: User Account / Sign In */}
+              <div className="p-4 border-t border-[#F1BCCE] bg-[#FDF4F7]">
+                {isAuthenticated ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between px-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-[#D84B7E] text-white flex items-center justify-center text-xs font-bold">
+                          {user?.first_name ? user.first_name[0].toUpperCase() : 'U'}
+                        </div>
+                        <div className="truncate">
+                          <span className="text-[11px] font-bold text-[#111111] block leading-tight truncate">
+                            {user?.first_name || user?.email}
+                          </span>
+                          <span className="text-[9px] text-gray-500 block">Logged In</span>
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="text-[10px] uppercase tracking-wider font-bold text-white bg-[#111111] px-2.5 py-1 rounded-full hover:bg-[#D84B7E] transition-colors"
+                        >
+                          Admin Studio
+                        </Link>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <Link
+                        to="/account"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="text-center py-2 px-3 bg-white border border-[#F1BCCE] text-[#111111] text-xs font-bold rounded-xl hover:bg-[#FCE7F0] transition-colors"
+                      >
+                        My Account
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          logout();
+                        }}
+                        className="py-2 px-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block w-full py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs font-bold uppercase tracking-wider rounded-xl text-center hover:bg-[#111111] transition-all shadow-xs cursor-pointer"
+                    >
+                      Sign In / Register
+                    </Link>
+                    <p className="text-[10px] text-center text-gray-500">
+                      Create an account to track orders &amp; unlock member benefits
+                    </p>
+                  </div>
+                )}
+              </div>
+
+            </motion.div>
+          </div>
         )}
-      </header>
+      </AnimatePresence>
 
       {/* Search Overlay */}
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
@@ -255,3 +458,4 @@ export const Navbar: React.FC = () => {
   );
 };
 
+export default Navbar;

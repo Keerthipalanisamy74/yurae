@@ -71,8 +71,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product: initialProduc
           await api.delete(`/products/${product.id}`);
           showToast(`Product "${product.name}" deleted successfully`, 'success');
           window.location.reload();
-        } catch {
-          showToast('Failed to delete product', 'error');
+        } catch (err: any) {
+          showToast(err?.response?.data?.detail || 'Failed to delete product', 'error');
         }
       }
     }

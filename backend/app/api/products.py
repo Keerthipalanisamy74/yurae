@@ -2,7 +2,7 @@ import uuid
 import re
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from app.database.session import get_db
 from datetime import datetime
 from app.models.models import Product, ProductImage, ProductVariant, Category, Review, User, CartItem, Wishlist, OrderItem, StockNotification
@@ -594,17 +594,27 @@ def clear_all_products_endpoint(
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    # Delete all dependent records first
-    db.query(CartItem).delete()
-    db.query(Wishlist).delete()
-    db.query(Review).delete()
-    db.query(OrderItem).delete()
-    db.query(ProductVariant).delete()
-    db.query(ProductImage).delete()
+    try:
+        # Delete all dependent records in child-to-parent order
+        db.execute(text("DELETE FROM pick_list_items"))
+        db.execute(text("DELETE FROM product_inventory_locations"))
+        db.execute(text("DELETE FROM stock_notifications"))
+        db.execute(text("DELETE FROM cart_items"))
+        db.execute(text("DELETE FROM wishlists"))
+        db.execute(text("DELETE FROM reviews"))
+        db.execute(text("DELETE FROM order_items"))
+        db.execute(text("DELETE FROM product_variants"))
+        db.execute(text("DELETE FROM product_images"))
 
-    num_deleted = db.query(Product).delete()
-    db.commit()
-    return {"message": f"Successfully deleted all {num_deleted} products from the database."}
+        num_deleted = db.query(Product).delete()
+        db.commit()
+        return {"message": f"Successfully deleted all {num_deleted} products from the database."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear products: {str(e)}"
+        )
 
 @router.delete("/{product_id}")
 def delete_product(
@@ -616,14 +626,27 @@ def delete_product(
     if not prod:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Clean up dependent records before deleting
-    db.query(CartItem).filter(CartItem.product_id == product_id).delete()
-    db.query(Wishlist).filter(Wishlist.product_id == product_id).delete()
-    db.query(Review).filter(Review.product_id == product_id).delete()
-    db.query(OrderItem).filter(OrderItem.product_id == product_id).delete()
-    db.query(ProductVariant).filter(ProductVariant.product_id == product_id).delete()
-    db.query(ProductImage).filter(ProductImage.product_id == product_id).delete()
+    try:
+        # Clean up dependent records in child-to-parent order to satisfy foreign keys
+        db.execute(
+            text("DELETE FROM pick_list_items WHERE product_id = :p OR order_item_id IN (SELECT id FROM (SELECT id FROM order_items WHERE product_id = :p) as tmp)"),
+            {"p": product_id}
+        )
+        db.execute(text("DELETE FROM product_inventory_locations WHERE product_id = :p"), {"p": product_id})
+        db.execute(text("DELETE FROM stock_notifications WHERE product_id = :p"), {"p": product_id})
+        db.execute(text("DELETE FROM cart_items WHERE product_id = :p"), {"p": product_id})
+        db.execute(text("DELETE FROM wishlists WHERE product_id = :p"), {"p": product_id})
+        db.execute(text("DELETE FROM reviews WHERE product_id = :p"), {"p": product_id})
+        db.execute(text("DELETE FROM order_items WHERE product_id = :p"), {"p": product_id})
+        db.execute(text("DELETE FROM product_variants WHERE product_id = :p"), {"p": product_id})
+        db.execute(text("DELETE FROM product_images WHERE product_id = :p"), {"p": product_id})
 
-    db.delete(prod)
-    db.commit()
-    return {"message": f"Product '{prod.name}' deleted successfully"}
+        db.delete(prod)
+        db.commit()
+        return {"message": f"Product '{prod.name}' deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete product: {str(e)}"
+        )

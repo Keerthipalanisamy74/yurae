@@ -82,7 +82,7 @@ export const PickListStationModal: React.FC<PickListStationModalProps> = ({
 
   if (!isOpen) return null;
 
-  const allPicked = picklist?.items.every(i => i.status === 'PICKED');
+  const allPicked = picklist?.items.every((i: PickListItem) => i.status === 'PICKED');
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -146,7 +146,7 @@ export const PickListStationModal: React.FC<PickListStationModalProps> = ({
                 <div className="bg-[#FAF6F0] p-3 rounded-xl border border-[#E5D7D0]">
                   <span className="text-[10px] text-gray-500 uppercase tracking-wider block">Items to Pick</span>
                   <span className="font-bold text-xs text-[#111111]">
-                    {picklist.items.filter(i => i.status === 'PICKED').length} / {picklist.items.length} Picked
+                    {picklist.items.filter((i: PickListItem) => i.status === 'PICKED').length} / {picklist.items.length} Picked
                   </span>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export const PickListStationModal: React.FC<PickListStationModalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5D7D0]">
-                    {picklist.items.map((item) => (
+                    {picklist.items.map((item: PickListItem) => (
                       <tr key={item.id} className={`hover:bg-[#FAF9F5] transition-colors ${item.status === 'PICKED' ? 'bg-emerald-50/40' : ''}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5 font-mono font-bold text-[#D84B7E]">

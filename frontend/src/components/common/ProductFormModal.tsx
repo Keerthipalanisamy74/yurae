@@ -448,15 +448,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl max-w-2xl w-full p-4 sm:p-8 space-y-5 sm:space-y-6 shadow-2xl my-4 sm:my-8 max-h-[92vh] overflow-y-auto touch-scroll">
         {/* Header */}
-        <div className="flex justify-between items-center border-b border-[#F1BCCE] pb-4">
+        <div className="flex justify-between items-center border-b border-[#F1BCCE] pb-3 sm:pb-4">
           <div>
-            <h3 className="font-serif text-2xl font-bold text-[#111111]">
-              {isEditMode ? `Edit Product: ${productToEdit?.name}` : 'Add New Product'}
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#111111]">
+              {isEditMode ? `Edit: ${productToEdit?.name}` : 'Add New Product'}
             </h3>
-            <p className="text-xs text-gray-600 mt-0.5">
+            <p className="text-[11px] sm:text-xs text-gray-600 mt-0.5">
               {isEditMode
                 ? 'Update details, pricing, sizing, and add multiple high-resolution photos.'
                 : 'Upload a product with multiple photos, custom sizes, and category options.'}
@@ -464,13 +464,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-500 hover:text-black rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            className="p-2 text-gray-500 hover:text-black rounded-full hover:bg-gray-100 transition-colors cursor-pointer touch-target min-w-[40px] min-h-[40px] flex items-center justify-center"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5 text-xs">
           {/* STORE DEPARTMENT SELECTION (New Products Only) OR LOCKED INDICATOR (Edit Mode) */}
           {!isEditMode && allowCategorySelection ? (
             <div>

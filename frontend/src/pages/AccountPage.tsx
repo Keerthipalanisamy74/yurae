@@ -389,10 +389,10 @@ export const AccountPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
           
-          {/* Navigation Sidebar */}
-          <div className="space-y-2 bg-[#FFF8FA] p-4 border border-[#F1BCCE] rounded-2xl h-fit shadow-xs">
+          {/* Navigation Sidebar / Mobile Tab Bar */}
+          <div className="grid grid-cols-2 min-[500px]:grid-cols-4 lg:grid-cols-1 gap-2 bg-[#FFF8FA] p-2.5 sm:p-4 border border-[#F1BCCE] rounded-2xl h-fit shadow-xs">
             {[
               { id: 'orders', label: 'My Orders', icon: Package },
               { id: 'profile', label: 'Profile Details', icon: User },
@@ -405,12 +405,12 @@ export const AccountPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center justify-center lg:justify-start gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[11px] sm:text-xs uppercase tracking-wider font-bold transition-all cursor-pointer touch-target min-h-[44px] ${
                     active ? 'bg-[#D84B7E] text-[#FDF4F7] shadow-xs' : 'text-gray-700 hover:bg-[#FCE7F0]'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{tab.label}</span>
                 </button>
               );
             })}

@@ -187,8 +187,8 @@ export const TrackingPage: React.FC = () => {
             </div>
 
             {/* Stepper Timeline */}
-            <div className="p-6 sm:p-8 bg-white border border-[#F1BCCE] rounded-2xl space-y-6">
-              <h3 className="font-serif text-base font-bold text-[#111111] uppercase tracking-wider">
+            <div className="p-4 sm:p-8 bg-white border border-[#F1BCCE] rounded-2xl space-y-5 sm:space-y-6">
+              <h3 className="font-serif text-sm sm:text-base font-bold text-[#111111] uppercase tracking-wider">
                 Fulfillment Journey
               </h3>
 
@@ -197,6 +197,7 @@ export const TrackingPage: React.FC = () => {
 
                 return (
                   <div className="relative">
+                    {/* Desktop Horizontal Stepper */}
                     <div className="hidden sm:flex justify-between items-start relative">
                       <div className="absolute top-4 left-8 right-8 h-1 bg-[#F1BCCE] -z-0">
                         <div
@@ -223,6 +224,34 @@ export const TrackingPage: React.FC = () => {
                               {st.label}
                             </span>
                             <span className="text-[11px] text-gray-500 mt-0.5">{st.desc}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mobile Vertical Stepper */}
+                    <div className="sm:hidden space-y-3.5 pl-2 relative">
+                      <div className="absolute top-3 bottom-3 left-6 w-0.5 bg-[#F1BCCE] -z-0" />
+                      {steps.map((st, idx) => {
+                        const isDone = idx <= currentIdx;
+                        const isCurrent = idx === currentIdx;
+                        return (
+                          <div key={st.label} className="flex items-center gap-3 relative z-10">
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center border text-xs font-bold shrink-0 transition-all shadow-xs ${
+                                isDone
+                                  ? 'bg-[#D84B7E] text-white border-[#D84B7E]'
+                                  : 'bg-white text-gray-400 border-[#F1BCCE]'
+                              } ${isCurrent ? 'ring-4 ring-[#F8D7E3]' : ''}`}
+                            >
+                              {isDone ? <Check className="w-3.5 h-3.5" /> : idx + 1}
+                            </div>
+                            <div className="flex-1">
+                              <span className={`text-xs font-bold block ${isDone ? 'text-[#111111]' : 'text-gray-400'}`}>
+                                {st.label}
+                              </span>
+                              <span className="text-[10px] text-gray-500">{st.desc}</span>
+                            </div>
                           </div>
                         );
                       })}

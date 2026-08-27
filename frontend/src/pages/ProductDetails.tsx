@@ -692,29 +692,34 @@ export const ProductDetails: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center border border-[#F1BCCE] rounded-full bg-[#FFF8FA] px-3 py-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                        <div className="flex items-center justify-between border border-[#F1BCCE] rounded-full bg-[#FFF8FA] px-3 py-1.5 min-h-[44px]">
                           <button
+                            type="button"
                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
                             disabled={isOutOfStock}
-                            className="p-1 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30"
+                            className="p-1.5 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30 touch-target flex items-center justify-center"
+                            aria-label="Decrease quantity"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
                           <span className="px-4 text-sm font-bold text-[#111111]">{quantity}</span>
                           <button
+                            type="button"
                             onClick={() => setQuantity(Math.min(currentStock || 1, quantity + 1))}
                             disabled={isOutOfStock || quantity >= currentStock}
-                            className="p-1 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30"
+                            className="p-1.5 text-gray-600 hover:text-black cursor-pointer disabled:opacity-30 touch-target flex items-center justify-center"
+                            aria-label="Increase quantity"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
 
                         <button
+                          type="button"
                           onClick={handleAddToCart}
                           disabled={isOutOfStock}
-                          className="flex-1 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          className="flex-1 py-3.5 px-6 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed touch-target min-h-[44px] active:scale-98"
                         >
                           <Plus className="w-4 h-4" />
                           {isFashion
@@ -726,9 +731,10 @@ export const ProductDetails: React.FC = () => {
                       </div>
 
                       <button
+                        type="button"
                         onClick={handleBuyNow}
                         disabled={isOutOfStock}
-                        className="w-full py-3.5 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all shadow-md cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        className="w-full py-3.5 px-6 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all shadow-md cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed touch-target min-h-[44px] active:scale-98"
                       >
                         Buy Now — Express Checkout
                       </button>
@@ -742,14 +748,14 @@ export const ProductDetails: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <button
                     onClick={() => setIsEditModalOpen(true)}
-                    className="w-full py-3 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    className="w-full py-3 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md touch-target min-h-[44px]"
                   >
                     <Edit className="w-4 h-4" />
                     Admin: Edit Product & Photos
                   </button>
                   <button
                     onClick={handleDeleteThisProduct}
-                    className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-widest font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer touch-target min-h-[44px]"
                   >
                     <Trash2 className="w-4 h-4" />
                     Admin: Delete Product
@@ -787,7 +793,7 @@ export const ProductDetails: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleWhatsAppShare}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#E8F8F0] hover:bg-[#D1F2E0] text-[#1B6F45] border border-[#BDE5D0] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 group"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#E8F8F0] hover:bg-[#D1F2E0] text-[#1B6F45] border border-[#BDE5D0] rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-95 touch-target min-h-[44px] group"
                   title="Share on WhatsApp"
                 >
                   <svg className="w-4 h-4 fill-[#25D366] shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">

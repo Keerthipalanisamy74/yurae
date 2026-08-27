@@ -41,29 +41,29 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center py-16 px-4 bg-[#FDF4F7]">
-      <div className="max-w-md w-full p-8 sm:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xl space-y-6">
-        <div className="text-center space-y-2">
-          <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Portal</span>
-          <h1 className="font-serif text-3xl font-bold text-[#111111]">Welcome Back</h1>
+    <div className="min-h-[75vh] flex items-center justify-center py-10 sm:py-16 px-3 sm:px-4 bg-[#FDF4F7] pb-32 xl:pb-16">
+      <div className="max-w-md w-full p-5 sm:p-8 md:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xl space-y-5 sm:space-y-6">
+        <div className="text-center space-y-1.5 sm:space-y-2">
+          <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Portal</span>
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#111111]">Welcome Back</h1>
           <p className="text-xs text-gray-600 font-normal">Sign in to access your luxury beauty bag & order history.</p>
         </div>
 
         {/* Demo Credentials Helper Pill */}
         <div className="p-3 bg-[#FCE7F0] rounded-2xl border border-[#F1BCCE] space-y-1.5 text-center">
-          <span className="text-[10px] uppercase font-bold text-[#D84B7E] block">Login</span>
+          <span className="text-[10px] uppercase font-bold text-[#D84B7E] block">Quick Fill Demo</span>
           <div className="flex justify-center gap-2">
             <button
               type="button"
               onClick={() => handleQuickDemoFill('customer')}
-              className="px-3 py-1 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer"
+              className="px-3.5 py-1.5 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer touch-target min-h-[36px]"
             >
               User
             </button>
             <button
               type="button"
               onClick={() => handleQuickDemoFill('admin')}
-              className="px-3 py-1 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer text-[#D84B7E]"
+              className="px-3.5 py-1.5 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer text-[#D84B7E] touch-target min-h-[36px]"
             >
               Admin
             </button>
@@ -78,7 +78,7 @@ export const Login: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
             />
           </div>
 
@@ -92,14 +92,14 @@ export const Login: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer"
+            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98"
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
@@ -148,16 +148,16 @@ export const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-16 px-4 bg-[#FDF4F7]">
-      <div className="max-w-lg w-full p-8 sm:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xl space-y-6">
-        <div className="text-center space-y-2">
-          <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Join Yurae</span>
-          <h1 className="font-serif text-3xl font-bold text-[#111111]">Create an Account</h1>
+    <div className="min-h-[80vh] flex items-center justify-center py-10 sm:py-16 px-3 sm:px-4 bg-[#FDF4F7] pb-32 xl:pb-16">
+      <div className="max-w-lg w-full p-5 sm:p-8 md:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xl space-y-5 sm:space-y-6">
+        <div className="text-center space-y-1.5 sm:space-y-2">
+          <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Join Yurae</span>
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#111111]">Create an Account</h1>
           <p className="text-xs text-gray-600 font-normal">Enjoy private luxury consultations and complimentary order gifts.</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="text-xs uppercase tracking-widest text-gray-600 font-bold block mb-1">First Name</label>
               <input
@@ -165,7 +165,7 @@ export const Register: React.FC = () => {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
-                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
               />
             </div>
             <div>
@@ -175,7 +175,7 @@ export const Register: React.FC = () => {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
-                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
               />
             </div>
           </div>
@@ -187,7 +187,7 @@ export const Register: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
             />
           </div>
 
@@ -197,7 +197,7 @@ export const Register: React.FC = () => {
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
             />
           </div>
 
@@ -209,14 +209,14 @@ export const Register: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="Minimum 8 characters"
-              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E]"
+              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer"
+            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98"
           >
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>

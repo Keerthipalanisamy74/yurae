@@ -837,70 +837,70 @@ export const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="pb-24 pt-8 bg-[#FDF4F7]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="pb-32 xl:pb-16 pt-6 sm:pt-8 bg-[#FDF4F7]">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-[#F1BCCE] gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-5 sm:pb-6 border-b border-[#F1BCCE] gap-3.5 sm:gap-4">
           <div>
-            <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Admin Workspace</span>
-            <h1 className="font-serif text-3xl font-bold text-[#111111]">Yurae Beauty Management</h1>
+            <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Admin Workspace</span>
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#111111]">Yurae Beauty Management</h1>
             {user && (
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-xs text-gray-600 mt-0.5 sm:mt-1">
                 Logged in as <span className="font-bold text-[#111111]">{user.first_name} {user.last_name}</span> ({user.email})
               </p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <button
               onClick={() => {
                 setActiveTab('coupons');
                 setIsCreateCouponOpen(true);
               }}
-              className="px-5 py-2.5 bg-[#FFF8FA] text-[#D84B7E] border border-[#D84B7E] text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#D84B7E] hover:text-white transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-[#FFF8FA] text-[#D84B7E] border border-[#D84B7E] text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#D84B7E] hover:text-white transition-all flex items-center gap-1.5 sm:gap-2 shadow-xs cursor-pointer touch-target min-h-[40px]"
             >
-              <Tag className="w-4 h-4" /> Add Coupon
+              <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add Coupon
             </button>
             <button
               onClick={() => setIsAddProductOpen(true)}
-              className="px-5 py-2.5 bg-[#D84B7E] text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-all flex items-center gap-2 shadow-xs border border-[#D84B7E] cursor-pointer"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-[#D84B7E] text-white text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-all flex items-center gap-1.5 sm:gap-2 shadow-xs border border-[#D84B7E] cursor-pointer touch-target min-h-[40px]"
             >
-              <Plus className="w-4 h-4" /> Add New Product
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add New Product
             </button>
             <button
               onClick={handleAdminSignOut}
-              className="px-5 py-2.5 bg-[#FFF8FA] text-[#111111] border border-[#F1BCCE] text-xs uppercase tracking-wider font-bold rounded-full hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+              className="px-3.5 sm:px-5 py-2 sm:py-2.5 bg-[#FFF8FA] text-[#111111] border border-[#F1BCCE] text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-full hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition-all flex items-center gap-1.5 sm:gap-2 shadow-xs cursor-pointer touch-target min-h-[40px]"
               title="Sign out of Admin Session"
             >
-              <LogOut className="w-4 h-4" /> Sign Out
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Sign Out
             </button>
           </div>
         </div>
 
         {/* Top Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-2">
-            <div className="flex justify-between items-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+        <div className="grid grid-cols-1 min-[390px]:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6">
+          <div className="p-4 sm:p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-1.5 sm:space-y-2">
+            <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-gray-600 uppercase tracking-wider">
               <span>Total Revenue (INR)</span>
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
+              <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0" />
             </div>
-            <p className="font-serif text-3xl font-bold text-[#111111]">₹{stats?.total_sales.toLocaleString()}</p>
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-[#111111]">₹{stats?.total_sales.toLocaleString()}</p>
           </div>
 
-          <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-2">
-            <div className="flex justify-between items-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+          <div className="p-4 sm:p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-1.5 sm:space-y-2">
+            <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-gray-600 uppercase tracking-wider">
               <span>Total Orders</span>
-              <ShoppingCart className="w-4 h-4 text-[#D84B7E]" />
+              <ShoppingCart className="w-4 h-4 text-[#D84B7E] shrink-0" />
             </div>
-            <p className="font-serif text-3xl font-bold text-[#111111]">{stats?.total_orders}</p>
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-[#111111]">{stats?.total_orders}</p>
           </div>
 
-          <div className="p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-2">
-            <div className="flex justify-between items-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+          <div className="p-4 sm:p-6 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl shadow-xs space-y-1.5 sm:space-y-2">
+            <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-gray-600 uppercase tracking-wider">
               <span>Active Coupons</span>
-              <Tag className="w-4 h-4 text-[#D84B7E]" />
+              <Tag className="w-4 h-4 text-[#D84B7E] shrink-0" />
             </div>
-            <p className="font-serif text-3xl font-bold text-[#111111]">
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-[#111111]">
               {coupons.filter((c) => c.active).length} / {coupons.length}
             </p>
           </div>
@@ -910,31 +910,31 @@ export const AdminDashboard: React.FC = () => {
               setActiveTab('inventory');
               setInventoryStockFilter('LOW');
             }}
-            className="p-6 bg-[#FFF8FA] border border-amber-300 rounded-2xl shadow-xs space-y-2 cursor-pointer hover:bg-amber-50/50 hover:border-amber-400 transition-all group"
+            className="p-4 sm:p-6 bg-[#FFF8FA] border border-amber-300 rounded-2xl shadow-xs space-y-1.5 sm:space-y-2 cursor-pointer hover:bg-amber-50/50 hover:border-amber-400 transition-all group"
             title="Click to view & restock low stock products"
           >
-            <div className="flex justify-between items-center text-xs font-bold text-amber-900 uppercase tracking-wider">
+            <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-amber-900 uppercase tracking-wider">
               <span className="group-hover:text-amber-700">⚡ Low Stock Alerts</span>
-              <AlertTriangle className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+              <AlertTriangle className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform shrink-0" />
             </div>
-            <p className="font-serif text-3xl font-bold text-amber-600">{stats?.low_stock_products}</p>
+            <p className="font-serif text-2xl sm:text-3xl font-bold text-amber-600">{stats?.low_stock_products}</p>
             <span className="text-[10px] font-bold text-amber-700 block">Click to 1-click restock →</span>
           </div>
         </div>
 
         {/* Tab Selector Bar */}
-        <div className="flex overflow-x-auto gap-2 border-b border-[#F1BCCE] pb-1">
+        <div className="flex overflow-x-auto gap-2 border-b border-[#F1BCCE] pb-2.5 pt-1 touch-scroll no-scrollbar">
           {[
             { id: 'overview', label: 'Dashboard Overview' },
             { id: 'reports', label: '📑 GST & Accounting Exports' },
             {
               id: 'inventory',
-              label: `⚡ Restock & Low Stock Center (${products.filter((p) => (p.stock_quantity || 0) < 5).length})`,
+              label: `⚡ Restock & Low Stock (${products.filter((p) => (p.stock_quantity || 0) < 5).length})`,
             },
-            { id: 'shipping', label: `🚚 Shipping & Fulfillment (${orders.filter((o) => o.shipping_status && o.shipping_status !== 'NOT_CREATED').length})` },
+            { id: 'shipping', label: `🚚 Shipping (${orders.filter((o) => o.shipping_status && o.shipping_status !== 'NOT_CREATED').length})` },
             {
               id: 'returns',
-              label: `🔄 Returns & Exchanges (${returnRequests.length})${
+              label: `🔄 Returns (${returnRequests.length})${
                 returnRequests.filter((r) => r.status === 'PENDING_REVIEW').length > 0
                   ? ` • ${returnRequests.filter((r) => r.status === 'PENDING_REVIEW').length} Pending`
                   : ''
@@ -944,7 +944,7 @@ export const AdminDashboard: React.FC = () => {
             { id: 'orders', label: `Orders (${orders.length})` },
             {
               id: 'contact_messages',
-              label: `📬 Contact Messages (${messages.filter((m) => m.source !== 'ORDER_QUERY').length})${
+              label: `📬 Messages (${messages.filter((m) => m.source !== 'ORDER_QUERY').length})${
                 messages.filter((m) => m.source !== 'ORDER_QUERY' && m.status === 'UNREAD').length > 0
                   ? ` • ${messages.filter((m) => m.source !== 'ORDER_QUERY' && m.status === 'UNREAD').length} New`
                   : ''
@@ -958,15 +958,15 @@ export const AdminDashboard: React.FC = () => {
                   : ''
               }`,
             },
-            { id: 'coupons', label: `Coupons & Offers (${coupons.length})` },
-            { id: 'database', label: `🗄️ Database & .env (${dbOverview?.total_tables || 20})` },
-            { id: 'currencies', label: 'Currencies & Rates' },
+            { id: 'coupons', label: `Coupons (${coupons.length})` },
+            { id: 'database', label: `🗄️ Database (${dbOverview?.total_tables || 20})` },
+            { id: 'currencies', label: 'Currencies' },
             { id: 'customers', label: `Customers (${customers.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-5 py-2.5 text-xs uppercase tracking-widest font-bold rounded-full transition-all shrink-0 cursor-pointer ${
+              className={`px-3.5 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-full transition-all shrink-0 cursor-pointer touch-target min-h-[40px] ${
                 activeTab === tab.id
                   ? 'bg-[#D84B7E] text-white shadow-xs'
                   : (tab.id === 'contact_messages' && messages.some((m) => m.source !== 'ORDER_QUERY' && m.status === 'UNREAD')) ||

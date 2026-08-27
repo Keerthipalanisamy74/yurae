@@ -886,31 +886,31 @@ export const CheckoutPage: React.FC = () => {
   }
 
   return (
-    <div className="pb-24 pt-8 bg-[#FDF4F7]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="pb-32 xl:pb-24 pt-6 sm:pt-8 bg-[#FDF4F7]">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         
         {/* Step Indicator Bar */}
-        <div className="max-w-3xl mx-auto mb-12 flex justify-between items-center text-xs uppercase tracking-widest font-bold text-gray-400">
-          <div className={`flex items-center gap-2 ${step >= 1 ? 'text-[#D84B7E]' : ''}`}>
-            <span className={`w-7 h-7 rounded-full flex items-center justify-center border ${step >= 1 ? 'bg-[#D84B7E] text-white border-[#D84B7E]' : 'border-gray-300'}`}>1</span>
-            Customer
+        <div className="max-w-3xl mx-auto mb-6 sm:mb-12 flex justify-between items-center text-[10px] sm:text-xs uppercase tracking-wider font-bold text-gray-400">
+          <div className={`flex items-center gap-1.5 sm:gap-2 ${step >= 1 ? 'text-[#D84B7E]' : ''}`}>
+            <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs border ${step >= 1 ? 'bg-[#D84B7E] text-white border-[#D84B7E]' : 'border-gray-300'}`}>1</span>
+            <span>Customer</span>
           </div>
-          <span className="h-0.5 flex-1 bg-[#F1BCCE] mx-4" />
-          <div className={`flex items-center gap-2 ${step >= 2 ? 'text-[#D84B7E]' : ''}`}>
-            <span className={`w-7 h-7 rounded-full flex items-center justify-center border ${step >= 2 ? 'bg-[#D84B7E] text-white border-[#D84B7E]' : 'border-gray-300'}`}>2</span>
-            Shipping
+          <span className="h-0.5 flex-1 bg-[#F1BCCE] mx-2 sm:mx-4" />
+          <div className={`flex items-center gap-1.5 sm:gap-2 ${step >= 2 ? 'text-[#D84B7E]' : ''}`}>
+            <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs border ${step >= 2 ? 'bg-[#D84B7E] text-white border-[#D84B7E]' : 'border-gray-300'}`}>2</span>
+            <span>Shipping</span>
           </div>
-          <span className="h-0.5 flex-1 bg-[#F1BCCE] mx-4" />
-          <div className={`flex items-center gap-2 ${step >= 3 ? 'text-[#D84B7E]' : ''}`}>
-            <span className={`w-7 h-7 rounded-full flex items-center justify-center border ${step >= 3 ? 'bg-[#D84B7E] text-white border-[#D84B7E]' : 'border-gray-300'}`}>3</span>
-            Payment
+          <span className="h-0.5 flex-1 bg-[#F1BCCE] mx-2 sm:mx-4" />
+          <div className={`flex items-center gap-1.5 sm:gap-2 ${step >= 3 ? 'text-[#D84B7E]' : ''}`}>
+            <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs border ${step >= 3 ? 'bg-[#D84B7E] text-white border-[#D84B7E]' : 'border-gray-300'}`}>3</span>
+            <span>Payment</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
           
           {/* LEFT: Checkout Form Steps */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
             
             {/* Step 1 & 2: Shipping Address Form */}
             <div className="p-6 sm:p-8 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl space-y-6 shadow-xs">

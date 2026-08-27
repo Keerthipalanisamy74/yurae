@@ -73,29 +73,29 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static">
-      <div className="bg-white border border-[#F1BCCE] rounded-3xl max-w-3xl w-full p-6 sm:p-10 space-y-6 shadow-2xl my-4 max-h-[92vh] overflow-y-auto print:max-h-none print:overflow-visible print:border-none print:shadow-none print:p-0 print:rounded-none">
+      <div className="bg-white border border-[#F1BCCE] rounded-3xl max-w-3xl w-full p-4 sm:p-10 space-y-4 sm:space-y-6 shadow-2xl my-3 sm:my-4 max-h-[92vh] overflow-y-auto touch-scroll print:max-h-none print:overflow-visible print:border-none print:shadow-none print:p-0 print:rounded-none">
         {/* Modal Action Bar (Hidden when Printing) */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#F1BCCE] pb-4 print:hidden">
-          <div className="flex items-center gap-2">
-            <span className="text-xs uppercase tracking-widest text-[#D84B7E] font-bold">Official Tax Invoice</span>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 sm:gap-3 border-b border-[#F1BCCE] pb-3 sm:pb-4 print:hidden">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-[10px] sm:text-xs uppercase tracking-widest text-[#D84B7E] font-bold">Tax Invoice</span>
             <span className="text-xs text-gray-400">•</span>
-            <span className="text-xs font-mono font-bold text-gray-700">{invoice?.invoice_number}</span>
+            <span className="text-xs font-mono font-bold text-gray-700 truncate max-w-[150px] sm:max-w-none">{invoice?.invoice_number}</span>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
             <button
               type="button"
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf || isLoading || !invoice}
-              className="px-4 py-2 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs uppercase tracking-widest font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+              className="px-3.5 sm:px-4 py-2 bg-[#D84B7E] hover:bg-[#111111] text-white text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 touch-target min-h-[38px]"
             >
               {isDownloadingPdf ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Generating PDF...
+                  <Loader2 className="w-4 h-4 animate-spin" /> PDF...
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4" /> Download PDF File
+                  <Download className="w-4 h-4" /> Download PDF
                 </>
               )}
             </button>
@@ -104,7 +104,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               type="button"
               onClick={handlePrint}
               disabled={isLoading || !invoice}
-              className="px-3.5 py-2 bg-[#FFF8FA] border border-[#F1BCCE] hover:border-[#D84B7E] text-[#111111] text-xs uppercase tracking-widest font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              className="px-3 sm:px-3.5 py-2 bg-[#FFF8FA] border border-[#F1BCCE] hover:border-[#D84B7E] text-[#111111] text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer touch-target min-h-[38px]"
             >
               <Printer className="w-4 h-4 text-[#D84B7E]" /> Print
             </button>
@@ -112,7 +112,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-black rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+              className="p-1.5 text-gray-400 hover:text-black rounded-full hover:bg-gray-100 transition-colors cursor-pointer touch-target min-w-[36px] min-h-[36px] flex items-center justify-center"
+              aria-label="Close invoice"
             >
               <X className="w-5 h-5" />
             </button>

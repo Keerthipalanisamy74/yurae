@@ -753,15 +753,15 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
         ]}
       />
       {/* Category Banner */}
-      <section className="bg-[#FCE7F0] py-14 px-4 border-b border-[#F1BCCE]">
-        <div className="max-w-7xl mx-auto text-center space-y-4">
-          <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">
+      <section className="bg-[#FCE7F0] py-8 sm:py-14 px-3 sm:px-4 border-b border-[#F1BCCE]">
+        <div className="max-w-7xl mx-auto text-center space-y-2.5 sm:space-y-4">
+          <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">
             Yurae Beauty
           </span>
-          <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#111111]">
+          <h1 className="font-serif text-3xl sm:text-5xl font-bold text-[#111111]">
             {getCategoryTitle()}
           </h1>
-          <p className="text-sm sm:text-base text-gray-700 font-normal max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-base text-gray-700 font-normal max-w-2xl mx-auto leading-relaxed px-2">
             {getCategoryDescription()}
           </p>
 
@@ -770,17 +770,17 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
 
           {/* Admin Upload Controls Banner */}
           {isAdmin && (
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
+            <div className="pt-2 sm:pt-4 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
               <button
                 onClick={openUploadModal}
-                className="px-5 py-2.5 bg-[#D84B7E] text-[#FDF4F7] border border-[#D84B7E] text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] hover:text-[#FDF4F7] transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                className="px-4 sm:px-5 py-2 sm:py-2.5 bg-[#D84B7E] text-[#FDF4F7] border border-[#D84B7E] text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] hover:text-[#FDF4F7] transition-all shadow-md flex items-center gap-2 cursor-pointer touch-target min-h-[40px]"
               >
                 <Upload className="w-4 h-4 text-[#FDF4F7]" />
                 Upload New Product {currentCategory !== 'all' ? `to ${getCategoryTitle()}` : ''}
               </button>
               <button
                 onClick={handleClearAllProducts}
-                className="px-4 py-2.5 bg-red-600/90 text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-red-700 transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-red-600/90 text-white text-[11px] sm:text-xs uppercase tracking-wider font-bold rounded-full hover:bg-red-700 transition-all shadow-md flex items-center gap-2 cursor-pointer touch-target min-h-[40px]"
               >
                 <Trash2 className="w-4 h-4" />
                 Reset Store Catalog
@@ -790,20 +790,20 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8">
         
         {/* Mobile Filter Toggle & Sort Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-[#F1BCCE]">
+        <div className="flex items-center justify-between gap-3 pb-4 sm:pb-6 border-b border-[#F1BCCE]">
           <button
-            onClick={() => setIsFilterMobileOpen(!isFilterMobileOpen)}
-            className="lg:hidden flex items-center gap-2 px-4 py-2 border border-[#F1BCCE] bg-[#FFF8FA] rounded-full text-xs font-bold uppercase tracking-wider text-[#111111] cursor-pointer shadow-xs"
+            onClick={() => setIsFilterMobileOpen(true)}
+            className="lg:hidden flex items-center gap-2 px-4 py-2 border border-[#F1BCCE] bg-[#FFF8FA] rounded-full text-xs font-bold uppercase tracking-wider text-[#111111] cursor-pointer shadow-xs touch-target min-h-[40px] active:scale-95"
           >
             <Filter className="w-4 h-4 text-[#D84B7E]" />
             Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
           </button>
 
           {/* Sort Dropdown */}
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
             <span className="text-xs uppercase tracking-wider text-gray-500 font-bold hidden sm:inline">
               Sort By:
             </span>
@@ -811,27 +811,27 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-[#FFF8FA] border border-[#F1BCCE] rounded-full px-4 py-2 pr-8 text-xs font-bold text-[#111111] outline-none cursor-pointer focus:border-[#D84B7E]"
+                className="appearance-none bg-[#FFF8FA] border border-[#F1BCCE] rounded-full px-3.5 sm:px-4 py-2 pr-7 sm:pr-8 text-xs font-bold text-[#111111] outline-none cursor-pointer focus:border-[#D84B7E] min-h-[40px]"
               >
-                <option value="featured">Featured Collection</option>
+                <option value="featured">Featured</option>
                 <option value="newest">New Arrivals</option>
                 <option value="price_low">Price: Low to High</option>
                 <option value="price_high">Price: High to Low</option>
               </select>
-              <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
 
         {/* Active Filter Pills Bar */}
         {activeFilters.length > 0 && (
-          <div className="pt-4 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-gray-500">Active Filters:</span>
+          <div className="pt-3 sm:pt-4 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-bold text-gray-500">Active:</span>
             {activeFilters.map((flt, idx) => (
               <button
                 key={idx}
                 onClick={flt.onRemove}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F8D7E3] text-[#D84B7E] border border-[#F1BCCE] rounded-full text-xs font-bold hover:bg-[#D84B7E] hover:text-white transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-[#F8D7E3] text-[#D84B7E] border border-[#F1BCCE] rounded-full text-[11px] sm:text-xs font-bold hover:bg-[#D84B7E] hover:text-white transition-colors cursor-pointer touch-target min-h-[32px]"
               >
                 {flt.label}
                 <X className="w-3 h-3" />
@@ -839,17 +839,17 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
             ))}
             <button
               onClick={handleResetFilters}
-              className="text-xs text-gray-500 hover:text-[#D84B7E] underline font-bold ml-2 cursor-pointer"
+              className="text-xs text-gray-500 hover:text-[#D84B7E] underline font-bold ml-1 cursor-pointer"
             >
               Clear All
             </button>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 pt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8 pt-6 sm:pt-8">
           
           {/* SIDEBAR FILTERS (Desktop) */}
-          <aside className={`lg:block ${isFilterMobileOpen ? 'block' : 'hidden'} space-y-6 bg-[#FFF8FA] p-6 rounded-3xl border border-[#F1BCCE] h-fit`}>
+          <aside className="hidden lg:block space-y-6 bg-[#FFF8FA] p-6 rounded-3xl border border-[#F1BCCE] h-fit sticky top-24">
             
             {/* Header & Reset */}
             <div className="flex items-center justify-between pb-4 border-b border-[#F1BCCE]">
@@ -892,33 +892,101 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
 
           </aside>
 
+          {/* MOBILE SLIDE-OVER FILTER DRAWER */}
+          {isFilterMobileOpen && (
+            <div className="lg:hidden fixed inset-0 z-50 flex justify-end animate-in fade-in duration-200">
+              <div
+                className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+                onClick={() => setIsFilterMobileOpen(false)}
+              />
+              <div className="relative z-50 w-full max-w-sm bg-[#FFF8FA] h-full flex flex-col shadow-2xl border-l border-[#F1BCCE] animate-in slide-in-from-right duration-300">
+                {/* Drawer Header */}
+                <div className="p-4 sm:p-5 border-b border-[#F1BCCE] flex items-center justify-between bg-[#FDF4F7]">
+                  <h3 className="font-serif text-lg font-bold text-[#111111] flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-[#D84B7E]" />
+                    Filter Collection
+                  </h3>
+                  <button
+                    onClick={() => setIsFilterMobileOpen(false)}
+                    className="p-2 hover:bg-[#F8D7E3] rounded-full transition-colors cursor-pointer touch-target flex items-center justify-center"
+                    aria-label="Close filters"
+                  >
+                    <X className="w-5 h-5 text-[#111111]" />
+                  </button>
+                </div>
+
+                {/* Drawer Body */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6 touch-scroll">
+                  {renderCategoryFilters()}
+
+                  {/* Price Range Slider */}
+                  <div className="space-y-3 pt-4 border-t border-[#F1BCCE]">
+                    <div className="flex justify-between items-center text-xs">
+                      <h4 className="uppercase tracking-widest font-bold text-[#111111]">Max Price</h4>
+                      <span className="font-bold text-[#D84B7E]">{formatPrice(maxPrice)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="500"
+                      max="10000"
+                      step="250"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(Number(e.target.value))}
+                      className="w-full accent-[#D84B7E] cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-gray-500 font-bold">
+                      <span>{formatPrice(500)}</span>
+                      <span>{formatPrice(10000)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Drawer Sticky Footer Actions */}
+                <div className="p-4 border-t border-[#F1BCCE] bg-[#FDF4F7] grid grid-cols-2 gap-3 pb-safe">
+                  <button
+                    onClick={handleResetFilters}
+                    className="w-full py-3 bg-white text-[#111111] border border-[#F1BCCE] rounded-full text-xs font-bold uppercase tracking-wider hover:bg-[#FCE7F0] transition-colors cursor-pointer touch-target min-h-[44px]"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setIsFilterMobileOpen(false)}
+                    className="w-full py-3 bg-[#D84B7E] text-white rounded-full text-xs font-bold uppercase tracking-wider hover:bg-[#111111] transition-colors shadow-md cursor-pointer touch-target min-h-[44px]"
+                  >
+                    Apply ({filteredProducts.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Product Grid */}
           <main className="lg:col-span-3">
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="h-96 bg-[#FCE7F0] rounded-2xl animate-pulse" />
+                  <div key={i} className="h-80 sm:h-96 bg-[#FCE7F0] rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-24 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 p-8 shadow-xs">
-                <h3 className="font-serif text-2xl text-[#111111] font-bold">
+              <div className="text-center py-16 sm:py-24 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 p-6 sm:p-8 shadow-xs">
+                <h3 className="font-serif text-xl sm:text-2xl text-[#111111] font-bold">
                   No matching {getCategoryTitle().toLowerCase()} found.
                 </h3>
                 <p className="text-xs text-gray-600 max-w-md mx-auto">
                   Try adjusting your filter criteria, or click Reset Filters to view all {currentCategory} items.
                 </p>
-                <div className="pt-2 flex justify-center gap-3">
+                <div className="pt-2 flex flex-wrap justify-center gap-3">
                   <button
                     onClick={handleResetFilters}
-                    className="px-6 py-2.5 bg-[#D84B7E] text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-xs"
+                    className="px-6 py-2.5 bg-[#D84B7E] text-white text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-xs touch-target min-h-[44px]"
                   >
                     Reset All Filters
                   </button>
                   {isAdmin && (
                     <button
                       onClick={openUploadModal}
-                      className="px-6 py-2.5 bg-white text-[#111111] border border-[#F1BCCE] text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#FCE7F0] transition-colors cursor-pointer shadow-xs"
+                      className="px-6 py-2.5 bg-white text-[#111111] border border-[#F1BCCE] text-xs uppercase tracking-wider font-bold rounded-full hover:bg-[#FCE7F0] transition-colors cursor-pointer shadow-xs touch-target min-h-[44px]"
                     >
                       Upload New Product
                     </button>
@@ -926,7 +994,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}

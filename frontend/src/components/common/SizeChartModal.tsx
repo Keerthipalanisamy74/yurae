@@ -1159,75 +1159,75 @@ export const SizeChartModal: React.FC<SizeChartModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-black/65 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-5xl max-h-[92vh] bg-[#FFF8FA] rounded-3xl shadow-2xl border border-[#F1BCCE] flex flex-col overflow-hidden animate-scale-up"
+        className="relative w-full max-w-5xl max-h-[94vh] sm:max-h-[92vh] bg-[#FFF8FA] rounded-3xl shadow-2xl border border-[#F1BCCE] flex flex-col overflow-hidden animate-scale-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER */}
-        <div className="px-6 py-4.5 bg-gradient-to-r from-[#FFF5F8] via-[#FCE7F0] to-[#FFF0F5] border-b border-[#F1BCCE] flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-[#D84B7E] text-white flex items-center justify-center shadow-md shadow-[#D84B7E]/25 shrink-0">
-              <Ruler className="w-6 h-6" />
+        <div className="px-4 sm:px-6 py-3 sm:py-4.5 bg-gradient-to-r from-[#FFF5F8] via-[#FCE7F0] to-[#FFF0F5] border-b border-[#F1BCCE] flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-[#D84B7E] text-white flex items-center justify-center shadow-md shadow-[#D84B7E]/25 shrink-0">
+              <Ruler className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D84B7E] bg-white/70 px-2 py-0.5 rounded-full border border-[#F1BCCE]/60">
-                  Fashion Atelier Sizing
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.2em] text-[#D84B7E] bg-white/70 px-2 py-0.5 rounded-full border border-[#F1BCCE]/60">
+                  Fashion Sizing
                 </span>
-                <span className="text-[11px] font-semibold text-gray-700 truncate max-w-[240px]">
+                <span className="text-[10px] sm:text-[11px] font-semibold text-gray-700 truncate max-w-[180px] sm:max-w-[240px]">
                   • {productName}
                 </span>
               </div>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#111111] leading-tight">
+              <h2 className="font-serif text-lg sm:text-2xl font-bold text-[#111111] leading-tight">
                 Size Chart &amp; Fit Guide
               </h2>
             </div>
           </div>
 
           {/* CONTROLS */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="bg-[#FDF4F7] p-1 rounded-full border border-[#F1BCCE] flex items-center shadow-2xs">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="bg-[#FDF4F7] p-0.5 sm:p-1 rounded-full border border-[#F1BCCE] flex items-center shadow-2xs">
               <button
                 type="button"
                 onClick={() => setUnit('in')}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-bold rounded-full transition-all cursor-pointer touch-target min-h-[32px] ${
                   unit === 'in'
                     ? 'bg-[#D84B7E] text-white shadow-xs'
                     : 'text-gray-600 hover:text-[#111111]'
                 }`}
               >
-                Inches (in)
+                In (in)
               </button>
               <button
                 type="button"
                 onClick={() => setUnit('cm')}
-                className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-bold rounded-full transition-all cursor-pointer touch-target min-h-[32px] ${
                   unit === 'cm'
                     ? 'bg-[#D84B7E] text-white shadow-xs'
                     : 'text-gray-600 hover:text-[#111111]'
                 }`}
               >
-                Centimeters (cm)
+                Cm (cm)
               </button>
             </div>
 
             <button
               type="button"
               onClick={onClose}
-              className="w-9 h-9 rounded-full bg-white/80 hover:bg-[#D84B7E] hover:text-white border border-[#F1BCCE] flex items-center justify-center text-gray-700 transition-all cursor-pointer shadow-2xs"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/80 hover:bg-[#D84B7E] hover:text-white border border-[#F1BCCE] flex items-center justify-center text-gray-700 transition-all cursor-pointer shadow-2xs touch-target min-w-[36px] min-h-[36px]"
               aria-label="Close Size Chart"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
         {/* SUB-HEADER TABS */}
-        <div className="px-6 py-2.5 bg-white border-b border-[#F1BCCE] flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+        <div className="px-3 sm:px-6 py-2 sm:py-2.5 bg-white border-b border-[#F1BCCE] flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 text-xs">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none touch-scroll">
             <button
               type="button"
               onClick={() => setViewSection('chart')}

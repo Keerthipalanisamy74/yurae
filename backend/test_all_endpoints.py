@@ -2,13 +2,22 @@ import os
 import sys
 
 # Ensure backend and root paths are in sys.path
-sys.path.insert(0, os.path.abspath("backend"))
-sys.path.insert(0, os.path.abspath("."))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+for p in [current_dir, parent_dir, os.path.join(parent_dir, "backend")]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from fastapi.testclient import TestClient
-from backend.app.main import app
-from backend.app.database.session import SessionLocal, engine, Base
-from backend.app.database.seed import seed_db
+try:
+    from app.main import app
+    from app.database.session import SessionLocal, engine, Base
+    from app.database.seed import seed_db
+except ImportError:
+    from backend.app.main import app
+    from backend.app.database.session import SessionLocal, engine, Base
+    from backend.app.database.seed import seed_db
+
 
 print("--- Initializing test environment ---")
 # Re-seed DB to clean state

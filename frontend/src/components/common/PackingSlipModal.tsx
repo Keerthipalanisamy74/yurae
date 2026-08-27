@@ -57,38 +57,39 @@ export const PackingSlipModal: React.FC<PackingSlipModalProps> = ({ orderId, onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-[#F1BCCE] overflow-hidden">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-[#FFF8FA] print:hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-200 bg-[#FFF8FA] print:hidden gap-3">
           <div className="flex items-center gap-2.5">
-            <Package className="w-5 h-5 text-[#D84B7E]" />
-            <h2 className="font-serif text-lg font-bold text-[#111111]">
-              Warehouse Packing Slip & Dispatch Manifest
+            <Package className="w-5 h-5 text-[#D84B7E] shrink-0" />
+            <h2 className="font-serif text-base sm:text-lg font-bold text-[#111111] leading-tight">
+              Packing Slip & Manifest
             </h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={handlePrint}
               disabled={isLoading || !data}
-              className="px-3.5 py-1.5 bg-[#111111] text-white rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-[#D84B7E] transition-colors cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-1.5 bg-[#111111] text-white rounded-full text-xs font-bold flex items-center gap-1.5 hover:bg-[#D84B7E] transition-colors cursor-pointer disabled:opacity-50 touch-target min-h-[36px]"
             >
-              <Printer className="w-3.5 h-3.5" /> Print Manifest
+              <Printer className="w-3.5 h-3.5" /> Print
             </button>
             <button
               type="button"
               onClick={handleDownloadPdf}
               disabled={isLoading || !data}
-              className="px-3.5 py-1.5 border border-[#F1BCCE] text-[#111111] bg-white rounded-full text-xs font-bold flex items-center gap-1.5 hover:border-[#D84B7E] hover:text-[#D84B7E] transition-colors cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-1.5 border border-[#F1BCCE] text-[#111111] bg-white rounded-full text-xs font-bold flex items-center gap-1.5 hover:border-[#D84B7E] hover:text-[#D84B7E] transition-colors cursor-pointer disabled:opacity-50 touch-target min-h-[36px]"
             >
               <Download className="w-3.5 h-3.5" /> PDF
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-gray-500 hover:text-black rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              className="p-1.5 text-gray-500 hover:text-black rounded-lg hover:bg-gray-100 transition-colors cursor-pointer touch-target min-w-[36px] min-h-[36px] flex items-center justify-center"
+              aria-label="Close dialog"
             >
               <X className="w-5 h-5" />
             </button>
@@ -96,7 +97,7 @@ export const PackingSlipModal: React.FC<PackingSlipModalProps> = ({ orderId, onC
         </div>
 
         {/* Modal Body / Printable Document */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-gray-800 print:p-0 print:m-0">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 text-xs text-gray-800 touch-scroll print:p-0 print:m-0">
           {isLoading && (
             <div className="py-20 text-center space-y-3">
               <Loader2 className="w-8 h-8 text-[#D84B7E] animate-spin mx-auto" />

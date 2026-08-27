@@ -125,18 +125,18 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ order, o
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-[#F1BCCE] overflow-hidden">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1BCCE] bg-[#FFF8FA]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#F1BCCE] bg-[#FFF8FA]">
           <div className="flex items-center gap-2.5">
-            <RefreshCw className="w-5 h-5 text-[#D84B7E]" />
+            <RefreshCw className="w-5 h-5 text-[#D84B7E] shrink-0" />
             <div>
-              <h2 className="font-serif text-lg font-bold text-[#111111]">
-                7-Day Complimentary Return & Exchange
+              <h2 className="font-serif text-base sm:text-lg font-bold text-[#111111] leading-tight">
+                7-Day Return & Exchange
               </h2>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[10px] sm:text-[11px] text-gray-500">
                 Order #{order.order_number} • Placed on {new Date(order.created_at).toLocaleDateString()}
               </p>
             </div>
@@ -144,17 +144,18 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ order, o
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-gray-500 hover:text-black rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+            className="p-1.5 text-gray-500 hover:text-black rounded-lg hover:bg-gray-100 transition-colors cursor-pointer touch-target min-w-[36px] min-h-[36px] flex items-center justify-center"
+            aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-gray-800">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 text-xs text-gray-800 touch-scroll">
           
           {/* Policy Banner */}
-          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 text-[11px]">
+          <div className="p-3 sm:p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 sm:gap-3 text-emerald-800 text-[11px]">
             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
             <div>
               <span className="font-bold block">YURAE 7-Day Luxury Guarantee</span>
@@ -167,11 +168,11 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ order, o
             <label className="text-xs uppercase tracking-wider font-bold text-gray-700">
               Select What You Wish to Do:
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setRequestType('EXCHANGE')}
-                className={`p-3.5 rounded-xl border flex flex-col items-start gap-1 transition-all cursor-pointer text-left ${
+                className={`p-3.5 rounded-xl border flex flex-col items-start gap-1 transition-all cursor-pointer text-left touch-target min-h-[44px] ${
                   requestType === 'EXCHANGE'
                     ? 'border-[#D84B7E] bg-[#FFF8FA] ring-2 ring-[#D84B7E]/20'
                     : 'border-gray-200 hover:border-gray-300'

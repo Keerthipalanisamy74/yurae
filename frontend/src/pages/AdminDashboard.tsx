@@ -78,7 +78,7 @@ export const AdminDashboard: React.FC = () => {
         api.get('/categories'),
         api.get('/admin/customers'),
         api.get('/coupons'),
-        api.get('/contact-messages'),
+        api.get('/contact'),
         api.get('/returns/all'),
       ]);
 
@@ -158,7 +158,7 @@ export const AdminDashboard: React.FC = () => {
   // Handlers for Messages Refresh
   const handleRefreshMessages = async () => {
     try {
-      const res = await api.get('/contact-messages');
+      const res = await api.get('/contact');
       setMessages(res.data);
     } catch {
       // Ignore

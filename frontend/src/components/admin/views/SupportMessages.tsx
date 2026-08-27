@@ -35,15 +35,43 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'REPLIED'>('ALL');
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [localMessages, setLocalMessages] = useState<ContactMessage[]>(messages);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredMessages = messages.filter((m) => {
+  const fetchDirect = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/contact');
+      if (Array.isArray(res.data)) {
+        setLocalMessages(res.data);
+      }
+    } catch {
+      // Non-blocking
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchDirect();
+  }, []);
+
+  React.useEffect(() => {
+    if (messages && messages.length > 0) {
+      setLocalMessages(messages);
+    }
+  }, [messages]);
+
+  const activeList = localMessages.length > 0 ? localMessages : messages;
+
+  const filteredMessages = activeList.filter((m) => {
     if (filter === 'UNREAD') return m.status === 'UNREAD';
     if (filter === 'REPLIED') return m.status === 'REPLIED';
     return true;
   });
 
-  const unreadCount = messages.filter((m) => m.status === 'UNREAD').length;
-  const repliedCount = messages.filter((m) => m.status === 'REPLIED').length;
+  const unreadCount = activeList.filter((m) => m.status === 'UNREAD').length;
+  const repliedCount = activeList.filter((m) => m.status === 'REPLIED').length;
 
   const handleOpenMessage = async (msg: ContactMessage) => {
     setSelectedMessage(msg);

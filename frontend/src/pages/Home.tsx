@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles, Star, ShieldCheck, Heart, Leaf, Award } from 'lucide-react';
+import { ArrowRight, Sparkles, Star, ShieldCheck, Heart, Leaf, Award, ExternalLink } from 'lucide-react';
+import { InstagramIcon } from '../components/common/Icons';
 import { Product, Category } from '../types';
 import { api } from '../services/api';
 import { ProductCard } from '../components/common/ProductCard';
@@ -429,6 +430,41 @@ export const Home: React.FC = () => {
             <p className="text-[11px] sm:text-xs text-gray-600 leading-relaxed max-w-xs mx-auto">
               Hand-packaged in signature glass and sustainable materials for a timeless unboxing ritual.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. INSTAGRAM COMMUNITY BANNER */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+        <div className="relative overflow-hidden p-6 sm:p-8 md:p-10 bg-gradient-to-r from-[#FFF5F8] via-[#FCE7F0] to-[#FDF4F7] border border-[#F1BCCE] rounded-2xl sm:rounded-3xl shadow-xs">
+          <div className="absolute -top-12 -right-12 w-44 h-44 bg-[#D84B7E]/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-5">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-[#FD1D1D] via-[#E1306C] to-[#833AB4] flex items-center justify-center text-white shadow-md shrink-0">
+                <InstagramIcon className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#D84B7E] font-bold block">
+                  Connect With Us On Instagram
+                </span>
+                <h3 className="font-serif text-xl sm:text-2xl lg:text-3xl font-bold text-[#111111]">
+                  Follow @yuraebeauty
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-600 max-w-md">
+                  Join our vibrant community for daily glass-skin rituals, behind-the-scenes formulation moments, and exclusive announcements.
+                </p>
+              </div>
+            </div>
+            <a
+              href="https://www.instagram.com/yuraebeauty/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-md transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 touch-target cursor-pointer"
+            >
+              <InstagramIcon className="w-4 h-4" />
+              <span>Visit Instagram</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           </div>
         </div>
       </section>

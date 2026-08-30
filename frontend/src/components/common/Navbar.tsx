@@ -4,8 +4,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Search, Heart, User as UserIcon, ShoppingBag, Menu, X, LogOut,
   Sparkles, ChevronRight, Package, Truck, RotateCcw, HelpCircle,
-  Phone, ArrowRight, Layers, Shield
+  Phone, ArrowRight, Layers, Shield, ExternalLink
 } from 'lucide-react';
+import { InstagramIcon } from './Icons';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
@@ -553,7 +554,29 @@ export const Navbar: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 5. CURRENCY SELECTOR */}
+                {/* 5. INSTAGRAM COMMUNITY */}
+                <div className="pt-2 border-t border-[#F1BCCE]/60">
+                  <a
+                    href="https://www.instagram.com/yuraebeauty/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-[#FFF5F8] to-[#FCE7F0] border border-[#F1BCCE] text-[#111111] hover:text-[#D84B7E] transition-all group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#FD1D1D] via-[#E1306C] to-[#833AB4] flex items-center justify-center text-white shadow-2xs group-hover:scale-105 transition-transform">
+                        <InstagramIcon className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-xs font-bold block leading-tight">Follow on Instagram</span>
+                        <span className="text-[10px] text-[#D84B7E] font-semibold block">@yuraebeauty</span>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#D84B7E] transition-colors" />
+                  </a>
+                </div>
+
+                {/* 6. CURRENCY SELECTOR */}
                 <div className="pt-2 border-t border-[#F1BCCE]/60 flex items-center justify-between px-2">
                   <span className="text-[11px] uppercase tracking-wider font-bold text-gray-600">
                     Store Currency

@@ -325,9 +325,9 @@ export const ProductDetails: React.FC = () => {
 
   const handleInstagramShare = async () => {
     await handleCopyLink();
-    showToast('📸 Link copied! Opening Instagram to share with friends or Story...', 'info');
+    showToast('📸 Link copied! Opening @yuraebeauty on Instagram to share...', 'info');
     setTimeout(() => {
-      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+      window.open('https://www.instagram.com/yuraebeauty/', '_blank', 'noopener,noreferrer');
     }, 700);
   };
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Share2 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { InstagramIcon } from './Icons';
 import { useToast } from '../../context/ToastContext';
 
 export const Footer: React.FC = () => {
@@ -183,15 +184,19 @@ export const Footer: React.FC = () => {
             </ul>
 
             <div className="pt-3">
-              <h4 className="text-[11px] uppercase tracking-widest text-[#F8A4C4] font-bold mb-2">
+              <h4 className="text-[11px] uppercase tracking-widest text-[#F8A4C4] font-bold mb-2.5">
                 Follow Us
               </h4>
-              <div className="flex gap-3">
-                <a href="https://instagram.com" target="_blank" rel="noreferrer" className="p-2.5 bg-[#381423] rounded-full text-[#FDF4F7] hover:text-[#111111] hover:bg-[#F8A4C4] transition-all touch-target">
-                  <Share2 className="w-4 h-4" />
-                </a>
-                <a href="https://facebook.com" target="_blank" rel="noreferrer" className="p-2.5 bg-[#381423] rounded-full text-[#FDF4F7] hover:text-[#111111] hover:bg-[#F8A4C4] transition-all touch-target">
-                  <Share2 className="w-4 h-4" />
+              <div className="flex flex-wrap items-center gap-2.5">
+                <a
+                  href="https://www.instagram.com/yuraebeauty/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#381423] hover:bg-gradient-to-r hover:from-[#833AB4] hover:via-[#FD1D1D] hover:to-[#F56040] rounded-full text-[#FDF4F7] hover:text-white transition-all duration-300 border border-[#D84B7E]/40 hover:border-transparent group shadow-xs touch-target"
+                  title="Follow Yurae Beauty on Instagram @yuraebeauty"
+                >
+                  <InstagramIcon className="w-4 h-4 text-[#F8A4C4] group-hover:text-white transition-colors" />
+                  <span className="text-xs font-semibold tracking-wide">@yuraebeauty</span>
                 </a>
               </div>
             </div>

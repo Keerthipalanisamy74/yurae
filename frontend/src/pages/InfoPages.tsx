@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Send } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, ExternalLink } from 'lucide-react';
+import { InstagramIcon } from '../components/common/Icons';
 import { useToast } from '../context/ToastContext';
 import { api } from '../services/api';
 import { SEO } from '../components/common/SEO';
@@ -41,6 +42,28 @@ export const AboutPage: React.FC = () => (
           <h4 className="font-serif text-sm sm:text-base font-bold text-[#111111] mb-1">3. Honest Efficacy</h4>
           <p className="text-xs text-gray-600">Dermatologist-tested formulas that deliver real, glowing, glass-skin results.</p>
         </div>
+      </div>
+
+      {/* Instagram Community Banner */}
+      <div className="pt-4 border-t border-[#F1BCCE]/60 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#FDF4F7] border border-[#F1BCCE]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FD1D1D] via-[#E1306C] to-[#833AB4] flex items-center justify-center text-white shadow-xs shrink-0">
+            <InstagramIcon className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h4 className="font-serif text-sm font-bold text-[#111111]">Join the Yurae Ritual on Instagram</h4>
+            <p className="text-xs text-gray-600">Follow @yuraebeauty for daily skincare tips, BTS at our atelier, and glass-skin guides.</p>
+          </div>
+        </div>
+        <a
+          href="https://www.instagram.com/yuraebeauty/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer touch-target active:scale-95"
+        >
+          <span>Follow @yuraebeauty</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
       </div>
     </div>
   </div>
@@ -118,6 +141,28 @@ export const ContactPage: React.FC = () => {
             <div className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-[#D84B7E] shrink-0 mt-0.5" />
               <span>Yurae Beauty Atelier, Jubilee Hills, Hyderabad, Telangana 500033</span>
+            </div>
+            
+            {/* Direct Instagram Connection Link */}
+            <div className="pt-2 border-t border-[#F1BCCE]/60">
+              <a
+                href="https://www.instagram.com/yuraebeauty/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3 rounded-2xl bg-[#FDF4F7] border border-[#F1BCCE] text-[#111111] hover:border-[#D84B7E] hover:text-[#D84B7E] transition-all group cursor-pointer"
+                title="Open @yuraebeauty on Instagram"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FD1D1D] via-[#E1306C] to-[#833AB4] flex items-center justify-center text-white shadow-2xs group-hover:scale-105 transition-transform">
+                    <InstagramIcon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold block leading-tight">Official Instagram</span>
+                    <span className="text-[11px] text-[#D84B7E] font-medium block">@yuraebeauty</span>
+                  </div>
+                </div>
+                <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-[#D84B7E] transition-colors" />
+              </a>
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.database.session import engine, Base
 import app.models.models  # Register all models with Base.metadata
-from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo, webhooks
+from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo, webhooks, fulfillment
 
 # Create tables automatically
 Base.metadata.create_all(bind=engine)
@@ -41,6 +41,7 @@ app.include_router(cart.router, prefix=settings.API_V1_STR)
 app.include_router(wishlist.router, prefix=settings.API_V1_STR)
 app.include_router(orders.router, prefix=settings.API_V1_STR)
 app.include_router(shipping.router, prefix=settings.API_V1_STR)
+app.include_router(fulfillment.router, prefix=settings.API_V1_STR)
 app.include_router(webhooks.router, prefix=settings.API_V1_STR)
 app.include_router(coupons.router, prefix=settings.API_V1_STR)
 app.include_router(reviews.router, prefix=settings.API_V1_STR)

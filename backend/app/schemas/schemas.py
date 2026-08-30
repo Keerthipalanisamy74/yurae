@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 
 # --- Auth & User ---
@@ -395,8 +395,28 @@ class OrderResponse(BaseModel):
     pickup_token_number: Optional[str] = None
     estimated_delivery_date: Optional[str] = None
     shipping_error_log: Optional[str] = None
-    is_cod: Optional[bool] = False
-    cod_amount: Optional[float] = 0.0
+    # OMS & Warehouse Operations Fields
+    priority: Optional[str] = "NORMAL"
+    assigned_staff: Optional[str] = None
+    shipping_method: Optional[str] = "Standard Express"
+    gst_number: Optional[str] = None
+    packing_checklist: Optional[str] = None
+    invoice_number: Optional[str] = None
+    risk_level: Optional[str] = "LOW"
+    fulfillment_status: Optional[str] = "NEW_ORDER"
+    picked_at: Optional[datetime] = None
+    qc_at: Optional[datetime] = None
+    packed_at: Optional[datetime] = None
+    invoice_generated_at: Optional[datetime] = None
+    shipping_label_generated_at: Optional[datetime] = None
+    shipped_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    internal_notes: Optional[str] = None
+    gift_wrap: Optional[bool] = False
+    gift_message: Optional[str] = None
+    free_samples_included: Optional[str] = None
 
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -411,6 +431,61 @@ class OrderResponse(BaseModel):
 class OrderStatusUpdate(BaseModel):
     order_status: Optional[str] = None
     payment_status: Optional[str] = None
+    fulfillment_status: Optional[str] = None
+    notes: Optional[str] = None
+
+class SummaryCardMetric(BaseModel):
+    key: str
+    label: str
+    count: int = 0
+    total_revenue: float = 0.0
+    today_count: int = 0
+    weekly_count: int = 0
+    monthly_count: int = 0
+    icon: Optional[str] = None
+    color: Optional[str] = None
+
+class OrderAnalyticsSummary(BaseModel):
+    cards: Dict[str, SummaryCardMetric]
+    total_revenue: float = 0.0
+    average_order_value: float = 0.0
+    cancellation_rate: float = 0.0
+    return_rate: float = 0.0
+    repeat_customer_rate: float = 0.0
+    top_products: List[Dict[str, Any]] = []
+    top_categories: List[Dict[str, Any]] = []
+    top_customers: List[Dict[str, Any]] = []
+
+class OrderBulkActionRequest(BaseModel):
+    order_ids: List[int]
+    action: str  # MARK_PACKED, MARK_SHIPPED, MARK_PROCESSING, MARK_DELIVERED, CANCEL, PRINT_INVOICES, PRINT_PACKING_SLIPS, PRINT_LABELS, EXPORT_CSV, EXPORT_EXCEL
+    notes: Optional[str] = None
+
+class PackingChecklistUpdate(BaseModel):
+    items_checked: Dict[str, bool] = {}
+    free_gifts_included: bool = False
+    invoice_printed: bool = False
+    thank_you_card_included: bool = False
+    samples_added: bool = False
+    bubble_wrap_done: bool = False
+    outer_box_secured: bool = False
+    shipping_label_attached: bool = False
+    packer_name: Optional[str] = None
+    box_type: Optional[str] = "Standard Box"
+    total_weight_kg: Optional[float] = 0.5
+    advance_to_packed: bool = False
+
+class OrderNoteCreate(BaseModel):
+    note: str
+
+class StaffAssignmentRequest(BaseModel):
+    assigned_staff: str
+    priority: Optional[str] = "NORMAL"
+
+class CustomerCommunicationRequest(BaseModel):
+    channel: str  # EMAIL, SMS, WHATSAPP, CALL
+    subject: Optional[str] = None
+    message: str
 
 # --- Coupon ---
 class CouponCreate(BaseModel):
@@ -761,6 +836,265 @@ class PackingSlipResponse(BaseModel):
     sender: Dict[str, Any]
     items: List[PackingSlipItem]
     luxury_packaging_checklist: List[str]
+
+
+# --- Fulfillment & WMS Schemas ---
+class LifecycleMilestone(BaseModel):
+    stage_key: str
+    label: str
+    timestamp: Optional[str] = None
+    is_completed: bool = False
+    is_current: bool = False
+    notes: Optional[str] = None
+
+class TrackingHistoryEvent(BaseModel):
+    status: str
+    activity: str
+    location: Optional[str] = None
+    event_time: Optional[str] = None
+
+class OrderLifecycleResponse(BaseModel):
+    order_id: int
+    order_number: str
+    current_status: str
+    fulfillment_status: str
+    payment_status: str
+    shipping_status: Optional[str] = None
+    awb_code: Optional[str] = None
+    courier_name: Optional[str] = None
+    milestones: List[LifecycleMilestone] = []
+    history_events: List[TrackingHistoryEvent] = []
+
+class FulfillmentAdvanceRequest(BaseModel):
+    target_status: str
+    notes: Optional[str] = None
+    actor_name: Optional[str] = None
+    actor_role: Optional[str] = "ADMIN"
+
+class PickListItemResponse(BaseModel):
+    id: int
+    picklist_id: int
+    order_item_id: Optional[int] = None
+    product_id: int
+    product_name: str
+    sku: str
+    variant_info: Optional[str] = None
+    shelf_location: Optional[str] = None
+    barcode: Optional[str] = None
+    quantity_required: int
+    quantity_picked: int
+    status: str
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class PickListResponse(BaseModel):
+    id: int
+    picklist_number: str
+    order_id: int
+    warehouse_id: Optional[int] = None
+    assigned_staff_name: Optional[str] = None
+    status: str
+    picked_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    items: List[PickListItemResponse] = []
+
+    class Config:
+        from_attributes = True
+
+class PickItemRequest(BaseModel):
+    item_id: int
+    quantity_picked: int
+    status: str = "PICKED"
+    notes: Optional[str] = None
+
+class QualityCheckRequest(BaseModel):
+    order_id: int
+    qc_inspector_name: Optional[str] = None
+    status: str = "PASSED"
+    verification_checklist: str
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    defect_reason: Optional[str] = None
+    corrective_action: Optional[str] = None
+    notes: Optional[str] = None
+
+class QualityCheckResponse(BaseModel):
+    id: int
+    order_id: int
+    qc_inspector_name: Optional[str] = None
+    status: str
+    verification_checklist: str
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    defect_reason: Optional[str] = None
+    corrective_action: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class PackingRequest(BaseModel):
+    order_id: int
+    packer_name: Optional[str] = None
+    box_type: Optional[str] = "Standard Box"
+    packaging_checklist: str
+    free_samples: Optional[str] = None
+    total_weight_kg: float = 0.5
+    length_cm: float = 15.0
+    breadth_cm: float = 10.0
+    height_cm: float = 8.0
+    notes: Optional[str] = None
+
+class PackingResponse(BaseModel):
+    id: int
+    order_id: int
+    packer_name: Optional[str] = None
+    box_type: Optional[str] = None
+    packaging_checklist: str
+    free_samples: Optional[str] = None
+    total_weight_kg: float
+    length_cm: float
+    breadth_cm: float
+    height_cm: float
+    notes: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class RefundRequestCreate(BaseModel):
+    order_id: int
+    amount: float
+    reason: str
+    refund_type: str = "FULL"  # FULL, PARTIAL, STORE_CREDIT
+    refund_mode: str = "ORIGINAL_PAYMENT"
+    return_request_id: Optional[int] = None
+    admin_notes: Optional[str] = None
+
+class RefundResponse(BaseModel):
+    id: int
+    refund_number: str
+    order_id: int
+    return_request_id: Optional[int] = None
+    user_id: int
+    amount: float
+    currency: str = "INR"
+    refund_type: str
+    refund_mode: str
+    gateway_refund_id: Optional[str] = None
+    reason: str
+    status: str
+    admin_notes: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class NotificationLogResponse(BaseModel):
+    id: int
+    order_id: Optional[int] = None
+    user_id: Optional[int] = None
+    recipient_email: Optional[str] = None
+    recipient_phone: Optional[str] = None
+    channel: str
+    event_type: str
+    subject: str
+    payload_preview: Optional[str] = None
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AuditLogResponse(BaseModel):
+    id: int
+    actor_id: Optional[int] = None
+    actor_name: str
+    actor_role: str
+    action: str
+    entity_type: str
+    entity_id: str
+    old_value_json: Optional[str] = None
+    new_value_json: Optional[str] = None
+    ip_address: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class WarehouseCreate(BaseModel):
+    name: str
+    code: str
+    contact_name: str
+    phone: str
+    email: str
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state: str
+    pincode: str
+    country: str = "India"
+    is_primary: bool = True
+    is_active: bool = True
+
+class WarehouseResponse(BaseModel):
+    id: int
+    name: str
+    code: str
+    contact_name: str
+    phone: str
+    email: str
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state: str
+    pincode: str
+    country: str
+    is_primary: bool
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ProductInventoryLocationCreate(BaseModel):
+    product_id: int
+    warehouse_id: int
+    zone: str = "A-Ground"
+    aisle: str = "A1"
+    rack: str = "R1"
+    shelf_bin: str = "B1"
+    batch_number: Optional[str] = None
+    mfg_date: Optional[str] = None
+    exp_date: Optional[str] = None
+    stock_quantity: int = 0
+    reserved_quantity: int = 0
+
+class ProductInventoryLocationResponse(BaseModel):
+    id: int
+    product_id: int
+    warehouse_id: int
+    zone: str
+    aisle: str
+    rack: str
+    shelf_bin: str
+    batch_number: Optional[str] = None
+    mfg_date: Optional[str] = None
+    exp_date: Optional[str] = None
+    stock_quantity: int
+    reserved_quantity: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 
 
 

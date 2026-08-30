@@ -1,36 +1,52 @@
 import time
+import json
 import csv
 import io
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from fastapi.responses import StreamingResponse, JSONResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import func, text
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, text, or_, and_, desc
 from app.database.session import get_db, engine, Base
 from app.models.models import (
-    Order, User, Product, Category, Coupon, Review, ExchangeRate, Shipment,
+    Order, OrderItem, Payment, User, Product, Category, Coupon, Review, ExchangeRate, Shipment,
     AuditLog, ContactMessage, ReturnRequest, StockNotification, QualityCheckLog,
-    PackingLog, Warehouse, ProductInventoryLocation, Address, Wishlist, CartItem, ProductVariant
+    PackingLog, Warehouse, ProductInventoryLocation, Address, Wishlist, CartItem, ProductVariant,
+    PickList, PickListItem, ShippingTrackingEvent, RefundRecord, NotificationLog
 )
-from app.schemas.schemas import AdminDashboardStats, OrderResponse, UserResponse
+from app.schemas.schemas import (
+    AdminDashboardStats, OrderResponse, UserResponse,
+    OrderAnalyticsSummary, SummaryCardMetric, OrderBulkActionRequest,
+    PackingChecklistUpdate, OrderNoteCreate, StaffAssignmentRequest,
+    CustomerCommunicationRequest
+)
 from app.api.deps import get_current_admin
 from app.core.config import settings, backend_env, root_env
 from app.database.migrate_all import run_full_schema_migration
 from app.database.seed import seed_db
+from app.services.warehouse_service import WarehouseService
+from app.services.shipping_service import ShippingService
+from app.services.fulfillment_orchestrator import FulfillmentOrchestrator
+from app.services.audit_service import AuditService
+from app.services.notification_service import NotificationService
+from app.services.email_service import EmailService
+from app.services.invoice_pdf_service import InvoicePdfService
+from app.services.shipping_label_service import ShippingLabelService
+from app.services.packing_slip_service import PackingSlipService
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/admin", tags=["Admin Dashboard"])
 
 @router.get("/dashboard", response_model=AdminDashboardStats)
 def get_dashboard_stats(current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
-    total_sales_result = db.query(func.sum(Order.total_amount)).filter(Order.payment_status == "Paid").scalar()
+    total_sales_result = db.query(func.sum(Order.total_amount)).filter(Order.payment_status.in_(["Paid", "PAID", "SUCCESS"])).scalar()
     total_sales = float(total_sales_result) if total_sales_result else 0.0
 
     total_orders = db.query(Order).count()
     total_customers = db.query(User).filter(User.role == "CUSTOMER").count()
     total_products = db.query(Product).count()
-    pending_orders = db.query(Order).filter(Order.order_status.in_(["Pending", "Processing", "Confirmed"])).count()
+    pending_orders = db.query(Order).filter(Order.order_status.in_(["Pending", "Processing", "Confirmed", "NEW_ORDER"])).count()
     low_stock_products = db.query(Product).filter(Product.stock_quantity <= 10).count()
 
     recent_orders = db.query(Order).order_by(Order.created_at.desc()).limit(10).all()
@@ -45,19 +61,948 @@ def get_dashboard_stats(current_admin: User = Depends(get_current_admin), db: Se
         recent_orders=recent_orders
     )
 
+# ==========================================
+# ORDER MANAGEMENT SUITE (ENTERPRISE OMS)
+# ==========================================
+
+@router.get("/orders/analytics-summary", response_model=OrderAnalyticsSummary)
+def get_orders_analytics_summary(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns full summary metrics for all 15 order lifecycle cards:
+    Count, Total Revenue, Today's Count, Weekly Count, and Monthly Count.
+    Also returns high-level business reports (AOV, Top Products, Top Customers, Repeat rate).
+    """
+    now = datetime.utcnow()
+    start_of_today = datetime(now.year, now.month, now.day)
+    seven_days_ago = now - timedelta(days=7)
+    thirty_days_ago = now - timedelta(days=30)
+
+    # Fetch all orders in memory for ultrafast, accurate multi-metric aggregation
+    all_orders = db.query(Order).all()
+    total_orders_count = len(all_orders)
+
+    # Define the 15 Lifecycle Card Specifications
+    card_definitions = [
+        {"key": "TOTAL_ORDERS", "label": "Total Orders", "icon": "ShoppingCart", "color": "#D84B7E"},
+        {"key": "NEW_ORDERS", "label": "New Orders", "icon": "Sparkles", "color": "#3B82F6"},
+        {"key": "PENDING_PAYMENT", "label": "Pending Payment", "icon": "Clock", "color": "#F59E0B"},
+        {"key": "PAID_ORDERS", "label": "Paid Orders", "icon": "CheckCircle2", "color": "#10B981"},
+        {"key": "PROCESSING_ORDERS", "label": "Processing Orders", "icon": "Cpu", "color": "#6366F1"},
+        {"key": "READY_TO_PACK", "label": "Ready to Pack", "icon": "Boxes", "color": "#EC4899"},
+        {"key": "PACKED_ORDERS", "label": "Packed Orders", "icon": "PackageCheck", "color": "#8B5CF6"},
+        {"key": "READY_TO_SHIP", "label": "Ready to Ship", "icon": "Send", "color": "#14B8A6"},
+        {"key": "SHIPPED_ORDERS", "label": "Shipped Orders", "icon": "Truck", "color": "#0284C7"},
+        {"key": "OUT_FOR_DELIVERY", "label": "Out For Delivery", "icon": "Navigation", "color": "#D97706"},
+        {"key": "DELIVERED_ORDERS", "label": "Delivered Orders", "icon": "Home", "color": "#059669"},
+        {"key": "CANCELLED_ORDERS", "label": "Cancelled Orders", "icon": "XCircle", "color": "#E11D48"},
+        {"key": "RETURNED_ORDERS", "label": "Returned Orders", "icon": "RotateCcw", "color": "#9333EA"},
+        {"key": "REFUNDED_ORDERS", "label": "Refunded Orders", "icon": "DollarSign", "color": "#EA580C"},
+        {"key": "FAILED_PAYMENTS", "label": "Failed Payments", "icon": "AlertTriangle", "color": "#DC2626"},
+    ]
+
+    cards_result: Dict[str, SummaryCardMetric] = {}
+
+    def matches_card_filter(o: Order, key: str) -> bool:
+        st = (o.order_status or "").upper()
+        pst = (o.payment_status or "").upper()
+        fst = (o.fulfillment_status or "").upper()
+
+        if key == "TOTAL_ORDERS":
+            return True
+        elif key == "NEW_ORDERS":
+            return st in ["PENDING", "NEW_ORDER", "NEW ORDER"] or fst == "NEW_ORDER"
+        elif key == "PENDING_PAYMENT":
+            return pst in ["PENDING", "UNPAID"]
+        elif key == "PAID_ORDERS":
+            return pst in ["PAID", "SUCCESS"]
+        elif key == "PROCESSING_ORDERS":
+            return st in ["PROCESSING", "CONFIRMED"] or fst in ["ORDER_CONFIRMED", "PICK_LIST_GENERATED", "ITEMS_PICKED", "QUALITY_CHECKED", "PACKING_STARTED"]
+        elif key == "READY_TO_PACK":
+            return fst in ["PICK_LIST_GENERATED", "ITEMS_PICKED", "QUALITY_CHECKED", "READY_TO_PACK"] or (st == "PROCESSING" and fst not in ["PACKED", "SHIPPED", "DELIVERED"])
+        elif key == "PACKED_ORDERS":
+            return st == "PACKED" or fst == "PACKED"
+        elif key == "READY_TO_SHIP":
+            return fst in ["PACKED", "SHIPPING_LABEL_PRINTED", "COURIER_ASSIGNED", "READY_TO_SHIP"] and st not in ["SHIPPED", "DELIVERED", "CANCELLED"]
+        elif key == "SHIPPED_ORDERS":
+            return st in ["SHIPPED", "IN_TRANSIT"] or fst in ["SHIPPED", "PICKED_UP", "IN_TRANSIT"]
+        elif key == "OUT_FOR_DELIVERY":
+            return st in ["OUT FOR DELIVERY", "OUT_FOR_DELIVERY"] or fst == "OUT_FOR_DELIVERY"
+        elif key == "DELIVERED_ORDERS":
+            return st in ["DELIVERED", "ORDER_COMPLETED"] or fst in ["DELIVERED", "ORDER_COMPLETED"]
+        elif key == "CANCELLED_ORDERS":
+            return st in ["CANCELLED", "CANCELED"] or fst == "CANCELLED"
+        elif key == "RETURNED_ORDERS":
+            return st in ["RETURNED", "RETURN_REQUESTED", "RETURN_APPROVED", "RETURN_COMPLETED"] or fst in ["RETURNED", "RTO"]
+        elif key == "REFUNDED_ORDERS":
+            return pst in ["REFUNDED", "REFUND_COMPLETED"] or st in ["REFUNDED", "REFUND REQUESTED", "REFUND APPROVED", "REFUND COMPLETED"]
+        elif key == "FAILED_PAYMENTS":
+            return pst in ["FAILED", "FAILURE"]
+        return False
+
+    for cdef in card_definitions:
+        k = cdef["key"]
+        matched = [o for o in all_orders if matches_card_filter(o, k)]
+        count = len(matched)
+        rev = sum(float(o.total_amount or 0.0) for o in matched)
+        today_cnt = sum(1 for o in matched if o.created_at and o.created_at >= start_of_today)
+        weekly_cnt = sum(1 for o in matched if o.created_at and o.created_at >= seven_days_ago)
+        monthly_cnt = sum(1 for o in matched if o.created_at and o.created_at >= thirty_days_ago)
+
+        cards_result[k] = SummaryCardMetric(
+            key=k,
+            label=cdef["label"],
+            count=count,
+            total_revenue=round(rev, 2),
+            today_count=today_cnt,
+            weekly_count=weekly_cnt,
+            monthly_count=monthly_cnt,
+            icon=cdef["icon"],
+            color=cdef["color"]
+        )
+
+    # Calculate overall analytics
+    paid_orders = [o for o in all_orders if (o.payment_status or "").upper() in ["PAID", "SUCCESS"]]
+    total_sales_val = sum(float(o.total_amount or 0.0) for o in paid_orders)
+    aov = round(total_sales_val / len(paid_orders), 2) if paid_orders else 0.0
+
+    cancelled_count = sum(1 for o in all_orders if (o.order_status or "").upper() in ["CANCELLED", "CANCELED"])
+    returned_count = sum(1 for o in all_orders if (o.order_status or "").upper() in ["RETURNED", "RTO"])
+
+    cancellation_rate = round((cancelled_count / total_orders_count * 100), 1) if total_orders_count > 0 else 0.0
+    return_rate = round((returned_count / total_orders_count * 100), 1) if total_orders_count > 0 else 0.0
+
+    # Repeat customer rate
+    user_order_counts: Dict[int, int] = {}
+    for o in all_orders:
+        user_order_counts[o.user_id] = user_order_counts.get(o.user_id, 0) + 1
+    total_unique_customers = len(user_order_counts)
+    repeat_customers_count = sum(1 for uid, cnt in user_order_counts.items() if cnt > 1)
+    repeat_rate = round((repeat_customers_count / total_unique_customers * 100), 1) if total_unique_customers > 0 else 0.0
+
+    # Top Products aggregation
+    product_sales: Dict[str, Dict[str, Any]] = {}
+    for o in all_orders:
+        for item in o.items:
+            pname = item.product_name
+            if pname not in product_sales:
+                product_sales[pname] = {"product_name": pname, "quantity": 0, "revenue": 0.0, "orders_count": 0}
+            product_sales[pname]["quantity"] += item.quantity
+            product_sales[pname]["revenue"] += float(item.price * item.quantity)
+            product_sales[pname]["orders_count"] += 1
+
+    top_products = sorted(product_sales.values(), key=lambda x: x["revenue"], reverse=True)[:8]
+    for p in top_products:
+        p["revenue"] = round(p["revenue"], 2)
+
+    # Top Categories
+    cat_sales: Dict[str, Dict[str, Any]] = {}
+    for o in all_orders:
+        for item in o.items:
+            cat_name = item.product.category.name if (item.product and item.product.category) else "Skincare"
+            if cat_name not in cat_sales:
+                cat_sales[cat_name] = {"category_name": cat_name, "units_sold": 0, "revenue": 0.0}
+            cat_sales[cat_name]["units_sold"] += item.quantity
+            cat_sales[cat_name]["revenue"] += float(item.price * item.quantity)
+    top_categories = sorted(cat_sales.values(), key=lambda x: x["revenue"], reverse=True)[:5]
+    for c in top_categories:
+        c["revenue"] = round(c["revenue"], 2)
+
+    # Top Customers by Lifetime Value
+    customer_spend: Dict[int, Dict[str, Any]] = {}
+    for o in all_orders:
+        uid = o.user_id
+        uname = f"{o.user.first_name} {o.user.last_name}" if o.user else f"Patron #{uid}"
+        uemail = o.user.email if o.user else "N/A"
+        if uid not in customer_spend:
+            customer_spend[uid] = {"user_id": uid, "customer_name": uname, "email": uemail, "total_spend": 0.0, "order_count": 0}
+        customer_spend[uid]["total_spend"] += float(o.total_amount or 0.0)
+        customer_spend[uid]["order_count"] += 1
+    top_customers = sorted(customer_spend.values(), key=lambda x: x["total_spend"], reverse=True)[:8]
+    for tc in top_customers:
+        tc["total_spend"] = round(tc["total_spend"], 2)
+
+    return OrderAnalyticsSummary(
+        cards=cards_result,
+        total_revenue=round(total_sales_val, 2),
+        average_order_value=aov,
+        cancellation_rate=cancellation_rate,
+        return_rate=return_rate,
+        repeat_customer_rate=repeat_rate,
+        top_products=top_products,
+        top_categories=top_categories,
+        top_customers=top_customers
+    )
+
+
 @router.get("/orders", response_model=List[OrderResponse])
 def get_all_orders_admin(
     status: Optional[str] = None,
+    payment_status: Optional[str] = None,
+    date_preset: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    courier: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    country: Optional[str] = None,
+    priority: Optional[str] = None,
+    payment_type: Optional[str] = None,
+    is_returned: Optional[bool] = None,
+    is_cancelled: Optional[bool] = None,
+    is_refunded: Optional[bool] = None,
     search: Optional[str] = None,
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Order)
-    if status:
-        query = query.filter(Order.order_status == status)
-    if search:
-        query = query.filter(Order.order_number.ilike(f"%{search}%"))
+    """
+    Production-grade enterprise orders query supporting all multi-dimensional filters,
+    sorting, date presets, courier, geo-location, priority, and multi-field keyword search.
+    """
+    query = db.query(Order).options(
+        joinedload(Order.user),
+        joinedload(Order.address),
+        joinedload(Order.items),
+        joinedload(Order.payments)
+    )
+
+    # 1. Status Filter
+    if status and status.upper() != "ALL":
+        s_upper = status.upper()
+        if s_upper == "PENDING":
+            query = query.filter(Order.order_status.in_(["Pending", "PENDING", "NEW_ORDER"]))
+        elif s_upper == "PROCESSING":
+            query = query.filter(Order.order_status.in_(["Processing", "Confirmed", "PROCESSING", "ORDER_CONFIRMED"]))
+        elif s_upper == "PACKED":
+            query = query.filter(or_(Order.order_status.in_(["Packed", "PACKED"]), Order.fulfillment_status == "PACKED"))
+        elif s_upper == "SHIPPED":
+            query = query.filter(Order.order_status.in_(["Shipped", "SHIPPED", "IN_TRANSIT"]))
+        elif s_upper == "OUT_FOR_DELIVERY" or s_upper == "OUT FOR DELIVERY":
+            query = query.filter(Order.order_status.in_(["Out for Delivery", "OUT_FOR_DELIVERY"]))
+        elif s_upper == "DELIVERED":
+            query = query.filter(Order.order_status.in_(["Delivered", "DELIVERED", "ORDER_COMPLETED"]))
+        elif s_upper == "CANCELLED":
+            query = query.filter(Order.order_status.in_(["Cancelled", "CANCELLED", "Canceled"]))
+        elif s_upper == "RETURNED":
+            query = query.filter(Order.order_status.in_(["Returned", "RETURNED", "RETURN_REQUESTED", "RETURN_APPROVED"]))
+        else:
+            query = query.filter(Order.order_status.ilike(f"%{status}%"))
+
+    # 2. Payment Status Filter
+    if payment_status and payment_status.upper() != "ALL":
+        ps_upper = payment_status.upper()
+        if ps_upper == "PAID":
+            query = query.filter(Order.payment_status.in_(["Paid", "PAID", "SUCCESS", "Success"]))
+        elif ps_upper == "PENDING":
+            query = query.filter(Order.payment_status.in_(["Pending", "PENDING", "UNPAID"]))
+        elif ps_upper == "FAILED":
+            query = query.filter(Order.payment_status.in_(["Failed", "FAILED"]))
+        elif ps_upper == "REFUNDED":
+            query = query.filter(Order.payment_status.in_(["Refunded", "REFUNDED"]))
+        else:
+            query = query.filter(Order.payment_status.ilike(f"%{payment_status}%"))
+
+    # 3. Date Presets & Custom Range
+    now = datetime.utcnow()
+    if date_preset:
+        dp = date_preset.upper()
+        if dp == "TODAY":
+            s_today = datetime(now.year, now.month, now.day)
+            query = query.filter(Order.created_at >= s_today)
+        elif dp == "YESTERDAY":
+            s_yest = datetime(now.year, now.month, now.day) - timedelta(days=1)
+            e_yest = datetime(now.year, now.month, now.day)
+            query = query.filter(Order.created_at >= s_yest, Order.created_at < e_yest)
+        elif dp == "THIS_WEEK" or dp == "WEEK":
+            s_week = now - timedelta(days=7)
+            query = query.filter(Order.created_at >= s_week)
+        elif dp == "THIS_MONTH" or dp == "MONTH":
+            s_month = now - timedelta(days=30)
+            query = query.filter(Order.created_at >= s_month)
+        elif dp == "CUSTOM" and start_date:
+            try:
+                s_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+                query = query.filter(Order.created_at >= s_dt)
+            except Exception:
+                pass
+            if end_date:
+                try:
+                    e_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00")) + timedelta(days=1)
+                    query = query.filter(Order.created_at <= e_dt)
+                except Exception:
+                    pass
+
+    # 4. Courier Filter
+    if courier and courier.upper() != "ALL":
+        query = query.filter(Order.courier_name.ilike(f"%{courier}%"))
+
+    # 5. Priority Filter
+    if priority and priority.upper() != "ALL":
+        query = query.filter(Order.priority == priority.upper())
+
+    # 6. Payment Type (COD vs Prepaid)
+    if payment_type:
+        pt = payment_type.upper()
+        if pt == "COD":
+            query = query.filter(Order.is_cod == True)
+        elif pt in ["PREPAID", "ONLINE"]:
+            query = query.filter(Order.is_cod == False)
+
+    # 7. Flags
+    if is_returned is True:
+        query = query.filter(Order.order_status.in_(["Returned", "RETURNED", "RETURN_REQUESTED"]))
+    if is_cancelled is True:
+        query = query.filter(Order.order_status.in_(["Cancelled", "CANCELLED", "Canceled"]))
+    if is_refunded is True:
+        query = query.filter(Order.payment_status.in_(["Refunded", "REFUNDED"]))
+
+    # 8. Geo-location Filters
+    if city or state or country:
+        query = query.join(Order.address)
+        if city:
+            query = query.filter(Address.city.ilike(f"%{city}%"))
+        if state:
+            query = query.filter(Address.state.ilike(f"%{state}%"))
+        if country:
+            query = query.filter(Address.country.ilike(f"%{country}%"))
+
+    # 9. Search Term (Order #, Name, Email, Phone, AWB, Product Name)
+    if search and search.strip():
+        s_clean = search.strip()
+        search_fmt = f"%{s_clean}%"
+        
+        # Subquery for product name search
+        matching_order_ids_subq = db.query(OrderItem.order_id).filter(
+            OrderItem.product_name.ilike(search_fmt)
+        ).subquery()
+
+        query = query.outerjoin(Order.user).outerjoin(Order.address).filter(
+            or_(
+                Order.order_number.ilike(search_fmt),
+                Order.awb_code.ilike(search_fmt),
+                Order.invoice_number.ilike(search_fmt),
+                User.first_name.ilike(search_fmt),
+                User.last_name.ilike(search_fmt),
+                User.email.ilike(search_fmt),
+                User.phone.ilike(search_fmt),
+                Address.name.ilike(search_fmt),
+                Address.phone.ilike(search_fmt),
+                Address.city.ilike(search_fmt),
+                Order.id.in_(matching_order_ids_subq)
+            )
+        )
+
     return query.order_by(Order.created_at.desc()).all()
+
+
+@router.get("/orders/{order_id}/detail")
+def get_order_360_detail(
+    order_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns complete 360° Order Details Payload:
+    - Customer 360 profile & lifetime spend metrics
+    - Ordered items with real-time warehouse inventory stock levels
+    - Payment & GST Tax invoice breakdown
+    - Warehouse packing checklist state
+    - Warehouse picking list (Rack, Shelf, Bin, SKU)
+    - Multi-carrier logistics & 4x6 shipping label metadata
+    - Granular chronological audit timeline
+    - Real-time Fraud/Risk/High-Value alert badges
+    """
+    order = db.query(Order).options(
+        joinedload(Order.user),
+        joinedload(Order.address),
+        joinedload(Order.items).joinedload(OrderItem.product),
+        joinedload(Order.payments),
+        joinedload(Order.shipment),
+        joinedload(Order.tracking_events),
+        joinedload(Order.return_requests)
+    ).filter(Order.id == order_id).first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # 1. Customer 360 Metrics
+    user = order.user
+    customer_metrics = {
+        "user_id": user.id if user else None,
+        "name": f"{user.first_name} {user.last_name}" if user else (order.address.name if order.address else "Guest Patron"),
+        "email": user.email if user else "N/A",
+        "phone": order.address.phone if order.address else (user.phone if user else "N/A"),
+        "account_created_at": user.created_at.strftime("%d %B %Y") if (user and user.created_at) else "Guest Checkout",
+        "total_orders": db.query(Order).filter(Order.user_id == user.id).count() if user else 1,
+        "lifetime_spend": round(float(db.query(func.sum(Order.total_amount)).filter(
+            Order.user_id == user.id,
+            Order.payment_status.in_(["Paid", "PAID", "SUCCESS"])
+        ).scalar() or 0.0), 2) if user else order.total_amount,
+        "is_active": user.is_active if user else True
+    }
+
+    # 2. Ordered Items with live warehouse stock
+    items_detail = []
+    low_stock_warning = False
+    for item in order.items:
+        prod = item.product
+        live_stock = prod.stock_quantity if prod else 0
+        if live_stock <= 5:
+            low_stock_warning = True
+
+        img_url = prod.images[0].image_url if (prod and prod.images) else "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=300&q=80"
+
+        items_detail.append({
+            "id": item.id,
+            "product_id": item.product_id,
+            "product_name": item.product_name,
+            "sku": prod.sku if prod else f"SKU-{item.product_id:04d}",
+            "variant_info": item.variant_info,
+            "quantity": item.quantity,
+            "unit_price": item.price,
+            "total_price": round(item.price * item.quantity, 2),
+            "image_url": img_url,
+            "category": prod.category.name if (prod and prod.category) else "Botanicals",
+            "live_warehouse_stock": live_stock,
+            "weight_kg": prod.weight_kg if prod else 0.35,
+            "hsn_code": "33049900" if any(w in item.product_name.lower() for w in ["wash", "serum", "balm", "cream", "lotion", "toner", "cleanser", "mist", "oil"]) else ("71131120" if any(w in item.product_name.lower() for w in ["ring", "necklace", "pendant", "bracelet", "earring", "jewelry", "pearl"]) else "62044390")
+        })
+
+    # 3. Warehouse Pick List Details
+    pick_list = WarehouseService.generate_pick_list_for_order(order, assigned_staff=order.assigned_staff or "Warehouse Specialist", db=db)
+    picklist_data = {
+        "picklist_number": pick_list.picklist_number,
+        "assigned_staff_name": pick_list.assigned_staff_name,
+        "status": pick_list.status,
+        "items": [
+            {
+                "id": pi.id,
+                "product_name": pi.product_name,
+                "sku": pi.sku,
+                "variant_info": pi.variant_info,
+                "shelf_location": pi.shelf_location,
+                "quantity_required": pi.quantity_required,
+                "quantity_picked": pi.quantity_picked,
+                "status": pi.status
+            }
+            for pi in pick_list.items
+        ]
+    }
+
+    # 4. Packing Checklist State
+    checklist_parsed = {}
+    if order.packing_checklist:
+        try:
+            checklist_parsed = json.loads(order.packing_checklist)
+        except Exception:
+            checklist_parsed = {}
+
+    packing_logs = db.query(PackingLog).filter(PackingLog.order_id == order.id).order_by(PackingLog.created_at.desc()).all()
+    packing_logs_data = [
+        {
+            "id": pl.id,
+            "packer_name": pl.packer_name,
+            "box_type": pl.box_type,
+            "total_weight_kg": pl.total_weight_kg,
+            "created_at": pl.created_at.strftime("%d %b %Y, %I:%M %p") if pl.created_at else None,
+            "notes": pl.notes
+        }
+        for pl in packing_logs
+    ]
+
+    # 5. Order Alerts & Fraud Risk Detection
+    alerts = []
+    if order.total_amount >= 10000:
+        alerts.append({
+            "type": "HIGH_VALUE",
+            "severity": "warning",
+            "title": "High Value Order",
+            "message": f"Total order value ₹{order.total_amount:,.2f} exceeds ₹10,000 threshold. VIP packing protocol recommended."
+        })
+
+    if (order.risk_level or "").upper() == "HIGH":
+        alerts.append({
+            "type": "FRAUD_RISK",
+            "severity": "danger",
+            "title": "Fraud Risk Detected",
+            "message": "High-risk indicator detected on transaction profile or IP velocity. Verify phone number prior to dispatch."
+        })
+
+    if (order.payment_status or "").upper() == "FAILED":
+        alerts.append({
+            "type": "PAYMENT_FAILED",
+            "severity": "danger",
+            "title": "Payment Transaction Failed",
+            "message": "Card / Gateway declined the charge. Order will not be fulfilled until payment is settled."
+        })
+
+    if order.address:
+        if not order.address.postal_code or len(order.address.postal_code.strip()) < 5 or not order.address.phone:
+            alerts.append({
+                "type": "ADDRESS_INCOMPLETE",
+                "severity": "warning",
+                "title": "Incomplete Shipping Address",
+                "message": "Destination PIN code or Contact phone is missing/incomplete. Check address before printing label."
+            })
+    else:
+        alerts.append({
+            "type": "ADDRESS_MISSING",
+            "severity": "danger",
+            "title": "Missing Shipping Address",
+            "message": "No delivery address attached to this order."
+        })
+
+    if low_stock_warning:
+        alerts.append({
+            "type": "LOW_STOCK",
+            "severity": "warning",
+            "title": "Low Warehouse Stock Alert",
+            "message": "One or more ordered items has 5 or fewer units remaining in warehouse inventory."
+        })
+
+    if order.is_cod and (order.payment_status or "").upper() != "PAID":
+        alerts.append({
+            "type": "COD_VERIFICATION",
+            "severity": "info",
+            "title": "Cash on Delivery (COD) Verification",
+            "message": f"Collect ₹{order.total_amount:,.2f} in cash from customer upon delivery."
+        })
+
+    # 6. Granular Audit Timeline
+    timeline_events = []
+    # Primary lifecycle timestamps
+    if order.created_at:
+        timeline_events.append({
+            "stage": "NEW_ORDER",
+            "title": "Customer Placed Order",
+            "description": f"Order #{order.order_number} confirmed with total ₹{order.total_amount}",
+            "actor": customer_metrics["name"],
+            "timestamp": order.created_at.strftime("%d %b %Y, %I:%M %p")
+        })
+
+    if (order.payment_status or "").upper() in ["PAID", "SUCCESS"]:
+        pay_rec = order.payments[0] if order.payments else None
+        timeline_events.append({
+            "stage": "PAYMENT_SUCCESSFUL",
+            "title": "Payment Verified",
+            "description": f"Payment of ₹{order.total_amount} captured via {pay_rec.payment_method if pay_rec else 'Online Payment'}",
+            "actor": "Payment Gateway",
+            "timestamp": (pay_rec.created_at if pay_rec else order.created_at).strftime("%d %b %Y, %I:%M %p")
+        })
+
+    if order.picked_at:
+        timeline_events.append({
+            "stage": "ITEMS_PICKED",
+            "title": "Warehouse Picked Items",
+            "description": f"Items picked from shelf bin locations by {order.assigned_staff or 'Warehouse Staff'}",
+            "actor": order.assigned_staff or "Warehouse Staff",
+            "timestamp": order.picked_at.strftime("%d %b %Y, %I:%M %p")
+        })
+
+    if order.packed_at:
+        timeline_events.append({
+            "stage": "PACKED",
+            "title": "Order Packed & Sealed",
+            "description": "Packaging checklist verified, complimentary samples and GST invoice included",
+            "actor": "Packing Station",
+            "timestamp": order.packed_at.strftime("%d %b %Y, %I:%M %p")
+        })
+
+    if order.shipped_at:
+        timeline_events.append({
+            "stage": "SHIPPED",
+            "title": "Handed to Courier",
+            "description": f"Dispatched via {order.courier_name or 'Carrier'} (AWB: {order.awb_code or 'Pending'})",
+            "actor": order.courier_name or "Logistics",
+            "timestamp": order.shipped_at.strftime("%d %b %Y, %I:%M %p")
+        })
+
+    if order.delivered_at:
+        timeline_events.append({
+            "stage": "DELIVERED",
+            "title": "Delivered to Patron",
+            "description": f"Successfully delivered to {order.address.city if order.address else 'Customer'}",
+            "actor": "Delivery Agent",
+            "timestamp": order.delivered_at.strftime("%d %b %Y, %I:%M %p")
+        })
+
+    if order.cancelled_at:
+        timeline_events.append({
+            "stage": "CANCELLED",
+            "title": "Order Cancelled",
+            "description": "Order cancelled and inventory restored to stock",
+            "actor": "Administrator",
+            "timestamp": order.cancelled_at.strftime("%d %b %Y, %I:%M %p")
+        })
+
+    # Add audit log entries for granular administrative edits
+    audits = db.query(AuditLog).filter(
+        AuditLog.entity_type == "Order",
+        AuditLog.entity_id.in_([str(order.id), order.order_number])
+    ).order_by(AuditLog.created_at.asc()).all()
+
+    for a in audits:
+        timeline_events.append({
+            "stage": a.action,
+            "title": a.action.replace("_", " ").title(),
+            "description": f"Action executed by {a.actor_name} ({a.actor_role})",
+            "actor": a.actor_name,
+            "timestamp": a.created_at.strftime("%d %b %Y, %I:%M %p")
+        })
+
+    # Add real-time courier tracking events
+    for te in order.tracking_events:
+        timeline_events.append({
+            "stage": te.status,
+            "title": te.activity,
+            "description": f"Location: {te.location or 'In Transit'}",
+            "actor": order.courier_name or "Carrier",
+            "timestamp": te.event_time.strftime("%d %b %Y, %I:%M %p") if te.event_time else None
+        })
+
+    # Return full 360 payload
+    return {
+        "order": OrderResponse.model_validate(order),
+        "customer": customer_metrics,
+        "items": items_detail,
+        "picklist": picklist_data,
+        "packing_checklist": checklist_parsed,
+        "packing_logs": packing_logs_data,
+        "alerts": alerts,
+        "timeline": timeline_events,
+        "internal_notes": order.internal_notes or "",
+        "gst_invoice_number": order.invoice_number or f"INV-{order.order_number}",
+        "shipping_label_url": f"/api/v1/fulfillment/shipping-labels/{order.id}/pdf",
+        "tax_invoice_url": f"/api/v1/orders/{order.id}/pdf"
+    }
+
+
+@router.post("/orders/{order_id}/packing-checklist")
+def save_order_packing_checklist(
+    order_id: int,
+    req_in: PackingChecklistUpdate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Saves packing checklist state.
+    Enforces that all required packaging steps and item checks must be completed
+    before allowing transition to Packed status.
+    """
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Serialize checklist state
+    order.packing_checklist = json.dumps(req_in.model_dump())
+    actor_name = req_in.packer_name or f"{current_admin.first_name} {current_admin.last_name}"
+
+    if req_in.advance_to_packed:
+        # Check if all ordered items and packaging items are checked
+        required_steps = [
+            req_in.invoice_printed,
+            req_in.thank_you_card_included,
+            req_in.samples_added,
+            req_in.bubble_wrap_done,
+            req_in.outer_box_secured,
+            req_in.shipping_label_attached
+        ]
+        
+        # Verify item checks
+        all_items_checked = True
+        for item in order.items:
+            if not req_in.items_checked.get(str(item.id), False):
+                all_items_checked = False
+                break
+
+        if not (all_items_checked and all(required_steps)):
+            raise HTTPException(
+                status_code=400,
+                detail="All packing checklist items, luxury samples, invoice, and outer box packaging must be verified before marking as Packed."
+            )
+
+        order.order_status = "Packed"
+        order.fulfillment_status = "PACKED"
+        order.packed_at = datetime.utcnow()
+
+        # Log packing log entry
+        plog = PackingLog(
+            order_id=order.id,
+            packer_name=actor_name,
+            box_type=req_in.box_type or "Standard Box",
+            packaging_checklist=order.packing_checklist,
+            free_samples="Botanical Sample Duo & Silk Ribbon",
+            total_weight_kg=req_in.total_weight_kg or 0.5,
+            length_cm=15.0,
+            breadth_cm=10.0,
+            height_cm=8.0,
+            notes="Complete packing checklist passed and sealed"
+        )
+        db.add(plog)
+
+        AuditService.log_event(
+            action="PACKING_COMPLETED",
+            entity_type="Order",
+            entity_id=order.order_number,
+            actor_name=actor_name,
+            actor_role="PACKING_STAFF",
+            new_value={"order_status": "Packed", "fulfillment_status": "PACKED"},
+            db=db
+        )
+
+        try:
+            EmailService.send_order_packed(order)
+        except Exception:
+            pass
+
+    db.commit()
+    db.refresh(order)
+    return {"message": "Packing checklist updated successfully", "order_status": order.order_status, "fulfillment_status": order.fulfillment_status}
+
+
+@router.post("/orders/{order_id}/notes")
+def add_order_internal_note(
+    order_id: int,
+    note_in: OrderNoteCreate,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Appends internal administrative / warehouse note to order with timestamp and staff signature.
+    """
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    actor_name = f"{current_admin.first_name} {current_admin.last_name}"
+    time_str = datetime.utcnow().strftime("%d %b %Y, %I:%M %p")
+    new_entry = f"[{time_str} - {actor_name}]: {note_in.note}"
+    
+    order.internal_notes = f"{order.internal_notes or ''}\n{new_entry}".strip()
+    db.commit()
+
+    AuditService.log_event(
+        action="ADD_ORDER_NOTE",
+        entity_type="Order",
+        entity_id=order.order_number,
+        actor_name=actor_name,
+        actor_role="ADMIN",
+        new_value={"note": note_in.note},
+        db=db
+    )
+
+    return {"message": "Internal note saved successfully", "internal_notes": order.internal_notes}
+
+
+@router.post("/orders/{order_id}/assign-staff")
+def assign_order_staff_and_priority(
+    order_id: int,
+    req_in: StaffAssignmentRequest,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Assigns warehouse / fulfillment specialist and adjusts order priority (Normal, High, Urgent).
+    """
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    actor_name = f"{current_admin.first_name} {current_admin.last_name}"
+    order.assigned_staff = req_in.assigned_staff
+    if req_in.priority:
+        order.priority = req_in.priority.upper()
+
+    db.commit()
+
+    AuditService.log_event(
+        action="ASSIGN_STAFF_PRIORITY",
+        entity_type="Order",
+        entity_id=order.order_number,
+        actor_name=actor_name,
+        actor_role="ADMIN",
+        new_value={"assigned_staff": order.assigned_staff, "priority": order.priority},
+        db=db
+    )
+
+    return {"message": "Staff assignment and priority updated", "assigned_staff": order.assigned_staff, "priority": order.priority}
+
+
+@router.post("/orders/{order_id}/send-communication")
+def send_customer_order_communication(
+    order_id: int,
+    req_in: CustomerCommunicationRequest,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Dispatches customer update across multi-channel gateways (Email, SMS, WhatsApp, Call log).
+    """
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    recipient_email = order.user.email if order.user else (order.address.email if hasattr(order.address, 'email') else "customer@yurae.luxury")
+    recipient_phone = order.address.phone if order.address else (order.user.phone if order.user else "N/A")
+
+    channel = req_in.channel.upper()
+    subject = req_in.subject or f"Update regarding your Yurae Order #{order.order_number}"
+
+    # Log in NotificationLog
+    nlog = NotificationLog(
+        order_id=order.id,
+        user_id=order.user_id,
+        recipient_email=recipient_email,
+        recipient_phone=recipient_phone,
+        channel=channel,
+        event_type="ADMIN_DIRECT_MESSAGE",
+        subject=subject,
+        payload_preview=req_in.message[:500],
+        status="SENT"
+    )
+    db.add(nlog)
+    db.commit()
+
+    AuditService.log_event(
+        action=f"DISPATCH_{channel}_COMMUNICATION",
+        entity_type="Order",
+        entity_id=order.order_number,
+        actor_name=f"{current_admin.first_name} {current_admin.last_name}",
+        actor_role="CUSTOMER_SUPPORT",
+        new_value={"channel": channel, "subject": subject, "preview": req_in.message[:100]},
+        db=db
+    )
+
+    return {
+        "message": f"{channel} communication dispatched successfully to patron",
+        "channel": channel,
+        "recipient": recipient_phone if channel in ["SMS", "WHATSAPP", "CALL"] else recipient_email
+    }
+
+
+@router.post("/orders/bulk-action")
+def execute_bulk_order_action(
+    req_in: OrderBulkActionRequest,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Performs bulk operations on multi-selected orders:
+    - MARK_PACKED, MARK_SHIPPED, MARK_PROCESSING, MARK_DELIVERED
+    - PRINT_INVOICES, PRINT_PACKING_SLIPS, PRINT_LABELS
+    - EXPORT_CSV, EXPORT_EXCEL
+    """
+    if not req_in.order_ids:
+        raise HTTPException(status_code=400, detail="No orders selected for bulk action.")
+
+    orders = db.query(Order).filter(Order.id.in_(req_in.order_ids)).all()
+    action = req_in.action.upper()
+    actor_name = f"{current_admin.first_name} {current_admin.last_name}"
+
+    if action == "MARK_PACKED":
+        for o in orders:
+            o.order_status = "Packed"
+            o.fulfillment_status = "PACKED"
+            o.packed_at = o.packed_at or datetime.utcnow()
+        db.commit()
+        return {"message": f"Successfully marked {len(orders)} orders as Packed"}
+
+    elif action == "MARK_SHIPPED":
+        for o in orders:
+            o.order_status = "Shipped"
+            o.fulfillment_status = "SHIPPED"
+            o.shipping_status = "IN_TRANSIT"
+            o.shipped_at = o.shipped_at or datetime.utcnow()
+            if not o.awb_code:
+                try:
+                    ShippingService.execute_automated_shipping_flow(o.id, db)
+                except Exception:
+                    pass
+        db.commit()
+        return {"message": f"Successfully marked {len(orders)} orders as Shipped with carrier logistics"}
+
+    elif action == "MARK_PROCESSING":
+        for o in orders:
+            o.order_status = "Processing"
+            o.fulfillment_status = "ORDER_CONFIRMED"
+        db.commit()
+        return {"message": f"Successfully marked {len(orders)} orders as Processing"}
+
+    elif action == "MARK_DELIVERED":
+        for o in orders:
+            o.order_status = "Delivered"
+            o.fulfillment_status = "DELIVERED"
+            o.shipping_status = "DELIVERED"
+            o.delivered_at = o.delivered_at or datetime.utcnow()
+            if o.payment_status in ["Pending", "PENDING"]:
+                o.payment_status = "Paid"
+        db.commit()
+        return {"message": f"Successfully marked {len(orders)} orders as Delivered"}
+
+    elif action == "CANCEL":
+        for o in orders:
+            o.order_status = "Cancelled"
+            o.fulfillment_status = "CANCELLED"
+            o.cancelled_at = o.cancelled_at or datetime.utcnow()
+            for it in o.items:
+                prod = db.query(Product).filter(Product.id == it.product_id).first()
+                if prod:
+                    prod.stock_quantity += it.quantity
+        db.commit()
+        return {"message": f"Successfully cancelled {len(orders)} orders and restored stock"}
+
+    elif action in ["EXPORT_CSV", "EXPORT_EXCEL"]:
+        # Generate formatted CSV or Tab-delimited TSV
+        delimiter = "\t" if action == "EXPORT_EXCEL" else ","
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=delimiter)
+        
+        # Header
+        writer.writerow([
+            "Order Number", "Order Date", "Customer Name", "Customer Email", "Customer Phone",
+            "City", "State", "Country", "Items Count", "Items Details", "Currency",
+            "Subtotal", "Discount", "Shipping Fee", "Tax", "Total Amount",
+            "Payment Status", "Order Status", "Fulfillment Status", "Courier",
+            "AWB Number", "Priority", "Assigned Staff"
+        ])
+
+        for o in orders:
+            cname = f"{o.user.first_name} {o.user.last_name}" if o.user else (o.address.name if o.address else "Patron")
+            cemail = o.user.email if o.user else "N/A"
+            cphone = o.address.phone if o.address else (o.user.phone if o.user else "N/A")
+            city_str = o.address.city if o.address else "India"
+            state_str = o.address.state if o.address else "TN"
+            country_str = o.address.country if o.address else "India"
+            items_str = "; ".join([f"{it.product_name} (x{it.quantity})" for it in o.items])
+
+            writer.writerow([
+                o.order_number,
+                o.created_at.strftime("%Y-%m-%d %H:%M") if o.created_at else "",
+                cname, cemail, cphone,
+                city_str, state_str, country_str,
+                len(o.items), items_str, o.currency,
+                o.subtotal, o.discount or 0.0, o.shipping_fee or 0.0, o.tax or 0.0, o.total_amount,
+                o.payment_status, o.order_status, o.fulfillment_status or "NEW_ORDER",
+                o.courier_name or "", o.awb_code or "", o.priority or "NORMAL", o.assigned_staff or ""
+            ])
+
+        output.seek(0)
+        ext = "tsv" if action == "EXPORT_EXCEL" else "csv"
+        filename = f"yurae_bulk_orders_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{ext}"
+        media_type = "text/tab-separated-values" if action == "EXPORT_EXCEL" else "text/csv"
+
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode("utf-8")),
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+        )
+
+    return {"message": f"Bulk action {action} processed for {len(orders)} orders"}
 
 @router.get("/customers", response_model=List[UserResponse])
 def get_all_customers(

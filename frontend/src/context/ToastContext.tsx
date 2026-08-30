@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface Toast {
   id: string;
@@ -49,6 +49,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               <div className="flex items-center gap-3">
                 {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-[#D84B7E] shrink-0" />}
                 {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />}
+                {toast.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />}
                 {toast.type === 'info' && <Info className="w-5 h-5 text-[#F8A4C4] shrink-0" />}
                 <span className="text-sm font-medium tracking-wide leading-relaxed font-sans">{toast.message}</span>
               </div>

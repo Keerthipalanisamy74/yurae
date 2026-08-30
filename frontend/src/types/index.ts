@@ -147,11 +147,11 @@ export interface Order {
   shipping_fee: number;
   tax?: number;
   total_amount: number;
-  payment_status: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
-  order_status: 'Pending' | 'Confirmed' | 'Processing' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled' | 'Returned';
+  payment_status: 'Pending' | 'Paid' | 'Failed' | 'Refunded' | string;
+  order_status: 'Pending' | 'Confirmed' | 'Processing' | 'Packed' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled' | 'Returned' | string;
   
   // Shipping & Fulfillment
-  shipping_status?: 'NOT_CREATED' | 'SHIPMENT_CREATED' | 'AWB_ASSIGNED' | 'PICKUP_SCHEDULED' | 'PICKED_UP' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED' | 'CANCELLED' | 'RTO';
+  shipping_status?: 'NOT_CREATED' | 'SHIPMENT_CREATED' | 'AWB_ASSIGNED' | 'PICKUP_SCHEDULED' | 'PICKED_UP' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED' | 'CANCELLED' | 'RTO' | string;
   shiprocket_order_id?: string;
   shiprocket_shipment_id?: string;
   awb_code?: string;
@@ -167,12 +167,148 @@ export interface Order {
   is_cod?: boolean;
   cod_amount?: number;
 
+  // Enterprise OMS & Operations
+  priority?: 'NORMAL' | 'HIGH' | 'URGENT' | string;
+  assigned_staff?: string;
+  shipping_method?: string;
+  gst_number?: string;
+  packing_checklist?: string;
+  invoice_number?: string;
+  risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | string;
+  fulfillment_status?: string;
+  picked_at?: string;
+  qc_at?: string;
+  packed_at?: string;
+  invoice_generated_at?: string;
+  shipping_label_generated_at?: string;
+  shipped_at?: string;
+  delivered_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  internal_notes?: string;
+  gift_wrap?: boolean;
+  gift_message?: string;
+  free_samples_included?: string;
+
   created_at: string;
   updated_at?: string;
   items: OrderItem[];
   address?: Address;
   payments?: any[];
   user?: User;
+}
+
+export interface CardStat {
+  key: string;
+  label: string;
+  count: number;
+  total_revenue: number;
+  today_count: number;
+  weekly_count: number;
+  monthly_count: number;
+  icon?: string;
+  color?: string;
+}
+
+export interface OrderAnalyticsSummary {
+  cards: Record<string, CardStat>;
+  total_revenue: number;
+  average_order_value: number;
+  cancellation_rate: number;
+  return_rate: number;
+  repeat_customer_rate: number;
+  top_products: Array<{
+    product_name: string;
+    quantity: number;
+    revenue: number;
+    orders_count: number;
+  }>;
+  top_categories: Array<{
+    category_name: string;
+    units_sold: number;
+    revenue: number;
+  }>;
+  top_customers: Array<{
+    user_id: number;
+    customer_name: string;
+    email: string;
+    total_spend: number;
+    order_count: number;
+  }>;
+}
+
+export interface OrderAlert {
+  type: string;
+  severity: 'info' | 'warning' | 'danger';
+  title: string;
+  message: string;
+}
+
+export interface OrderTimelineEvent {
+  stage: string;
+  title: string;
+  description: string;
+  actor: string;
+  timestamp: string | null;
+}
+
+export interface Order360Detail {
+  order: Order;
+  customer: {
+    user_id?: number;
+    name: string;
+    email: string;
+    phone: string;
+    account_created_at: string;
+    total_orders: number;
+    lifetime_spend: number;
+    is_active: boolean;
+  };
+  items: Array<{
+    id: number;
+    product_id: number;
+    product_name: string;
+    sku: string;
+    variant_info?: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    image_url: string;
+    category: string;
+    live_warehouse_stock: number;
+    weight_kg: number;
+    hsn_code: string;
+  }>;
+  picklist: {
+    picklist_number: string;
+    assigned_staff_name: string;
+    status: string;
+    items: Array<{
+      id: number;
+      product_name: string;
+      sku: string;
+      variant_info?: string;
+      shelf_location?: string;
+      quantity_required: number;
+      quantity_picked: number;
+      status: string;
+    }>;
+  };
+  packing_checklist: Record<string, any>;
+  packing_logs: Array<{
+    id: number;
+    packer_name?: string;
+    box_type?: string;
+    total_weight_kg: number;
+    created_at?: string;
+    notes?: string;
+  }>;
+  alerts: OrderAlert[];
+  timeline: OrderTimelineEvent[];
+  internal_notes: string;
+  gst_invoice_number: string;
+  shipping_label_url: string;
+  tax_invoice_url: string;
 }
 
 export interface Coupon {

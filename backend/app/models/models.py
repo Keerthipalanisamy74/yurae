@@ -204,6 +204,29 @@ class Order(Base):
     is_cod = Column(Boolean, default=False)
     cod_amount = Column(Float, default=0.0)
 
+    # OMS & Warehouse Operations Fields
+    priority = Column(String(20), default="NORMAL")  # NORMAL, HIGH, URGENT
+    assigned_staff = Column(String(100), nullable=True)
+    shipping_method = Column(String(100), default="Standard Express")
+    gst_number = Column(String(50), nullable=True)
+    packing_checklist = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    invoice_number = Column(String(100), nullable=True)
+    risk_level = Column(String(50), default="LOW")  # LOW, MEDIUM, HIGH
+    fulfillment_status = Column(String(50), default="NEW_ORDER")
+    picked_at = Column(DateTime, nullable=True)
+    qc_at = Column(DateTime, nullable=True)
+    packed_at = Column(DateTime, nullable=True)
+    invoice_generated_at = Column(DateTime, nullable=True)
+    shipping_label_generated_at = Column(DateTime, nullable=True)
+    shipped_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+    internal_notes = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    gift_wrap = Column(Boolean, default=False)
+    gift_message = Column(Text, nullable=True)
+    free_samples_included = Column(Text, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

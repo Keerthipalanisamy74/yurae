@@ -6,8 +6,10 @@ import { Product, Category } from '../types';
 import { api } from '../services/api';
 import { ProductCard } from '../components/common/ProductCard';
 import { SEO } from '../components/common/SEO';
+import { useAuth } from '../context/AuthContext';
 
 export const Home: React.FC = () => {
+  const { isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -359,14 +361,29 @@ export const Home: React.FC = () => {
           </div>
         ) : products.length === 0 ? (
           <div className="p-6 sm:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl sm:rounded-3xl text-center space-y-2.5 shadow-xs">
-            <h3 className="font-serif text-lg sm:text-xl font-bold text-[#111111]">No Products Added Yet</h3>
-            <p className="text-xs text-gray-600">Upload your skincare, fashion, or accessory products from the Admin Dashboard.</p>
-            <Link
-              to="/admin"
-              className="inline-block mt-3 px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all touch-target"
-            >
-              Open Admin Dashboard
-            </Link>
+            <h3 className="font-serif text-lg sm:text-xl font-bold text-[#111111]">
+              {isAdmin ? 'No Products Added Yet' : 'New Formulations Arriving Soon'}
+            </h3>
+            <p className="text-xs text-gray-600">
+              {isAdmin
+                ? 'Upload your skincare, fashion, or accessory products from the Admin Dashboard.'
+                : 'Our botanical artisans are handcrafting our upcoming signature batch. Explore our categories or connect with our concierge.'}
+            </p>
+            {isAdmin ? (
+              <Link
+                to="/admin"
+                className="inline-block mt-3 px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all touch-target"
+              >
+                Open Admin Dashboard
+              </Link>
+            ) : (
+              <Link
+                to="/skincare"
+                className="inline-block mt-3 px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all touch-target"
+              >
+                Explore Categories
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">

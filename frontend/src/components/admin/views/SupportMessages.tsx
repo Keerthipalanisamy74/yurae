@@ -33,7 +33,7 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
-  const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'REPLIED'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'UNREPLIED' | 'UNREAD' | 'REPLIED'>('ALL');
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const [localMessages, setLocalMessages] = useState<ContactMessage[]>(messages);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,11 +65,13 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
   const activeList = localMessages.length > 0 ? localMessages : messages;
 
   const filteredMessages = activeList.filter((m) => {
+    if (filter === 'UNREPLIED') return m.status !== 'REPLIED';
     if (filter === 'UNREAD') return m.status === 'UNREAD';
     if (filter === 'REPLIED') return m.status === 'REPLIED';
     return true;
   });
 
+  const unrepliedCount = activeList.filter((m) => m.status !== 'REPLIED').length;
   const unreadCount = activeList.filter((m) => m.status === 'UNREAD').length;
   const repliedCount = activeList.filter((m) => m.status === 'REPLIED').length;
 
@@ -263,8 +265,33 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
               filter === 'ALL' ? 'bg-[#D84B7E] text-white shadow-2xs' : 'text-gray-700 hover:text-[#D84B7E]'
             }`}
           >
-            All Inquiries ({messages.length})
+            All Inquiries ({activeList.length})
           </button>
+
+          <button
+            onClick={() => setFilter('UNREPLIED')}
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+              filter === 'UNREPLIED'
+                ? 'bg-[#D84B7E] text-white shadow-2xs'
+                : unrepliedCount > 0
+                ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                : 'text-gray-700 hover:text-[#D84B7E]'
+            }`}
+          >
+            <span>Unreplied / Needs Reply</span>
+            {unrepliedCount > 0 && (
+              <span
+                className={`px-2 py-0.2 rounded-full text-[10px] font-bold ${
+                  filter === 'UNREPLIED'
+                    ? 'bg-white text-[#D84B7E]'
+                    : 'bg-rose-600 text-white'
+                }`}
+              >
+                {unrepliedCount}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setFilter('UNREAD')}
             className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -273,11 +300,16 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
           >
             <span>Unread</span>
             {unreadCount > 0 && (
-              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${filter === 'UNREAD' ? 'bg-white text-[#D84B7E]' : 'bg-[#D84B7E] text-white'}`}>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                  filter === 'UNREAD' ? 'bg-white text-[#D84B7E]' : 'bg-[#D84B7E] text-white'
+                }`}
+              >
                 {unreadCount}
               </span>
             )}
           </button>
+
           <button
             onClick={() => setFilter('REPLIED')}
             className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${

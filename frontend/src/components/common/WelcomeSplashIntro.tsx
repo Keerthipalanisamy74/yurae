@@ -106,7 +106,7 @@ export const WelcomeSplashIntro: React.FC = () => {
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [flowingHearts, setFlowingHearts] = useState<FloatingHeartItem[]>([]);
   const [popHearts, setPopHearts] = useState<PopHeartItem[]>([]);
-  const [secondsRemaining, setSecondsRemaining] = useState(3);
+  const [secondsRemaining, setSecondsRemaining] = useState(5);
 
   useEffect(() => {
     // Check if customer has already seen the welcome splash in this session
@@ -123,21 +123,21 @@ export const WelcomeSplashIntro: React.FC = () => {
       left: Math.random() * 96 + 2, // 2% to 98%
       bottom: -(Math.random() * 50 + 20),
       size: Math.floor(Math.random() * 26) + 16, // 16px to 42px
-      duration: Math.random() * 2.2 + 2.0, // 2.0s to 4.2s fast flow
-      delay: Math.random() * 1.6, // 0s to 1.6s
+      duration: Math.random() * 2.8 + 2.5, // 2.5s to 5.3s flowing
+      delay: Math.random() * 2.0, // 0s to 2.0s
       opacity: Math.random() * 0.35 + 0.65, // 0.65 to 1.0 high visibility
       color: PURE_PINK_COLORS[i % PURE_PINK_COLORS.length],
       variant: variants[i % variants.length],
       swayType: i % 2 === 0 ? 'sway' : 'straight',
     }));
 
-    // 2. Generate 25 Pure Pink pop-in bursting hearts scattered across the screen
+    // 2. Generate 28 Pure Pink pop-in bursting hearts scattered across the screen
     const generatedPops: PopHeartItem[] = Array.from({ length: 28 }, (_, i) => ({
       id: i,
       top: Math.random() * 88 + 4, // 4% to 92%
       left: Math.random() * 92 + 4, // 4% to 96%
       size: Math.floor(Math.random() * 24) + 18, // 18px to 42px
-      delay: Math.random() * 1.4,
+      delay: Math.random() * 1.8,
       color: PURE_PINK_COLORS[(i + 2) % PURE_PINK_COLORS.length],
     }));
 
@@ -145,7 +145,7 @@ export const WelcomeSplashIntro: React.FC = () => {
     setPopHearts(generatedPops);
     setIsVisible(true);
 
-    // 3-second countdown timer
+    // 5-second countdown timer
     const countdownInterval = setInterval(() => {
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
@@ -156,10 +156,10 @@ export const WelcomeSplashIntro: React.FC = () => {
       });
     }, 1000);
 
-    // Auto-dismiss after 3 seconds with smooth dreamlike fadeout
+    // Auto-dismiss after 5 seconds with smooth dreamlike fadeout
     const autoDismissTimer = setTimeout(() => {
       handleDismiss();
-    }, 3000);
+    }, 5000);
 
     return () => {
       clearInterval(countdownInterval);
@@ -297,12 +297,12 @@ export const WelcomeSplashIntro: React.FC = () => {
           </p>
         </div>
 
-        {/* 3-Second Glowing Luxury Pink Progress Bar */}
+        {/* 5-Second Glowing Luxury Pink Progress Bar */}
         <div className="w-52 sm:w-72 h-2 bg-white/60 rounded-full mx-auto overflow-hidden shadow-inner border border-white/80 p-0.5">
           <div
             className="h-full bg-gradient-to-r from-[#FF1493] via-[#F472B6] to-[#8A1C47] rounded-full transition-all duration-100 ease-linear shadow-md"
             style={{
-              animation: 'progress-countdown 3s linear forwards',
+              animation: 'progress-countdown 5s linear forwards',
             }}
           />
         </div>

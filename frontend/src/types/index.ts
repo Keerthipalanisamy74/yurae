@@ -552,3 +552,76 @@ export interface PickList {
   status: string;
   items: PickListItem[];
 }
+
+export type PopupStyleType =
+  | 'TOP_TICKER'
+  | 'CENTER_MODAL'
+  | 'BOTTOM_PILL'
+  | 'FLOATING_CORNER'
+  | 'FULLSCREEN_TAKEOVER';
+
+export type TargetPageType =
+  | 'ALL_PAGES'
+  | 'HOME_ONLY'
+  | 'SHOP_ONLY'
+  | 'PRODUCT_ONLY'
+  | 'CART_CHECKOUT';
+
+export type TargetDeviceType =
+  | 'ALL_DEVICES'
+  | 'DESKTOP_ONLY'
+  | 'MOBILE_ONLY';
+
+export type TargetAudienceType =
+  | 'ALL_VISITORS'
+  | 'NEW_VISITORS'
+  | 'LOGGED_IN';
+
+export type TriggerType =
+  | 'ON_LOAD'
+  | 'DELAY_3S'
+  | 'DELAY_7S'
+  | 'SCROLL_50';
+
+export type FrequencyType =
+  | 'EVERY_VISIT'
+  | 'ONCE_PER_SESSION'
+  | 'ONCE_PER_DAY';
+
+export interface MarketingCampaignConfig {
+  is_active: boolean;
+  campaign_name: string;
+  
+  // Appearance & Colors
+  color_theme: 'blush' | 'obsidian' | 'gold' | 'emerald' | 'plum' | 'sunset' | 'pearl' | 'custom' | string;
+  bg_gradient_from: string;
+  bg_gradient_to: string;
+  text_color: string;
+  accent_color: string;
+  btn_bg_color: string;
+  btn_text_color: string;
+
+  // Pop-Up / Display Format
+  popup_style: PopupStyleType;
+
+  // Publishing Targets & Rules
+  target_pages: TargetPageType;
+  target_devices: TargetDeviceType;
+  target_audience: TargetAudienceType;
+
+  // Trigger & Frequency
+  trigger_type: TriggerType;
+  frequency: FrequencyType;
+
+  // Copy & Conversion Media
+  announcement_text: string;
+  headline: string;
+  subheadline: string;
+  coupon_code?: string;
+  cta_label: string;
+  cta_url: string;
+  image_url?: string;
+  show_countdown: boolean;
+  countdown_end_date?: string;
+}
+

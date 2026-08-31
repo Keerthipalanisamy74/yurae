@@ -12,6 +12,7 @@ import { MobileNav } from './components/common/MobileNav';
 import { CartDrawer } from './components/common/CartDrawer';
 import { Footer } from './components/common/Footer';
 import { InstallAppPrompt } from './components/common/InstallAppPrompt';
+import { MarketingBannerHub } from './components/common/MarketingBannerHub';
 
 import { Home } from './pages/Home';
 import { Shop } from './pages/Shop';
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
                 <CategoryProvider>
                   <div className="min-h-screen flex flex-col bg-[#FDF4F7] text-[#111111]">
                     <Navbar />
+                    <MarketingBannerHub />
                     <CartDrawer />
                     <main className="flex-1">
                       <Routes>

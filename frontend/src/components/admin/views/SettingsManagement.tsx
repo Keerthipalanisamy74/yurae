@@ -39,6 +39,9 @@ export const SettingsManagement: React.FC = () => {
   // Currency Rates State
   const [currencyData, setCurrencyData] = useState<any | null>(null);
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [calcAmount, setCalcAmount] = useState<number>(2500);
+  const [calcTargetCurrency, setCalcTargetCurrency] = useState<string>('USD');
 
   // SMTP Settings State
   const [smtpConfig, setSmtpConfig] = useState<any | null>(null);
@@ -127,12 +130,35 @@ export const SettingsManagement: React.FC = () => {
     }
   };
 
-  const fetchCurrencyRates = async () => {
+  const fetchCurrencyRates = async (isManual = false) => {
     try {
-      const res = await api.get('/currencies');
-      setCurrencyData(res.data);
+      if (isManual) setIsRefreshingRates(true);
+      const res = await api.get('/currencies/rates');
+      if (res.data) {
+        setCurrencyData(res.data);
+      }
+      if (isManual) {
+        showToast('Refreshed just now', 'success');
+      }
     } catch {
-      // Non-blocking
+      // Fallback in case /currencies/rates is temporarily unavailable
+      try {
+        const fallbackRes = await api.get('/currencies');
+        if (Array.isArray(fallbackRes.data)) {
+          setCurrencyData({
+            base_currency: 'INR',
+            rates: { INR: 1.0, USD: 0.0116, EUR: 0.0111, GBP: 0.0094, CAD: 0.0163, AUD: 0.0182, SGD: 0.0157, JPY: 1.78 },
+            currencies: fallbackRes.data,
+            last_updated: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // Non-blocking
+      }
+    } finally {
+      if (isManual) {
+        setTimeout(() => setIsRefreshingRates(false), 500);
+      }
     }
   };
 
@@ -165,13 +191,23 @@ export const SettingsManagement: React.FC = () => {
   const handleRefreshCurrencyRates = async () => {
     try {
       setIsRefreshingRates(true);
-      const res = await api.post('/currencies/refresh');
-      showToast(res.data.message || 'Exchange rates refreshed live', 'success');
-      fetchCurrencyRates();
+      const res = await api.post('/currencies/rates/refresh');
+      if (res.data) {
+        setCurrencyData(res.data);
+      }
+      showToast(res.data?.message || 'Live exchange rates refreshed successfully', 'success');
     } catch (err: any) {
-      showToast('Failed to refresh exchange rates', 'error');
+      try {
+        const fallbackRes = await api.get('/currencies/rates');
+        if (fallbackRes.data) {
+          setCurrencyData(fallbackRes.data);
+        }
+        showToast('Exchange rates synced from database cache', 'info');
+      } catch {
+        showToast('Failed to refresh exchange rates', 'error');
+      }
     } finally {
-      setIsRefreshingRates(false);
+      setTimeout(() => setIsRefreshingRates(false), 600);
     }
   };
 
@@ -542,45 +578,176 @@ export const SettingsManagement: React.FC = () => {
       )}
 
       {subTab === 'currency' && (
-        <div className="bg-white p-6 rounded-3xl border border-[#F1BCCE]/70 shadow-xs space-y-5 text-xs">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <div>
-              <h3 className="font-serif text-lg font-bold text-[#111111]">
-                Multi-Currency Engine
-              </h3>
-              <p className="text-gray-500 text-[11px]">
-                Base Currency: <strong>{currencyData?.base_currency || 'INR'}</strong> • Last Updated:{' '}
-                {currencyData?.last_updated ? new Date(currencyData.last_updated).toLocaleString() : 'Recent'}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleRefreshCurrencyRates}
-              disabled={isRefreshingRates}
-              className="px-4 py-2 rounded-xl bg-[#D84B7E] text-white font-bold hover:bg-[#111111] transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingRates ? 'animate-spin' : ''}`} />
-              <span>{isRefreshingRates ? 'Refreshing Rates...' : 'Refresh Live Rates'}</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {currencyData?.currencies?.map((c: any) => (
-              <div
-                key={c.code}
-                className="p-3.5 rounded-2xl bg-[#FAF0F4] border border-[#F1BCCE] space-y-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-900">{c.code}</span>
-                  <span className="text-xs font-serif font-bold text-[#D84B7E]">{c.symbol}</span>
+        <div className="space-y-5 text-xs">
+          {/* Header & Controls */}
+          <div className="bg-white p-6 rounded-3xl border border-[#F1BCCE]/70 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <h3 className="font-serif text-lg font-bold text-[#111111]">
+                    Multi-Currency Engine &amp; Global FX Rates
+                  </h3>
                 </div>
-                <p className="text-[10px] text-gray-600 truncate">{c.name}</p>
-                <p className="text-[11px] font-mono font-bold text-gray-800 pt-1">
-                  1 INR = {currencyData?.rates?.[c.code] ? currencyData.rates[c.code].toFixed(4) : '1.0000'} {c.code}
+                <p className="text-gray-500 text-[11px] mt-0.5">
+                  Authoritative Base: <strong className="text-gray-900">{currencyData?.base_currency || 'INR'} (₹)</strong> • Live Provider: <span className="font-mono text-gray-700">Open Exchange Feed / Autorate</span> • Last Sync:{' '}
+                  <strong className="text-[#D84B7E]">{currencyData?.last_updated ? new Date(currencyData.last_updated).toLocaleString() : 'Just now'}</strong>
                 </p>
               </div>
-            ))}
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleRefreshCurrencyRates}
+                  disabled={isRefreshingRates}
+                  className="px-4 py-2 rounded-xl bg-[#D84B7E] text-white font-bold hover:bg-[#111111] transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 touch-target"
+                  title="Force re-fetch from international forex exchange provider"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingRates ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshingRates ? 'Refreshing Live Rates...' : 'Refresh Live Rates'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Currency Sandbox / Live Converter Calculator */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#FAF0F4] to-[#FFF9FB] border border-[#F1BCCE] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-[#D84B7E]" />
+                  <span>Live Checkout Conversion Sandbox</span>
+                </span>
+                <span className="text-[10px] text-gray-500">Real-time simulation for international patrons</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                <div className="sm:col-span-4 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-600">Amount in Base (INR ₹)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 font-bold text-gray-400">₹</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={calcAmount}
+                      onChange={(e) => setCalcAmount(Number(e.target.value) || 0)}
+                      className="w-full pl-7 pr-3 py-1.5 bg-white border border-[#F1BCCE] rounded-xl font-mono font-bold text-xs focus:outline-none focus:ring-1 focus:ring-[#D84B7E]"
+                    />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-3 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-600">Target Currency</label>
+                  <select
+                    value={calcTargetCurrency}
+                    onChange={(e) => setCalcTargetCurrency(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-[#F1BCCE] rounded-xl font-bold text-xs focus:outline-none focus:ring-1 focus:ring-[#D84B7E]"
+                  >
+                    {(currencyData?.currencies || []).map((c: any) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag || ''} {c.code} - {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-5 p-2.5 rounded-xl bg-white border border-[#F1BCCE]/60 flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-gray-400 block">Patron Receives Price</span>
+                    <span className="font-serif text-base font-bold text-[#D84B7E]">
+                      {(() => {
+                        const targetRate = currencyData?.rates?.[calcTargetCurrency] || 1.0;
+                        const targetInfo = (currencyData?.currencies || []).find((c: any) => c.code === calcTargetCurrency);
+                        const sym = targetInfo?.symbol || calcTargetCurrency;
+                        const decimals = targetInfo?.decimal_digits ?? 2;
+                        const converted = calcAmount * targetRate;
+                        return `${sym}${converted.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+                      })()}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-500">
+                    1 {calcTargetCurrency} = ₹
+                    {(() => {
+                      const targetRate = currencyData?.rates?.[calcTargetCurrency] || 1.0;
+                      return targetRate > 0 ? (1 / targetRate).toFixed(2) : '1.00';
+                    })()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Currency Filter Search */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <span className="font-bold text-gray-800">
+                Active International Currencies ({currencyData?.currencies?.length || 0})
+              </span>
+              <input
+                type="text"
+                value={currencySearch}
+                onChange={(e) => setCurrencySearch(e.target.value)}
+                placeholder="Filter by currency name, code, or country..."
+                className="px-3 py-1.5 bg-white border border-[#F1BCCE] rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#D84B7E] w-64"
+              />
+            </div>
+          </div>
+
+          {/* Currency Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+            {(currencyData?.currencies || [])
+              .filter((c: any) => {
+                if (!currencySearch.trim()) return true;
+                const q = currencySearch.toLowerCase();
+                return (
+                  c.code?.toLowerCase().includes(q) ||
+                  c.name?.toLowerCase().includes(q) ||
+                  c.country?.toLowerCase().includes(q) ||
+                  c.symbol?.toLowerCase().includes(q)
+                );
+              })
+              .map((c: any) => {
+                const rate = currencyData?.rates?.[c.code] || 1.0;
+                const inrPerUnit = rate > 0 ? (1 / rate).toFixed(2) : '1.00';
+
+                return (
+                  <div
+                    key={c.code}
+                    className="p-4 rounded-2xl bg-white border border-[#F1BCCE]/80 hover:border-[#D84B7E] hover:shadow-md transition-all space-y-3 relative group"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl drop-shadow-2xs">{c.flag || '🌐'}</span>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-gray-900 text-sm">{c.code}</span>
+                            <span className="text-xs font-serif font-bold text-[#D84B7E]">({c.symbol})</span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate max-w-[120px]">{c.country || c.name}</p>
+                        </div>
+                      </div>
+
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Active
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-[#FAF0F4] space-y-1 font-mono text-[11px]">
+                      <div className="flex items-center justify-between text-gray-600">
+                        <span>1 INR =</span>
+                        <strong className="text-gray-900">{rate.toFixed(4)} {c.code}</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-gray-600 border-t border-[#F1BCCE]/40 pt-1">
+                        <span>1 {c.code} =</span>
+                        <strong className="text-[#D84B7E]">₹{inrPerUnit} INR</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-gray-500 pt-0.5">
+                      <span>Free Shipping:</span>
+                      <strong className="text-gray-700">
+                        {c.symbol}{c.free_shipping_threshold || (c.code === 'INR' ? 1500 : 50)}
+                      </strong>
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

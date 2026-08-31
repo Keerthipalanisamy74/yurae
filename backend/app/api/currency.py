@@ -113,6 +113,7 @@ def estimate_shipping(payload: ShippingEstimateRequest, db: Session = Depends(ge
 
 # --- Admin Operations ---
 
+@router.post("/refresh", response_model=CurrencyRateResponse)
 @router.post("/rates/refresh", response_model=CurrencyRateResponse)
 def admin_refresh_rates(
     current_admin: User = Depends(get_current_admin),

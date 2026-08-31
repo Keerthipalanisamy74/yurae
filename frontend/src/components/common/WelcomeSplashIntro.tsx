@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Sparkles, ArrowRight } from 'lucide-react';
+import { Heart, ArrowRight } from 'lucide-react';
 
 interface FloatingHeartItem {
   id: number;
@@ -10,7 +10,7 @@ interface FloatingHeartItem {
   delay: number;
   opacity: number;
   color: string;
-  symbol: string;
+  variant: 'solid' | 'double' | 'outline' | 'sparkle';
   swayType: 'straight' | 'sway';
 }
 
@@ -20,11 +20,86 @@ interface PopHeartItem {
   left: number;
   size: number;
   delay: number;
-  symbol: string;
+  color: string;
 }
 
-const HEART_SYMBOLS = ['💖', '💕', '💗', '💓', '💞', '💘', '🌸', '✨', '🌷', '🎀'];
-const HEART_COLORS = ['#FF1493', '#D84B7E', '#F472B6', '#FB7185', '#E11D48', '#FF69B4', '#FDA4AF', '#F43F5E'];
+// 100% Pure Pink Palette
+const PURE_PINK_COLORS = [
+  '#FF1493', // Deep Neon Pink
+  '#FF69B4', // Hot Rose Pink
+  '#D84B7E', // Signature Yurae Pink
+  '#F472B6', // Blossom Pink
+  '#EC4899', // Magenta Pink
+  '#FB7185', // Rose Blush Pink
+  '#FDA4AF', // Soft Petal Pink
+  '#E11D48', // Deep Rose Pink
+  '#F43F5E', // Vivid Carnation Pink
+];
+
+// Reusable Pure Pink SVG Heart Component
+const PinkSvgHeart: React.FC<{ size: number; color: string; variant?: string; className?: string }> = ({
+  size,
+  color,
+  variant = 'solid',
+  className = '',
+}) => {
+  if (variant === 'double') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+      >
+        <path
+          d="M16.5 3C14.76 3 13.09 3.81 12 5.09C10.91 3.81 9.24 3 7.5 3C4.42 3 2 5.42 2 8.5C2 12.28 5.4 15.36 10.55 20.04L12 21.35L13.45 20.03C18.6 15.36 22 12.28 22 8.5C22 5.42 19.58 3 16.5 3Z"
+          fill={color}
+        />
+        <path
+          d="M18.5 7C17.3 7 16.15 7.56 15.4 8.44C14.65 7.56 13.5 7 12.3 7C10.18 7 8.5 8.67 8.5 10.79C8.5 13.4 10.84 15.52 14.4 18.75L15.4 19.65L16.4 18.74C19.96 15.52 22.3 13.4 22.3 10.79C22.3 8.67 20.62 7 18.5 7Z"
+          fill="#FFF0F6"
+          fillOpacity="0.4"
+        />
+      </svg>
+    );
+  }
+
+  if (variant === 'outline') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+      >
+        <path
+          d="M12 21.35L10.55 20.03C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5C22 12.28 18.6 15.36 13.45 20.04L12 21.35Z"
+          stroke={color}
+          strokeWidth="2.5"
+          fill={color}
+          fillOpacity="0.3"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={color}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <path d="M12 21.35L10.55 20.03C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5C22 12.28 18.6 15.36 13.45 20.04L12 21.35Z" />
+    </svg>
+  );
+};
 
 export const WelcomeSplashIntro: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -40,28 +115,30 @@ export const WelcomeSplashIntro: React.FC = () => {
       return;
     }
 
-    // 1. Generate 55+ flowing rising hearts across the screen
-    const generatedFlow: FloatingHeartItem[] = Array.from({ length: 55 }, (_, i) => ({
+    const variants: ('solid' | 'double' | 'outline')[] = ['solid', 'double', 'outline', 'solid'];
+
+    // 1. Generate 60+ Pure Pink flowing & rising hearts
+    const generatedFlow: FloatingHeartItem[] = Array.from({ length: 65 }, (_, i) => ({
       id: i,
       left: Math.random() * 96 + 2, // 2% to 98%
-      bottom: -(Math.random() * 40 + 20),
-      size: Math.floor(Math.random() * 28) + 16, // 16px to 44px
-      duration: Math.random() * 2.5 + 2.2, // 2.2s to 4.7s fast flow
-      delay: Math.random() * 1.8, // 0s to 1.8s
-      opacity: Math.random() * 0.4 + 0.6, // 0.6 to 1.0
-      color: HEART_COLORS[i % HEART_COLORS.length],
-      symbol: HEART_SYMBOLS[i % HEART_SYMBOLS.length],
+      bottom: -(Math.random() * 50 + 20),
+      size: Math.floor(Math.random() * 26) + 16, // 16px to 42px
+      duration: Math.random() * 2.2 + 2.0, // 2.0s to 4.2s fast flow
+      delay: Math.random() * 1.6, // 0s to 1.6s
+      opacity: Math.random() * 0.35 + 0.65, // 0.65 to 1.0 high visibility
+      color: PURE_PINK_COLORS[i % PURE_PINK_COLORS.length],
+      variant: variants[i % variants.length],
       swayType: i % 2 === 0 ? 'sway' : 'straight',
     }));
 
-    // 2. Generate 20 pop-in bursting hearts scattered all over the screen
-    const generatedPops: PopHeartItem[] = Array.from({ length: 22 }, (_, i) => ({
+    // 2. Generate 25 Pure Pink pop-in bursting hearts scattered across the screen
+    const generatedPops: PopHeartItem[] = Array.from({ length: 28 }, (_, i) => ({
       id: i,
-      top: Math.random() * 85 + 5, // 5% to 90%
-      left: Math.random() * 90 + 5, // 5% to 95%
-      size: Math.floor(Math.random() * 24) + 20, // 20px to 44px
-      delay: Math.random() * 1.5,
-      symbol: HEART_SYMBOLS[(i + 3) % HEART_SYMBOLS.length],
+      top: Math.random() * 88 + 4, // 4% to 92%
+      left: Math.random() * 92 + 4, // 4% to 96%
+      size: Math.floor(Math.random() * 24) + 18, // 18px to 42px
+      delay: Math.random() * 1.4,
+      color: PURE_PINK_COLORS[(i + 2) % PURE_PINK_COLORS.length],
     }));
 
     setFlowingHearts(generatedFlow);
@@ -115,7 +192,7 @@ export const WelcomeSplashIntro: React.FC = () => {
           'radial-gradient(ellipse at center, #FFF0F6 0%, #FFD6E8 25%, #FFA8CD 55%, #F472B6 80%, #DB2777 100%)',
       }}
     >
-      {/* 1. Background Flowing & Swaying Hearts Layer */}
+      {/* 1. 100% Pure Pink Flowing Hearts Layer */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         {flowingHearts.map((h) => (
           <div
@@ -124,19 +201,17 @@ export const WelcomeSplashIntro: React.FC = () => {
             style={{
               left: `${h.left}%`,
               bottom: `${h.bottom}px`,
-              fontSize: `${h.size}px`,
               opacity: h.opacity,
               animationDuration: `${h.duration}s`,
               animationDelay: `${h.delay}s`,
-              color: h.color,
-              filter: 'drop-shadow(0 4px 14px rgba(216,75,126,0.45))',
+              filter: `drop-shadow(0 4px 12px ${h.color}88)`,
             }}
           >
-            {h.symbol}
+            <PinkSvgHeart size={h.size} color={h.color} variant={h.variant} />
           </div>
         ))}
 
-        {/* 2. Pop-in Hearts Scattered Around Entire Viewport */}
+        {/* 2. 100% Pure Pink Pop-in Bursting Hearts Layer */}
         {popHearts.map((p) => (
           <div
             key={`pop-${p.id}`}
@@ -144,49 +219,48 @@ export const WelcomeSplashIntro: React.FC = () => {
             style={{
               top: `${p.top}%`,
               left: `${p.left}%`,
-              fontSize: `${p.size}px`,
               animationDelay: `${p.delay}s`,
-              filter: 'drop-shadow(0 4px 12px rgba(255,20,147,0.5))',
+              filter: `drop-shadow(0 4px 14px ${p.color}aa)`,
             }}
           >
-            {p.symbol}
+            <PinkSvgHeart size={p.size} color={p.color} variant="solid" />
           </div>
         ))}
 
-        {/* Dreamy Radiant Pink Ambient Glow Orbs */}
-        <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] bg-[#FF69B4]/30 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[500px] h-[500px] bg-[#D84B7E]/30 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-[#FFF0F6]/40 rounded-full blur-2xl pointer-events-none" />
+        {/* Dreamy Pink Ambient Glow Orbs */}
+        <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] bg-[#FF69B4]/35 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[500px] h-[500px] bg-[#D84B7E]/35 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-[#FFF0F6]/45 rounded-full blur-2xl pointer-events-none" />
       </div>
 
-      {/* 3. Main Luxury Romantic Heart Center Card */}
+      {/* 3. Main Center Card with Pure Pink Aesthetics */}
       <div className="relative z-10 max-w-xl w-full text-center space-y-5 sm:space-y-6 px-4">
         
-        {/* Animated Brand Emblem with Radiant Glowing Heart Crown */}
+        {/* Animated Brand Emblem with Pure Pink Heart Crown */}
         <div className="relative mx-auto w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center animate-love-pulse">
-          <div className="absolute inset-0 rounded-full bg-white/85 backdrop-blur-md border-2 border-[#F8A4C4] shadow-2xl" />
+          <div className="absolute inset-0 rounded-full bg-white/90 backdrop-blur-md border-2 border-[#F8A4C4] shadow-2xl" />
           <img
             src="/logo/logo-emblem.png"
             alt="Yurae Logo"
             className="w-14 h-14 sm:w-16 sm:h-16 object-contain relative z-10 drop-shadow-md"
           />
           <div className="absolute -top-2 -right-2 w-9 h-9 rounded-full bg-gradient-to-tr from-[#D84B7E] to-[#FF1493] text-white flex items-center justify-center shadow-xl transform rotate-12 animate-bounce border-2 border-white">
-            <Heart className="w-5 h-5 fill-white" />
+            <Heart className="w-5 h-5 fill-white text-white" />
           </div>
-          <div className="absolute -bottom-1 -left-1 text-lg animate-pulse">
-            💖
+          <div className="absolute -bottom-1.5 -left-1.5 animate-pulse">
+            <PinkSvgHeart size={20} color="#FF1493" />
           </div>
         </div>
 
         {/* Hero Romantic Welcome Text */}
         <div className="space-y-2.5 sm:space-y-3.5">
-          {/* "Hey Beautiful..." with Pink Shimmer */}
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/90 backdrop-blur-lg border border-[#F8A4C4] shadow-md">
-            <span className="text-sm animate-pulse">✨</span>
+          {/* "Hey Beautiful..." with Pure Pink Hearts */}
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/95 backdrop-blur-lg border border-[#F8A4C4] shadow-md">
+            <PinkSvgHeart size={16} color="#D84B7E" />
             <span className="font-serif italic text-lg sm:text-2xl text-[#8A1C47] font-bold tracking-wide">
               Hey Beautiful...
             </span>
-            <span className="text-sm animate-pulse">💖</span>
+            <PinkSvgHeart size={16} color="#FF1493" />
           </div>
 
           {/* Majestic Hero Title */}
@@ -195,12 +269,14 @@ export const WelcomeSplashIntro: React.FC = () => {
           </h1>
 
           {/* Lovable Poetic Subtitle */}
-          <p className="font-serif text-sm sm:text-lg text-[#6A1A37] font-semibold tracking-wide max-w-md mx-auto leading-relaxed">
-            The Origin of Korean Botanical Radiance &amp; Glass Skin 🌸
+          <p className="font-serif text-sm sm:text-lg text-[#6A1A37] font-semibold tracking-wide max-w-md mx-auto leading-relaxed flex items-center justify-center gap-1.5">
+            <span>The Origin of Korean Botanical Radiance</span>
+            <PinkSvgHeart size={16} color="#FF1493" />
           </p>
 
-          <p className="text-xs sm:text-sm text-[#8A1C47] font-normal max-w-sm mx-auto leading-relaxed pt-0.5">
-            Formulated with ancient herbal wisdom, pure love &amp; precious floral elixirs curated just for you. 💕
+          <p className="text-xs sm:text-sm text-[#8A1C47] font-normal max-w-sm mx-auto leading-relaxed pt-0.5 flex items-center justify-center gap-1">
+            <span>Formulated with pure love &amp; precious botanical elixirs curated just for you.</span>
+            <PinkSvgHeart size={14} color="#D84B7E" />
           </p>
         </div>
 
@@ -211,7 +287,7 @@ export const WelcomeSplashIntro: React.FC = () => {
             onClick={handleDismiss}
             className="group px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D84B7E] via-[#FF1493] to-[#8A1C47] hover:opacity-95 text-white font-bold text-xs sm:text-sm uppercase tracking-widest transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 flex items-center gap-2.5 cursor-pointer touch-target border border-white/50"
           >
-            <Heart className="w-4 h-4 fill-white group-hover:scale-125 transition-transform animate-pulse" />
+            <Heart className="w-4 h-4 fill-white text-white group-hover:scale-125 transition-transform animate-pulse" />
             <span>Enter Experience</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>

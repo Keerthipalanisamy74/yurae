@@ -98,11 +98,33 @@ export const AdminDashboard: React.FC = () => {
     }
   }, []);
 
+  // Global Auto-refresh every 10 seconds for live orders, inquiries, inventory & metrics
   useEffect(() => {
-    if (isAdmin) {
+    if (!isAdmin) return;
+
+    fetchData(); // initial fetch
+
+    const interval = setInterval(() => {
       fetchData();
-    }
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [isAdmin, fetchData]);
+
+  // Master Global Refresh Handler with feedback
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+
+  const handleRefreshAll = async () => {
+    try {
+      setIsRefreshingAll(true);
+      await fetchData();
+      showToast('Refreshed just now', 'success');
+    } catch {
+      showToast('Failed to refresh data', 'error');
+    } finally {
+      setTimeout(() => setIsRefreshingAll(false), 600);
+    }
+  };
 
   // Handlers for Products Refresh
   const handleRefreshProducts = async () => {
@@ -213,6 +235,8 @@ export const AdminDashboard: React.FC = () => {
       lowStockCount={lowStockCount}
       unreadMessagesCount={unreadMessagesCount}
       pendingReturnsCount={pendingReturnsCount}
+      onRefreshAll={handleRefreshAll}
+      isRefreshingAll={isRefreshingAll}
     >
       {/* 1. Dashboard Overview */}
       {activeTab === 'overview' && (

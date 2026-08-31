@@ -3,43 +3,56 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles, Star, ShieldCheck, Heart, Leaf, Award, ExternalLink } from 'lucide-react';
 import { InstagramIcon } from '../components/common/Icons';
-import { Product, Category } from '../types';
+import { Product } from '../types';
 import { api } from '../services/api';
 import { ProductCard } from '../components/common/ProductCard';
 import { SEO } from '../components/common/SEO';
 import { useAuth } from '../context/AuthContext';
+import { useCategories } from '../context/CategoryContext';
 
 export const Home: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { categories, getCategoryIcon } = useCategories();
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/products?limit=12'),
-      api.get('/categories')
-    ])
-      .then(([prodRes, catRes]) => {
+    api.get('/products?limit=12')
+      .then((prodRes) => {
         setProducts(prodRes.data || []);
-        setCategories(catRes.data || []);
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
 
-  // Find latest uploaded product per category to use as category cover
+  // Find latest uploaded product per category to use as category cover image fallback
   const getCategoryProduct = (slug: string): Product | undefined => {
     return products.find(
       (p) => p.category?.slug?.toLowerCase() === slug.toLowerCase() && p.images && p.images.length > 0
     );
   };
 
-  const skincareProduct = getCategoryProduct('skincare');
-  const fashionProduct = getCategoryProduct('fashion');
-  const accessoriesProduct = getCategoryProduct('accessories');
-
   const heroProduct = products.find((p) => p.images && p.images.length > 0) || products[0];
+
+  // Display categories: if dynamic categories loaded, use them; else fallback
+  const displayCategories = categories.length > 0
+    ? categories
+    : [
+        { id: 1, name: 'Skincare', slug: 'skincare', description: 'Korean botanical formulas & glass skin rituals', image: '' },
+        { id: 2, name: 'Fashion', slug: 'fashion', description: 'Mulberry silks, soft linens & bespoke silhouettes', image: '' },
+        { id: 3, name: 'Accessories', slug: 'accessories', description: 'Freshwater pearls, silk scrunchies & fine jewelry', image: '' },
+      ];
+
+  const heroCategories = displayCategories;
+
+  // Gradient presets for cards when no image exists
+  const cardGradients = [
+    'from-[#D84B7E] to-[#6A1A3A]',
+    'from-[#B5426C] to-[#451025]',
+    'from-[#8C2C55] to-[#2B0817]',
+    'from-[#8A3B60] to-[#360D1E]',
+    'from-[#C0527B] to-[#5C1633]',
+  ];
 
   return (
     <div className="space-y-10 sm:space-y-14">
@@ -75,14 +88,15 @@ export const Home: React.FC = () => {
                 The Origin of <span className="italic font-light text-[#D84B7E]">Skincare</span>
               </h1>
 
-              <p className="text-xs sm:text-sm text-gray-700 font-normal leading-relaxed max-w-lg">
+              <p className="text-xs sm:text-sm text-gray-700 font-light leading-relaxed max-w-lg">
                 Clean, artisanal botanical skincare and modern luxury essentials crafted to nourish, restore, and reveal timeless skin brilliance.
               </p>
 
-              <div className="flex flex-wrap gap-3 pt-1">
+              {/* CTAs */}
+              <div className="flex flex-wrap items-center gap-3 pt-1 sm:pt-2">
                 <Link
                   to="/shop"
-                  className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-[#D84B7E] text-[#FDF4F7] text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all shadow-md flex items-center justify-center gap-2 border border-[#D84B7E] cursor-pointer touch-target active:scale-95"
+                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-[#D84B7E] hover:bg-[#111111] text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-sm flex items-center gap-2 cursor-pointer touch-target min-h-[44px]"
                 >
                   Explore All Products
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -106,232 +120,149 @@ export const Home: React.FC = () => {
               </div>
             </motion.div>
 
-            {/* Hero Right: Three Categories Showcase */}
+            {/* Hero Right: Dynamic All Categories Showcase */}
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.15 }}
-              className="lg:col-span-6 flex flex-col justify-center space-y-2.5 sm:space-y-3"
+              className={`lg:col-span-6 flex flex-col justify-center space-y-2.5 sm:space-y-3 ${
+                heroCategories.length > 3
+                  ? 'max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1.5 py-1 touch-scroll'
+                  : ''
+              }`}
             >
-              {/* 1. SKINCARE */}
-              <Link
-                to="/skincare"
-                className="group relative h-20 sm:h-24 rounded-xl sm:rounded-2xl overflow-hidden border border-[#F1BCCE] shadow-xs hover:shadow-md transition-all duration-300 flex items-center justify-between p-3.5 sm:p-4 text-white cursor-pointer touch-target"
-              >
-                <img
-                  src={skincareProduct?.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=800&q=80'}
-                  alt="Yurae Skin"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="eager"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25 group-hover:from-black/90 group-hover:via-black/60 transition-colors" />
+              {heroCategories.map((cat, idx) => {
+                const prod = getCategoryProduct(cat.slug);
+                const coverImage = cat.image || prod?.images?.[0]?.image_url;
+                const icon = getCategoryIcon(cat);
+                const cardHeight = heroCategories.length > 3 ? 'h-18 sm:h-20' : 'h-20 sm:h-24';
 
-                <div className="relative z-10 space-y-0.5">
-                  <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[#F8D7E3] font-bold block">
-                    🌸 Hero Rituals
-                  </span>
-                  <h3 className="font-serif text-base sm:text-lg md:text-xl font-bold text-white tracking-wide leading-tight">
-                    Yurae Skin
-                  </h3>
-                  <p className="text-[10px] sm:text-[11px] text-gray-200 font-light line-clamp-1">
-                    Korean botanical formulas &amp; glass skin rituals
-                  </p>
-                </div>
+                const categoryBadge = cat.slug.toLowerCase().includes('skin')
+                  ? 'Hero Rituals'
+                  : cat.slug.toLowerCase().includes('fashion')
+                  ? 'Fashion Collection'
+                  : cat.slug.toLowerCase().includes('access')
+                  ? 'Fine Jewelry'
+                  : `${cat.name} Collection`;
 
-                <div className="relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/40 group-hover:bg-[#D84B7E] group-hover:border-[#D84B7E] flex items-center justify-center transition-all duration-300 shrink-0 shadow-xs">
-                  <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </Link>
+                return (
+                  <Link
+                    key={cat.id || cat.slug || idx}
+                    to={`/category/${cat.slug}`}
+                    className={`group relative ${cardHeight} rounded-xl sm:rounded-2xl overflow-hidden border border-[#F1BCCE] shadow-xs hover:shadow-md transition-all duration-300 flex items-center justify-between p-3.5 sm:p-4 text-white cursor-pointer touch-target shrink-0`}
+                  >
+                    {coverImage ? (
+                      <>
+                        <img
+                          src={coverImage}
+                          alt={cat.name}
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          loading="eager"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25 group-hover:from-black/90 group-hover:via-black/60 transition-colors" />
+                      </>
+                    ) : (
+                      <div className={`absolute inset-0 bg-gradient-to-r ${cardGradients[idx % cardGradients.length]} opacity-95`} />
+                    )}
 
-              {/* 2. FASHION */}
-              <Link
-                to="/fashion"
-                className="group relative h-20 sm:h-24 rounded-xl sm:rounded-2xl overflow-hidden border border-[#F1BCCE] shadow-xs hover:shadow-md transition-all duration-300 flex items-center justify-between p-3.5 sm:p-4 text-white cursor-pointer touch-target"
-              >
-                <img
-                  src={fashionProduct?.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80'}
-                  alt="Yurae Fashion"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="eager"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25 group-hover:from-black/90 group-hover:via-black/60 transition-colors" />
+                    <div className="relative z-10 space-y-0.5">
+                      <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[#F8D7E3] font-bold flex items-center gap-1">
+                        <span>{icon}</span>
+                        <span>{categoryBadge}</span>
+                      </span>
+                      <h3 className="font-serif text-base sm:text-lg md:text-xl font-bold text-white tracking-wide leading-tight">
+                        {cat.name.toLowerCase().startsWith('yurae') ? cat.name : `Yurae ${cat.name}`}
+                      </h3>
+                      <p className="text-[10px] sm:text-[11px] text-gray-200 font-light line-clamp-1">
+                        {cat.description || `Explore ${cat.name} formulations and luxury essentials`}
+                      </p>
+                    </div>
 
-                <div className="relative z-10 space-y-0.5">
-                  <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[#F8D7E3] font-bold block">
-                    👗 Luxury Apparel
-                  </span>
-                  <h3 className="font-serif text-base sm:text-lg md:text-xl font-bold text-white tracking-wide leading-tight">
-                    Yurae Fashion
-                  </h3>
-                  <p className="text-[10px] sm:text-[11px] text-gray-200 font-light line-clamp-1">
-                    Mulberry silks, soft linens &amp; bespoke silhouettes
-                  </p>
-                </div>
-
-                <div className="relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/40 group-hover:bg-[#D84B7E] group-hover:border-[#D84B7E] flex items-center justify-center transition-all duration-300 shrink-0 shadow-xs">
-                  <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </Link>
-
-              {/* 3. ACCESSORIES */}
-              <Link
-                to="/accessories"
-                className="group relative h-20 sm:h-24 rounded-xl sm:rounded-2xl overflow-hidden border border-[#F1BCCE] shadow-xs hover:shadow-md transition-all duration-300 flex items-center justify-between p-3.5 sm:p-4 text-white cursor-pointer touch-target"
-              >
-                <img
-                  src={accessoriesProduct?.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=80'}
-                  alt="Yurae Accessories"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="eager"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25 group-hover:from-black/90 group-hover:via-black/60 transition-colors" />
-
-                <div className="relative z-10 space-y-0.5">
-                  <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[#F8D7E3] font-bold block">
-                    💍 Fine Accents
-                  </span>
-                  <h3 className="font-serif text-base sm:text-lg md:text-xl font-bold text-white tracking-wide leading-tight">
-                    Yurae Accessories
-                  </h3>
-                  <p className="text-[10px] sm:text-[11px] text-gray-200 font-light line-clamp-1">
-                    Freshwater pearls, silk scrunchies &amp; fine jewelry
-                  </p>
-                </div>
-
-                <div className="relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/40 group-hover:bg-[#D84B7E] group-hover:border-[#D84B7E] flex items-center justify-center transition-all duration-300 shrink-0 shadow-xs">
-                  <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </Link>
+                    <div className="relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/40 group-hover:bg-[#D84B7E] group-hover:border-[#D84B7E] flex items-center justify-center transition-all duration-300 shrink-0 shadow-xs">
+                      <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </Link>
+                );
+              })}
             </motion.div>
 
           </div>
         </div>
       </section>
 
-      {/* 2. THREE STORE CATEGORIES */}
+      {/* 2. DYNAMIC STORE CATEGORIES GRID */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center space-y-1 mb-6 sm:mb-8">
           <span className="text-[10px] sm:text-xs uppercase tracking-widest text-[#D84B7E] font-bold block">
-            Curated Collections
+            Curated Collections ({displayCategories.length})
           </span>
           <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-[#111111]">
             Explore Our Categories
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
-          
-          {/* 1. SKINCARE CATEGORY CARD */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className="group relative h-[260px] sm:h-[290px] md:h-[310px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm hover:shadow-md flex flex-col justify-end p-5 sm:p-6 text-white border border-[#F1BCCE] bg-gradient-to-br from-[#D84B7E] to-[#6A1A3A] transition-all"
-          >
-            {skincareProduct?.images?.[0]?.image_url ? (
-              <>
-                <img
-                  src={skincareProduct.images[0].image_url}
-                  alt="Yurae Skin"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-              </>
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#D84B7E]/90 via-[#8A244E] to-[#3B0E20] flex items-center justify-center p-6 text-center">
-                <div className="space-y-2">
-                  <span className="text-3xl block">🌸</span>
-                  <span className="text-[10px] uppercase tracking-widest text-[#F8D7E3] font-bold">Botanical Formulas</span>
-                </div>
-              </div>
-            )}
+        <div className={`grid grid-cols-1 ${
+          displayCategories.length === 1
+            ? 'max-w-md mx-auto'
+            : displayCategories.length === 2
+            ? 'md:grid-cols-2'
+            : displayCategories.length === 4
+            ? 'md:grid-cols-2 lg:grid-cols-4'
+            : 'md:grid-cols-3'
+        } gap-5 sm:gap-6`}>
+          {displayCategories.map((cat, idx) => {
+            const prod = getCategoryProduct(cat.slug);
+            const coverImage = cat.image || prod?.images?.[0]?.image_url;
+            const icon = getCategoryIcon(cat);
 
-            <div className="relative z-10 space-y-1.5">
-              <span className="text-[9px] uppercase tracking-widest text-[#F8D7E3] font-bold block">Hero Category</span>
-              <h3 className="font-serif text-lg sm:text-xl font-bold text-white">YURAE SKIN</h3>
-              <p className="text-[11px] text-gray-200 font-light italic">"The ritual your skin deserves."</p>
-              <Link
-                to="/skincare"
-                className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-[#F8D7E3] group-hover:text-white transition-colors pt-1 cursor-pointer touch-target"
+            return (
+              <motion.div
+                key={cat.id || cat.slug || idx}
+                whileHover={{ y: -4 }}
+                className={`group relative h-[260px] sm:h-[290px] md:h-[310px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm hover:shadow-md flex flex-col justify-end p-5 sm:p-6 text-white border border-[#F1BCCE] bg-gradient-to-br ${cardGradients[idx % cardGradients.length]} transition-all`}
               >
-                Explore Yurae Skin <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </motion.div>
+                {coverImage ? (
+                  <>
+                    <img
+                      src={coverImage}
+                      alt={cat.name}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                    <div className="space-y-2">
+                      <span className="text-4xl block">{icon}</span>
+                      <span className="text-[10px] uppercase tracking-widest text-[#F8D7E3] font-bold">
+                        {cat.name}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
-          {/* 2. FASHION CATEGORY CARD */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className="group relative h-[260px] sm:h-[290px] md:h-[310px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm hover:shadow-md flex flex-col justify-end p-5 sm:p-6 text-white border border-[#F1BCCE] bg-gradient-to-br from-[#B5426C] to-[#451025] transition-all"
-          >
-            {fashionProduct?.images?.[0]?.image_url ? (
-              <>
-                <img
-                  src={fashionProduct.images[0].image_url}
-                  alt="Yurae Fashion"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-              </>
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#B5426C]/90 via-[#6E1C3C] to-[#2E0B18] flex items-center justify-center p-6 text-center">
-                <div className="space-y-2">
-                  <span className="text-3xl block">👗</span>
-                  <span className="text-[10px] uppercase tracking-widest text-[#F8D7E3] font-bold">Luxury Apparel</span>
+                <div className="relative z-10 space-y-1.5">
+                  <span className="text-[9px] uppercase tracking-widest text-[#F8D7E3] font-bold flex items-center gap-1">
+                    <span>{icon}</span>
+                    <span>{cat.slug === 'skincare' ? 'Hero Category' : 'Department'}</span>
+                  </span>
+                  <h3 className="font-serif text-lg sm:text-xl font-bold text-white uppercase tracking-wide">
+                    {cat.name.toLowerCase().startsWith('yurae') ? cat.name : `YURAE ${cat.name}`}
+                  </h3>
+                  <p className="text-[11px] text-gray-200 font-light italic line-clamp-2">
+                    {cat.description || `"The finest essentials for your ritual."`}
+                  </p>
+                  <Link
+                    to={`/category/${cat.slug}`}
+                    className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-[#F8D7E3] group-hover:text-white transition-colors pt-1 cursor-pointer touch-target"
+                  >
+                    Explore {cat.name} <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
-              </div>
-            )}
-
-            <div className="relative z-10 space-y-1.5">
-              <span className="text-[9px] uppercase tracking-widest text-[#F8D7E3] font-bold block">Apparel</span>
-              <h3 className="font-serif text-lg sm:text-xl font-bold text-white">YURAE FASHION</h3>
-              <p className="text-[11px] text-gray-200 font-light italic">"Express your effortless elegance."</p>
-              <Link
-                to="/fashion"
-                className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-[#F8D7E3] group-hover:text-white transition-colors pt-1 cursor-pointer touch-target"
-              >
-                Explore Yurae Fashion <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </motion.div>
-
-          {/* 3. ACCESSORIES CATEGORY CARD */}
-          <motion.div
-            whileHover={{ y: -4 }}
-            className="group relative h-[260px] sm:h-[290px] md:h-[310px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm hover:shadow-md flex flex-col justify-end p-5 sm:p-6 text-white border border-[#F1BCCE] bg-gradient-to-br from-[#8C2C55] to-[#2B0817] transition-all"
-          >
-            {accessoriesProduct?.images?.[0]?.image_url ? (
-              <>
-                <img
-                  src={accessoriesProduct.images[0].image_url}
-                  alt="Yurae Accessories"
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-              </>
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#8C2C55]/90 via-[#54122E] to-[#1C050F] flex items-center justify-center p-6 text-center">
-                <div className="space-y-2">
-                  <span className="text-3xl block">💍</span>
-                  <span className="text-[10px] uppercase tracking-widest text-[#F8D7E3] font-bold">Fine Accents</span>
-                </div>
-              </div>
-            )}
-
-            <div className="relative z-10 space-y-1.5">
-              <span className="text-[9px] uppercase tracking-widest text-[#F8D7E3] font-bold block">Details</span>
-              <h3 className="font-serif text-lg sm:text-xl font-bold text-white">YURAE ACCESSORIES</h3>
-              <p className="text-[11px] text-gray-200 font-light italic">"Complete your signature look."</p>
-              <Link
-                to="/accessories"
-                className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-[#F8D7E3] group-hover:text-white transition-colors pt-1 cursor-pointer touch-target"
-              >
-                Explore Yurae Accessories <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </motion.div>
-
+              </motion.div>
+            );
+          })}
         </div>
       </section>
 

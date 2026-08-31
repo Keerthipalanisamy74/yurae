@@ -95,6 +95,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
   // --- Summary Analytics State ---
   const [analytics, setAnalytics] = useState<OrderAnalyticsSummary | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
 
   // --- Multi-Dimensional Filter State ---
@@ -788,15 +789,30 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
 
           {/* Refresh Button */}
           <button
-            onClick={() => {
-              onRefreshOrders();
-              fetchAnalytics();
-              showToast('Orders refreshed', 'info');
+            type="button"
+            onClick={async () => {
+              try {
+                setIsRefreshingOrders(true);
+                if (onRefreshOrders) {
+                  await onRefreshOrders();
+                }
+                await fetchAnalytics();
+                showToast('Refreshed just now', 'success');
+              } catch {
+                showToast('Failed to refresh orders', 'error');
+              } finally {
+                setTimeout(() => setIsRefreshingOrders(false), 600);
+              }
             }}
-            className="p-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition-colors cursor-pointer shadow-2xs"
-            title="Refresh Orders"
+            disabled={isRefreshingOrders || isLoadingAnalytics}
+            className="p-2.5 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition-colors cursor-pointer shadow-2xs active:scale-95 touch-target"
+            title="Refresh Orders (Auto-refreshes every 10 seconds)"
           >
-            <RefreshCw className={`w-4 h-4 text-gray-600 ${isLoadingAnalytics ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`w-4 h-4 text-[#D84B7E] transition-transform duration-500 ${
+                isRefreshingOrders || isLoadingAnalytics ? 'animate-spin' : ''
+              }`}
+            />
           </button>
         </div>
       </div>

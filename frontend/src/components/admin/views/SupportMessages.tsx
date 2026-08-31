@@ -40,20 +40,27 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
 
   const fetchDirect = async () => {
     try {
-      setIsLoading(true);
       const res = await api.get('/contact');
       if (Array.isArray(res.data)) {
         setLocalMessages(res.data);
       }
     } catch {
       // Non-blocking
-    } finally {
-      setIsLoading(false);
     }
   };
 
+  // Initial fetch
   React.useEffect(() => {
     fetchDirect();
+  }, []);
+
+  // 10-second automatic polling interval for live customer inquiries
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      fetchDirect();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   React.useEffect(() => {
@@ -61,6 +68,21 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
       setLocalMessages(messages);
     }
   }, [messages]);
+
+  const handleManualRefresh = async () => {
+    try {
+      setIsLoading(true);
+      await fetchDirect();
+      if (onRefreshMessages) {
+        await onRefreshMessages();
+      }
+      showToast('Refreshed just now', 'success');
+    } catch {
+      showToast('Failed to refresh inquiries', 'error');
+    } finally {
+      setTimeout(() => setIsLoading(false), 600);
+    }
+  };
 
   const activeList = localMessages.length > 0 ? localMessages : messages;
 
@@ -248,11 +270,18 @@ export const SupportMessages: React.FC<SupportMessagesProps> = ({
         </div>
 
         <button
-          onClick={onRefreshMessages}
-          className="px-4 py-2.5 rounded-2xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
+          type="button"
+          onClick={handleManualRefresh}
+          disabled={isLoading}
+          className="px-4 py-2.5 rounded-2xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-2 shadow-2xs cursor-pointer active:scale-95 touch-target min-h-[42px]"
+          title="Refresh inquiries (Auto-refreshes every 10 seconds)"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-[#D84B7E]" />
-          <span>Refresh Messages</span>
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+              isLoading ? 'animate-spin' : ''
+            }`}
+          />
+          <span>{isLoading ? 'Refreshing...' : 'Refresh Messages'}</span>
         </button>
       </div>
 

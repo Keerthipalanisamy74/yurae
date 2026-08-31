@@ -37,34 +37,85 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
   const [adjustReason, setAdjustReason] = useState<string>('RESTOCK');
   const [adjustNotes, setAdjustNotes] = useState<string>('');
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localProducts, setLocalProducts] = useState<Product[]>(products);
+
+  const fetchStockDirect = async () => {
+    try {
+      const res = await api.get('/products?limit=200');
+      const data = Array.isArray(res.data) ? res.data : res.data.products || [];
+      if (Array.isArray(data) && data.length > 0) {
+        setLocalProducts(data);
+      }
+      if (onRefreshProducts) {
+        onRefreshProducts();
+      }
+    } catch (err) {
+      console.warn('Could not refresh stock:', err);
+    }
+  };
+
+  // Initial fetch
+  React.useEffect(() => {
+    fetchStockDirect();
+  }, []);
+
+  // 10-second automatic polling interval for live inventory stock
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStockDirect();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  React.useEffect(() => {
+    if (products && products.length > 0) {
+      setLocalProducts(products);
+    }
+  }, [products]);
+
+  const activeProducts = localProducts.length > 0 ? localProducts : products;
+
+  const handleManualRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await fetchStockDirect();
+      showToast('Refreshed just now', 'success');
+    } catch {
+      showToast('Failed to refresh stock', 'error');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   // Metrics
   const totalUnits = useMemo(() => {
-    return products.reduce((sum, p) => sum + (p.stock_quantity || 0), 0);
-  }, [products]);
+    return activeProducts.reduce((sum, p) => sum + (p.stock_quantity || 0), 0);
+  }, [activeProducts]);
 
   const totalValuationMrp = useMemo(() => {
-    return products.reduce((sum, p) => sum + (p.stock_quantity || 0) * (p.price || 0), 0);
-  }, [products]);
+    return activeProducts.reduce((sum, p) => sum + (p.stock_quantity || 0) * (p.price || 0), 0);
+  }, [activeProducts]);
 
   const lowStockCount = useMemo(() => {
-    return products.filter((p) => (p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) <= 10)
+    return activeProducts.filter((p) => (p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) <= 10)
       .length;
-  }, [products]);
+  }, [activeProducts]);
 
   const outOfStockCount = useMemo(() => {
-    return products.filter((p) => (p.stock_quantity || 0) === 0).length;
-  }, [products]);
+    return activeProducts.filter((p) => (p.stock_quantity || 0) === 0).length;
+  }, [activeProducts]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return activeProducts.filter((p) => {
       const stock = p.stock_quantity || 0;
       if (stockFilter === 'OUT') return stock === 0;
       if (stockFilter === 'LOW') return stock > 0 && stock <= 10;
       if (stockFilter === 'IN') return stock > 10;
       return true;
     });
-  }, [products, stockFilter]);
+  }, [activeProducts, stockFilter]);
 
   const openAdjustModal = (product: Product) => {
     setAdjustModalProduct(product);
@@ -86,8 +137,11 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
         `Inventory for "${adjustModalProduct.name}" adjusted to ${adjustQuantity} units (${adjustReason})`,
         'success'
       );
+      setLocalProducts((prev) =>
+        prev.map((p) => (p.id === adjustModalProduct.id ? { ...p, stock_quantity: adjustQuantity } : p))
+      );
       setAdjustModalProduct(null);
-      onRefreshProducts();
+      fetchStockDirect();
     } catch (err: any) {
       showToast(err?.response?.data?.detail || 'Failed to adjust stock', 'error');
     } finally {
@@ -204,11 +258,18 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
         </div>
 
         <button
-          onClick={onRefreshProducts}
-          className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+          type="button"
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 touch-target"
+          title="Refresh stock inventory"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-[#D84B7E]" />
-          <span>Refresh Stock</span>
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+              isRefreshing ? 'animate-spin' : ''
+            }`}
+          />
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh Stock'}</span>
         </button>
       </div>
 

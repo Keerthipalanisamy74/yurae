@@ -10,6 +10,7 @@ import { InstagramIcon } from './Icons';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
+import { useCategories } from '../../context/CategoryContext';
 import { SearchOverlay } from './SearchOverlay';
 import { AnnouncementBar } from './AnnouncementBar';
 import { CurrencySelector } from './CurrencySelector';
@@ -25,6 +26,7 @@ export const Navbar: React.FC = () => {
   const { itemCount, openCart } = useCart();
   const { wishlist } = useWishlist();
   const { isAuthenticated, user, isAdmin, logout } = useAuth();
+  const { categories, getCategoryIcon } = useCategories();
 
   const handleProfileMouseEnter = () => {
     if (profileTimeoutRef.current) {
@@ -53,11 +55,6 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close menu on location change
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
-
   // Lock body scroll when drawer is open
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -81,11 +78,29 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const navLinks = [
+  interface NavLinkItem {
+    name: string;
+    path: string;
+    slug?: string;
+    icon?: string;
+  }
+
+  const dynamicCategoryLinks: NavLinkItem[] = categories.length > 0
+    ? categories.map((cat) => ({
+        name: cat.name,
+        path: `/category/${cat.slug}`,
+        slug: cat.slug,
+        icon: getCategoryIcon(cat),
+      }))
+    : [
+        { name: 'Skincare', path: '/skincare', slug: 'skincare', icon: '🌸' },
+        { name: 'Fashion', path: '/fashion', slug: 'fashion', icon: '👗' },
+        { name: 'Accessories', path: '/accessories', slug: 'accessories', icon: '💍' },
+      ];
+
+  const desktopNavLinks: NavLinkItem[] = [
     { name: 'Home', path: '/' },
-    { name: 'Skincare', path: '/skincare' },
-    { name: 'Fashion', path: '/fashion' },
-    { name: 'Accessories', path: '/accessories' },
+    ...dynamicCategoryLinks,
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
   ];
@@ -143,9 +158,14 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Center Zone: Navigation Links for Desktop */}
-          <nav className="hidden xl:flex items-center justify-center gap-3.5 2xl:gap-7 shrink-0 px-2 lg:px-4">
-            {navLinks.map((link) => {
-              const isActive = location.pathname === link.path;
+          <nav className="hidden xl:flex items-center justify-center gap-3 2xl:gap-6 shrink-0 px-2 lg:px-4">
+            {desktopNavLinks.map((link) => {
+              const isActive =
+                location.pathname === link.path ||
+                (link.slug &&
+                  (location.pathname === `/${link.slug}` ||
+                    location.pathname === `/category/${link.slug}` ||
+                    (location.pathname === '/shop' && location.search.includes(`category=${link.slug}`))));
               return (
                 <Link
                   key={link.name}
@@ -433,39 +453,95 @@ export const Navbar: React.FC = () => {
               {/* Drawer Scrollable Content */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
                 
-                {/* 1. MAIN STORE NAVIGATION */}
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2 block mb-1">
-                    Store Navigation
-                  </span>
-                  {navLinks.map((link) => {
-                    const isActive = location.pathname === link.path;
-                    return (
-                      <Link
-                        key={link.name}
-                        to={link.path}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center justify-between text-xs uppercase tracking-wider font-bold py-2.5 px-3 rounded-xl transition-colors ${
-                          isActive
-                            ? 'bg-[#D84B7E] text-white shadow-xs'
-                            : 'text-[#111111] hover:bg-[#FCE7F0] hover:text-[#D84B7E]'
-                        }`}
-                      >
-                        <span>{link.name}</span>
-                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-                      </Link>
-                    );
-                  })}
+                {/* 1. MAIN STORE NAVIGATION & DYNAMIC CATEGORIES */}
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2 block mb-1">
+                      Store Navigation
+                    </span>
+                    <Link
+                      to="/"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center justify-between text-xs uppercase tracking-wider font-bold py-2.5 px-3 rounded-xl transition-colors ${
+                        location.pathname === '/'
+                          ? 'bg-[#D84B7E] text-white shadow-xs'
+                          : 'text-[#111111] hover:bg-[#FCE7F0] hover:text-[#D84B7E]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span>✨</span>
+                        <span>Home</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                    </Link>
 
-                  <Link
-                    to="/shop"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="w-full py-2.5 px-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#111111] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer mt-2"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    Explore Full Store Catalog
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                    <Link
+                      to="/shop"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center justify-between text-xs uppercase tracking-wider font-bold py-2.5 px-3 rounded-xl transition-colors ${
+                        location.pathname === '/shop' && !location.search
+                          ? 'bg-[#D84B7E] text-white shadow-xs'
+                          : 'text-[#111111] hover:bg-[#FCE7F0] hover:text-[#D84B7E]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Layers className="w-4 h-4 text-[#D84B7E]" />
+                        <span>All Products</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                    </Link>
+                  </div>
+
+                  {/* DYNAMIC CATEGORIES LIST */}
+                  <div className="space-y-1 pt-2 border-t border-[#F1BCCE]/50">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2 block mb-1">
+                      Shop By Category ({categories.length || 3})
+                    </span>
+                    {dynamicCategoryLinks.map((cat) => {
+                      const isActive =
+                        location.pathname === cat.path ||
+                        location.pathname === `/${cat.slug}` ||
+                        (location.pathname === '/shop' && location.search.includes(`category=${cat.slug}`));
+                      return (
+                        <Link
+                          key={cat.slug}
+                          to={cat.path}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={`flex items-center justify-between text-xs uppercase tracking-wider font-bold py-2.5 px-3 rounded-xl transition-colors ${
+                            isActive
+                              ? 'bg-[#D84B7E] text-white shadow-xs'
+                              : 'text-[#111111] hover:bg-[#FCE7F0] hover:text-[#D84B7E]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm">{cat.icon}</span>
+                            <span>{cat.name}</span>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+
+                  {/* Info Pages */}
+                  <div className="space-y-1 pt-2 border-t border-[#F1BCCE]/50">
+                    <Link
+                      to="/about"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-between text-xs uppercase tracking-wider font-bold py-2 px-3 rounded-xl text-gray-700 hover:bg-[#FCE7F0] hover:text-[#D84B7E] transition-colors"
+                    >
+                      <span>About Us</span>
+                      <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                    </Link>
+                    <Link
+                      to="/contact"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-between text-xs uppercase tracking-wider font-bold py-2 px-3 rounded-xl text-gray-700 hover:bg-[#FCE7F0] hover:text-[#D84B7E] transition-colors"
+                    >
+                      <span>Contact & Concierge</span>
+                      <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                    </Link>
+                  </div>
                 </div>
 
                 {/* 3. QUICK SERVICES & DISCOVERY */}

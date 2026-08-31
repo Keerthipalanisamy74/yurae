@@ -476,71 +476,67 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           {!isEditMode && allowCategorySelection ? (
             <div>
               <label className="font-bold text-[#111111] block mb-1.5 uppercase tracking-wider text-[11px]">
-                Choose Store Department *
+                Choose Store Department / Category *
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTargetCategory('skincare');
-                    setSubCategory(skincareCategories[0]);
-                    setSkinType('All');
-                  }}
-                  className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
-                    targetCategory === 'skincare'
-                      ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
-                      : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
-                  }`}
-                >
-                  🌸 Skincare
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTargetCategory('fashion');
-                    setSubCategory(dressCategories[0]);
-                    setSkinType('Standard Fit');
-                  }}
-                  className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
-                    targetCategory === 'fashion'
-                      ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
-                      : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
-                  }`}
-                >
-                  👗 Fashion & Dresses
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTargetCategory('accessories');
-                    setSubCategory(accessoryCategories[0]);
-                    setSkinType('All');
-                  }}
-                  className={`py-2.5 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
-                    targetCategory === 'accessories'
-                      ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
-                      : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
-                  }`}
-                >
-                  💍 Accessories
-                </button>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => {
+                  const isSelected = targetCategory.toLowerCase() === cat.slug.toLowerCase();
+                  const icon = cat.name.toLowerCase().includes('skin')
+                    ? '🌸'
+                    : cat.name.toLowerCase().includes('fashion') || cat.name.toLowerCase().includes('dress')
+                    ? '👗'
+                    : cat.name.toLowerCase().includes('access') || cat.name.toLowerCase().includes('jewel')
+                    ? '💍'
+                    : cat.name.toLowerCase().includes('hair')
+                    ? '💇‍♀️'
+                    : cat.name.toLowerCase().includes('body')
+                    ? '🧴'
+                    : '✨';
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setTargetCategory(cat.slug.toLowerCase());
+                        if (cat.slug.toLowerCase().includes('fashion') || cat.name.toLowerCase().includes('fashion')) {
+                          setSubCategory(dressCategories[0]);
+                          setSkinType('Standard Fit');
+                        } else if (cat.slug.toLowerCase().includes('access') || cat.name.toLowerCase().includes('access')) {
+                          setSubCategory(accessoryCategories[0]);
+                          setSkinType('All');
+                        } else if (cat.slug.toLowerCase().includes('skin') || cat.name.toLowerCase().includes('skin')) {
+                          setSubCategory(skincareCategories[0]);
+                          setSkinType('All');
+                        } else {
+                          setSubCategory(cat.name);
+                          setSkinType('All');
+                        }
+                      }}
+                      className={`px-3.5 py-2 rounded-xl font-bold text-xs border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm'
+                          : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E] hover:bg-[#FCE7F0]'
+                      }`}
+                    >
+                      <span className="text-sm">{icon}</span>
+                      <span>{cat.name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-3 p-3.5 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl">
               <div className="w-9 h-9 rounded-xl bg-[#D84B7E] text-white flex items-center justify-center font-bold text-base shadow-xs">
-                {targetCategory === 'fashion' ? '👗' : targetCategory === 'accessories' ? '💍' : '🌸'}
+                {targetCategory.includes('fashion') ? '👗' : targetCategory.includes('access') ? '💍' : '🌸'}
               </div>
               <div>
                 <span className="text-[10px] uppercase tracking-widest font-bold text-[#D84B7E] block">
                   Store Department
                 </span>
                 <span className="text-sm font-bold text-[#111111]">
-                  {targetCategory === 'fashion'
-                    ? 'Luxury Fashion & Apparel'
-                    : targetCategory === 'accessories'
-                    ? 'Fine Jewelry & Accessories'
-                    : 'Botanical Glass Skincare'}
+                  {categories.find((c) => c.slug.toLowerCase() === targetCategory.toLowerCase())?.name || targetCategory}
                 </span>
               </div>
             </div>
@@ -550,13 +546,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="font-bold text-[#111111] block mb-1">
-                {targetCategory === 'fashion' ? 'Garment / Dress Title *' : 'Product Name *'}
+                {targetCategory.includes('fashion') ? 'Garment / Item Title *' : 'Product Name *'}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={targetCategory === 'fashion' ? 'e.g. Mulberry Silk Slip Dress' : 'e.g. Ginseng Renewal Serum'}
+                placeholder={targetCategory.includes('fashion') ? 'e.g. Mulberry Silk Slip Dress' : 'e.g. Ginseng Renewal Serum'}
                 required
                 className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111]"
               />
@@ -564,36 +560,57 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
             <div>
               <label className="font-bold text-[#111111] block mb-1">
-                {targetCategory === 'fashion'
+                {targetCategory.includes('fashion')
                   ? 'Dress & Apparel Subcategory *'
-                  : targetCategory === 'accessories'
+                  : targetCategory.includes('access')
                   ? 'Accessory Category *'
-                  : 'Skincare Subcategory *'}
+                  : 'Subcategory / Type *'}
               </label>
-              <select
-                value={subCategory}
-                onChange={(e) => setSubCategory(e.target.value)}
-                className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] font-bold text-[#111111] cursor-pointer"
-              >
-                {targetCategory === 'fashion' &&
-                  dressCategories.map((c) => (
+              {targetCategory.includes('fashion') ? (
+                <select
+                  value={subCategory}
+                  onChange={(e) => setSubCategory(e.target.value)}
+                  className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] font-bold text-[#111111] cursor-pointer"
+                >
+                  {dressCategories.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
                   ))}
-                {targetCategory === 'accessories' &&
-                  accessoryCategories.map((c) => (
+                </select>
+              ) : targetCategory.includes('access') ? (
+                <select
+                  value={subCategory}
+                  onChange={(e) => setSubCategory(e.target.value)}
+                  className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] font-bold text-[#111111] cursor-pointer"
+                >
+                  {accessoryCategories.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
                   ))}
-                {targetCategory === 'skincare' &&
-                  skincareCategories.map((c) => (
+                </select>
+              ) : targetCategory.includes('skin') ? (
+                <select
+                  value={subCategory}
+                  onChange={(e) => setSubCategory(e.target.value)}
+                  className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] font-bold text-[#111111] cursor-pointer"
+                >
+                  {skincareCategories.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
                   ))}
-              </select>
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={subCategory}
+                  onChange={(e) => setSubCategory(e.target.value)}
+                  placeholder="e.g. Standard, Luxury Line..."
+                  className="w-full p-3 bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] font-bold text-[#111111]"
+                />
+              )}
             </div>
           </div>
 

@@ -35,6 +35,7 @@ import {
   AlertCircle,
   Clock,
   ChevronDown,
+  RefreshCw,
 } from 'lucide-react';
 import { AdminTab } from './types/admin';
 import { useAuth } from '../../context/AuthContext';
@@ -65,6 +66,8 @@ interface AdminLayoutProps {
   lowStockCount?: number;
   unreadMessagesCount?: number;
   pendingReturnsCount?: number;
+  onRefreshAll?: () => void;
+  isRefreshingAll?: boolean;
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({
@@ -78,6 +81,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   lowStockCount = 0,
   unreadMessagesCount = 0,
   pendingReturnsCount = 0,
+  onRefreshAll,
+  isRefreshingAll = false,
 }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -418,11 +423,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <Search className="w-4 h-4" />
               </button>
 
-              {/* System Health Badge */}
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Live DB</span>
+              {/* 10s Live Telemetry Sync Beacon */}
+              <div
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold shadow-2xs"
+                title="Live Sync: Data automatically updates every 10 seconds"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Live Sync 10s</span>
               </div>
+
+              {/* Global Manual Refresh Studio Button */}
+              {onRefreshAll && (
+                <button
+                  type="button"
+                  onClick={onRefreshAll}
+                  disabled={isRefreshingAll}
+                  className="px-3 py-1.5 rounded-xl border border-[#F1BCCE] bg-[#FAF0F4] hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 touch-target"
+                  title="Manually refresh all store data now"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+                      isRefreshingAll ? 'animate-spin' : ''
+                    }`}
+                  />
+                  <span className="hidden md:inline">{isRefreshingAll ? 'Refreshing...' : 'Refresh Studio'}</span>
+                </button>
+              )}
 
               {/* Notifications Popover Trigger */}
               <div className="relative">

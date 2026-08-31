@@ -5,6 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { CategoryProvider } from './context/CategoryContext';
 
 import { Navbar } from './components/common/Navbar';
 import { MobileNav } from './components/common/MobileNav';
@@ -36,16 +37,18 @@ export const App: React.FC = () => {
           <CurrencyProvider>
             <CartProvider>
               <WishlistProvider>
-                <div className="min-h-screen flex flex-col bg-[#FDF4F7] text-[#111111]">
-                  <Navbar />
-                  <CartDrawer />
-                  <main className="flex-1">
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/shop" element={<Shop />} />
-                      <Route path="/skincare" element={<Shop categorySlug="skincare" />} />
-                      <Route path="/fashion" element={<Shop categorySlug="fashion" />} />
-                      <Route path="/accessories" element={<Shop categorySlug="accessories" />} />
+                <CategoryProvider>
+                  <div className="min-h-screen flex flex-col bg-[#FDF4F7] text-[#111111]">
+                    <Navbar />
+                    <CartDrawer />
+                    <main className="flex-1">
+                      <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/shop" element={<Shop />} />
+                        <Route path="/category/:categorySlug" element={<Shop />} />
+                        <Route path="/skincare" element={<Shop categorySlug="skincare" />} />
+                        <Route path="/fashion" element={<Shop categorySlug="fashion" />} />
+                        <Route path="/accessories" element={<Shop categorySlug="accessories" />} />
                       <Route path="/product/:slug" element={<ProductDetails />} />
                       <Route path="/cart" element={<CartPage />} />
                       <Route path="/checkout" element={<CheckoutPage />} />
@@ -79,6 +82,7 @@ export const App: React.FC = () => {
                   <MobileNav />
                   <InstallAppPrompt />
                 </div>
+                </CategoryProvider>
               </WishlistProvider>
             </CartProvider>
           </CurrencyProvider>

@@ -27,15 +27,18 @@ export const ReviewsManagement: React.FC = () => {
     fetchReviews();
   }, [statusFilter]);
 
-  const fetchReviews = async () => {
+  const fetchReviews = async (isManual = false) => {
     try {
       setLoading(true);
       const res = await api.get(`/admin/reviews?status=${statusFilter}`);
       setReviews(res.data);
+      if (isManual) {
+        showToast('Refreshed just now', 'success');
+      }
     } catch {
       showToast('Failed to load reviews queue', 'error');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 500);
     }
   };
 
@@ -148,11 +151,18 @@ export const ReviewsManagement: React.FC = () => {
         </div>
 
         <button
-          onClick={fetchReviews}
-          className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+          type="button"
+          onClick={() => fetchReviews(true)}
+          disabled={loading}
+          className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 touch-target"
+          title="Refresh customer reviews queue"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-[#D84B7E]" />
-          <span>Refresh Queue</span>
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+              loading ? 'animate-spin' : ''
+            }`}
+          />
+          <span>{loading ? 'Refreshing...' : 'Refresh Queue'}</span>
         </button>
       </div>
 

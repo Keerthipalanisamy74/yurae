@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { InstagramIcon } from './Icons';
 import { useToast } from '../../context/ToastContext';
+import { useCategories } from '../../context/CategoryContext';
 
 export const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
   const { showToast } = useToast();
+  const { categories } = useCategories();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,27 +72,42 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Shop */}
+          {/* Shop Categories */}
           <div className="space-y-3">
             <h3 className="text-xs uppercase tracking-widest font-bold text-[#F8A4C4]">
               Categories
             </h3>
             <ul className="space-y-2 text-sm text-gray-300 font-light">
-              <li>
-                <Link to="/skincare" className="hover:text-[#F8A4C4] transition-colors">
-                  Skincare
-                </Link>
-              </li>
-              <li>
-                <Link to="/fashion" className="hover:text-[#F8A4C4] transition-colors">
-                  Fashion
-                </Link>
-              </li>
-              <li>
-                <Link to="/accessories" className="hover:text-[#F8A4C4] transition-colors">
-                  Accessories
-                </Link>
-              </li>
+              {categories.length > 0 ? (
+                categories.map((cat) => (
+                  <li key={cat.id}>
+                    <Link
+                      to={`/category/${cat.slug}`}
+                      className="hover:text-[#F8A4C4] transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                  </li>
+                ))
+              ) : (
+                <>
+                  <li>
+                    <Link to="/skincare" className="hover:text-[#F8A4C4] transition-colors">
+                      Skincare
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/fashion" className="hover:text-[#F8A4C4] transition-colors">
+                      Fashion
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/accessories" className="hover:text-[#F8A4C4] transition-colors">
+                      Accessories
+                    </Link>
+                  </li>
+                </>
+              )}
               <li>
                 <Link to="/shop?sort_by=newest" className="hover:text-[#F8A4C4] transition-colors">
                   New Arrivals

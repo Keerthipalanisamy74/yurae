@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, Link, useLocation } from 'react-router-dom';
+import { useSearchParams, Link, useLocation, useParams } from 'react-router-dom';
 import {
   Filter, SlidersHorizontal, RefreshCw, Upload, Trash2, X,
   Sparkles, Shirt, Gem
@@ -12,40 +12,44 @@ import { SEO } from '../components/common/SEO';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useCategories } from '../context/CategoryContext';
 
 interface ShopProps {
   categorySlug?: string;
 }
 
 export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) => {
+  const { categorySlug: routeCategorySlug } = useParams<{ categorySlug?: string }>();
+  const effectiveCategorySlug = propCategorySlug || routeCategorySlug;
+  const isDedicatedCategoryPage = Boolean(effectiveCategorySlug);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const { formatPrice } = useCurrency();
+  const { categories, getCategoryIcon } = useCategories();
 
-  const isDedicatedCategoryPage = Boolean(propCategorySlug);
   const rawCategoryParam = searchParams.get('category');
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    propCategorySlug ? propCategorySlug.toLowerCase() : (rawCategoryParam ? rawCategoryParam.toLowerCase() : 'all')
+    effectiveCategorySlug ? effectiveCategorySlug.toLowerCase() : (rawCategoryParam ? rawCategoryParam.toLowerCase() : 'all')
   );
 
   useEffect(() => {
-    if (propCategorySlug) {
-      setSelectedCategory(propCategorySlug.toLowerCase());
+    if (effectiveCategorySlug) {
+      setSelectedCategory(effectiveCategorySlug.toLowerCase());
     } else if (rawCategoryParam) {
       setSelectedCategory(rawCategoryParam.toLowerCase());
     } else {
       setSelectedCategory('all');
     }
-  }, [propCategorySlug, rawCategoryParam]);
+  }, [effectiveCategorySlug, rawCategoryParam]);
 
   const currentCategory = selectedCategory;
   const searchSkinType = searchParams.get('skin_type') || '';
   const searchQuery = searchParams.get('search') || '';
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Price & Sorting state
@@ -112,12 +116,6 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
-
-  useEffect(() => {
-    api.get('/categories')
-      .then((res) => setCategories(res.data))
-      .catch((err) => console.error(err));
-  }, []);
 
   const handleResetFilters = () => {
     if (currentCategory === 'skincare') {
@@ -240,7 +238,16 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     return true;
   });
 
+  const activeCategoryObj = categories.find(
+    (c) => c.slug.toLowerCase() === currentCategory.toLowerCase()
+  );
+
   const getCategoryTitle = () => {
+    if (activeCategoryObj) {
+      return activeCategoryObj.name.toLowerCase().startsWith('yurae')
+        ? activeCategoryObj.name
+        : `Yurae ${activeCategoryObj.name}`;
+    }
     if (currentCategory === 'skincare') return 'Yurae Skin';
     if (currentCategory === 'fashion') return 'Yurae Fashion';
     if (currentCategory === 'accessories') return 'Yurae Accessories';
@@ -248,6 +255,9 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   };
 
   const getCategoryDescription = () => {
+    if (activeCategoryObj?.description) {
+      return activeCategoryObj.description;
+    }
     if (currentCategory === 'skincare') {
       return 'Pure Korean-inspired botanical formulations for radiant, healthy glass skin. From gentle cleansers and potent serums to barrier creams and broad-spectrum sunscreens.';
     }
@@ -332,14 +342,18 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   };
 
   const renderBannerTabs = () => {
-    let buttonLabel = '✨ All Products';
-    if (currentCategory === 'skincare') {
-      buttonLabel = '🌸 All Products';
+    let icon = '✨';
+    if (activeCategoryObj) {
+      icon = getCategoryIcon(activeCategoryObj);
+    } else if (currentCategory === 'skincare') {
+      icon = '🌸';
     } else if (currentCategory === 'fashion') {
-      buttonLabel = '👗 All Products';
+      icon = '👗';
     } else if (currentCategory === 'accessories') {
-      buttonLabel = '💍 All Products';
+      icon = '💍';
     }
+
+    const buttonLabel = `${icon} All ${activeCategoryObj ? activeCategoryObj.name : 'Products'}`;
 
     return (
       <div className="flex items-center justify-center pt-3">
@@ -356,6 +370,15 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   };
 
   const renderCategoryFilters = () => {
+    const dynamicCategoryFilters = [
+      { id: 'all', label: '✨ All Categories', desc: 'Browse all products & collections' },
+      ...categories.map((cat) => ({
+        id: cat.slug.toLowerCase(),
+        label: `${getCategoryIcon(cat)} ${cat.name}`,
+        desc: cat.description || `Explore ${cat.name} catalog`,
+      })),
+    ];
+
     return (
       <div className="space-y-6">
         {/* BROWSE BY CATEGORY SELECTOR (ONLY SHOWN IN EXPLORE ALL PRODUCTS /shop) */}
@@ -364,16 +387,11 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
             <div className="flex items-center gap-2 pb-1">
               <Sparkles className="w-4 h-4 text-[#D84B7E]" />
               <h4 className="text-xs uppercase tracking-widest font-bold text-[#111111]">
-                Browse by Category
+                Browse by Category ({categories.length})
               </h4>
             </div>
             <div className="flex flex-col gap-2">
-              {[
-                { id: 'all', label: '✨ All Categories', desc: 'Browse all products' },
-                { id: 'skincare', label: '🌸 Yurae Skin', desc: 'Serums, toners & creams' },
-                { id: 'fashion', label: '👗 Yurae Fashion', desc: 'Silks, linens & apparel' },
-                { id: 'accessories', label: '💍 Yurae Accessories', desc: 'Jewelry, bags & pieces' },
-              ].map((cat) => {
+              {dynamicCategoryFilters.map((cat) => {
                 const isActive = currentCategory === cat.id;
                 return (
                   <button
@@ -387,7 +405,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                     }`}
                   >
                     <span className="text-xs font-bold text-[#111111]">{cat.label}</span>
-                    <span className="text-[11px] text-gray-500 mt-0.5">{cat.desc}</span>
+                    <span className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">{cat.desc}</span>
                   </button>
                 );
               })}

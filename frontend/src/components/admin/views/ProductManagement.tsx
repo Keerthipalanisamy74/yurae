@@ -52,6 +52,21 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
   // Delete Confirm Dialog state
   const [deleteModalProduct, setDeleteModalProduct] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshingProducts, setIsRefreshingProducts] = useState(false);
+
+  const handleManualRefreshProducts = async () => {
+    try {
+      setIsRefreshingProducts(true);
+      if (onRefreshProducts) {
+        await onRefreshProducts();
+      }
+      showToast('Refreshed just now', 'success');
+    } catch {
+      showToast('Failed to refresh catalog', 'error');
+    } finally {
+      setTimeout(() => setIsRefreshingProducts(false), 600);
+    }
+  };
 
   // Bulk Delete Confirm Dialog state
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
@@ -309,6 +324,21 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleManualRefreshProducts}
+            disabled={isRefreshingProducts}
+            className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 touch-target"
+            title="Refresh product catalog"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+                isRefreshingProducts ? 'animate-spin' : ''
+              }`}
+            />
+            <span>{isRefreshingProducts ? 'Refreshing...' : 'Refresh Catalog'}</span>
+          </button>
+
           <button
             onClick={handleExportCsv}
             className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"

@@ -28,6 +28,21 @@ export const ReturnsRefunds: React.FC<ReturnsRefundsProps> = ({
   const [filter, setFilter] = useState<string>('ALL');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      if (onRefreshReturns) {
+        await onRefreshReturns();
+      }
+      showToast('Refreshed just now', 'success');
+    } catch {
+      showToast('Failed to refresh return claims', 'error');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   const filteredReturns = returnRequests.filter((r) => {
     if (filter !== 'ALL' && r.status !== filter) return false;
@@ -130,11 +145,18 @@ export const ReturnsRefunds: React.FC<ReturnsRefundsProps> = ({
         </div>
 
         <button
-          onClick={onRefreshReturns}
-          className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+          type="button"
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 touch-target"
+          title="Refresh returns and exchanges"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-[#D84B7E]" />
-          <span>Refresh Claims</span>
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+              isRefreshing ? 'animate-spin' : ''
+            }`}
+          />
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh Claims'}</span>
         </button>
       </div>
 

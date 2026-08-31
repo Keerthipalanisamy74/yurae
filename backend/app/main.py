@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.database.session import engine, Base
 import app.models.models  # Register all models with Base.metadata
-from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo, webhooks, fulfillment, marketing
+from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo, webhooks, fulfillment, marketing, newsletter
 
 # Create tables automatically
 Base.metadata.create_all(bind=engine)
@@ -49,6 +49,8 @@ app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(contact.router, prefix=settings.API_V1_STR)
 app.include_router(contact.router, prefix="/api/contact-messages", tags=["Contact Messages Alias"])
 app.include_router(marketing.router, prefix=settings.API_V1_STR)
+app.include_router(newsletter.router, prefix=settings.API_V1_STR)
+app.include_router(newsletter.router, prefix="/api", tags=["Newsletter Alias"])
 app.include_router(seo.router)
 
 # Generic Webhook Route Alias

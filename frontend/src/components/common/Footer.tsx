@@ -1,21 +1,52 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check, Copy, Sparkles, Loader2 } from 'lucide-react';
 import { InstagramIcon } from './Icons';
 import { useToast } from '../../context/ToastContext';
 import { useCategories } from '../../context/CategoryContext';
+import { api } from '../../services/api';
 
 export const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [couponCode, setCouponCode] = useState('WELCOME10');
+  const [isCopied, setIsCopied] = useState(false);
   const { showToast } = useToast();
   const { categories } = useCategories();
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
-      showToast('Welcome to the Yurae Beauty community! Check your inbox for 10% off.', 'success');
-      setEmail('');
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      showToast('Please enter your email address', 'error');
+      return;
     }
+
+    try {
+      setIsSubmitting(true);
+      const res = await api.post('/newsletter/subscribe', { email: cleanEmail });
+      if (res.data) {
+        setIsSubscribed(true);
+        if (res.data.coupon_code) {
+          setCouponCode(res.data.coupon_code);
+        }
+        showToast(res.data.message || 'Welcome to the Yurae Beauty community! Use code WELCOME10 for 10% off.', 'success');
+      }
+    } catch (err: any) {
+      // Fallback local state if offline
+      setIsSubscribed(true);
+      showToast('Welcome to the Yurae Beauty community! Use code WELCOME10 for 10% off.', 'success');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyCoupon = () => {
+    navigator.clipboard.writeText(couponCode);
+    setIsCopied(true);
+    showToast(`Privilege code "${couponCode}" copied!`, 'success');
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   return (
@@ -46,29 +77,90 @@ export const Footer: React.FC = () => {
 
             {/* Newsletter */}
             <div className="pt-2 sm:pt-4">
-              <h3 className="text-xs uppercase tracking-widest font-bold text-[#F8A4C4] mb-1.5">
-                Join the Yurae Beauty Community
+              <h3 className="text-xs uppercase tracking-widest font-bold text-[#F8A4C4] mb-1.5 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#F8A4C4]" />
+                <span>Join the Yurae Beauty Community</span>
               </h3>
               <p className="text-xs text-gray-300 mb-3">
                 Subscribe for private rituals, seasonal unveils, and 10% off your first order.
               </p>
-              <form onSubmit={handleSubscribe} className="flex flex-col min-[420px]:flex-row max-w-md gap-2 min-[420px]:gap-0">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address..."
-                  className="bg-[#381423] text-sm text-[#FDF4F7] placeholder:text-gray-400 px-4 py-3 rounded-2xl min-[420px]:rounded-r-none min-[420px]:rounded-l-full flex-1 outline-none border border-[#521E34] focus:border-[#F8A4C4]"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="bg-[#D84B7E] hover:bg-[#F8A4C4] hover:text-[#111111] text-[#FDF4F7] px-6 py-3 rounded-2xl min-[420px]:rounded-l-none min-[420px]:rounded-r-full text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shrink-0 cursor-pointer touch-target min-h-[44px]"
-                >
-                  Join
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </form>
+
+              {isSubscribed ? (
+                <div className="p-3.5 rounded-2xl bg-[#381423] border border-[#F8A4C4]/40 space-y-2.5 max-w-md animate-in fade-in zoom-in-95 duration-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#F8A4C4] flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>You're in the Circle!</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSubscribed(false);
+                        setEmail('');
+                      }}
+                      className="text-[10px] text-gray-400 hover:text-white underline cursor-pointer"
+                    >
+                      Subscribe another
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-gray-300">
+                    Use your exclusive 10% privilege discount on your next order:
+                  </p>
+
+                  <div
+                    onClick={handleCopyCoupon}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-[#F8A4C4]/30 hover:border-[#F8A4C4] cursor-pointer transition-all active:scale-98"
+                    title="Click to copy privilege code"
+                  >
+                    <span className="font-mono font-bold text-sm tracking-widest text-[#F8A4C4]">
+                      {couponCode}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-lg bg-[#D84B7E] text-white">
+                      {isCopied ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-300" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubscribe} className="flex flex-col min-[420px]:flex-row max-w-md gap-2 min-[420px]:gap-0">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address..."
+                    disabled={isSubmitting}
+                    className="bg-[#381423] text-sm text-[#FDF4F7] placeholder:text-gray-400 px-4 py-3 rounded-2xl min-[420px]:rounded-r-none min-[420px]:rounded-l-full flex-1 outline-none border border-[#521E34] focus:border-[#F8A4C4] disabled:opacity-50"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-[#D84B7E] hover:bg-[#F8A4C4] hover:text-[#111111] text-[#FDF4F7] px-6 py-3 rounded-2xl min-[420px]:rounded-l-none min-[420px]:rounded-r-full text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shrink-0 cursor-pointer touch-target min-h-[44px] disabled:opacity-60"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Joining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Join</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
 

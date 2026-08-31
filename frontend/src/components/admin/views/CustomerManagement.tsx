@@ -14,6 +14,7 @@ import {
   UserCheck,
   UserX,
   Search,
+  RefreshCw,
 } from 'lucide-react';
 import { User as CustomerUser } from '../../../types';
 import { CustomerDetail } from '../types/admin';
@@ -35,6 +36,21 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
   const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      if (onRefreshCustomers) {
+        await onRefreshCustomers();
+      }
+      showToast('Refreshed just now', 'success');
+    } catch {
+      showToast('Failed to refresh customers', 'error');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   const fetchCustomer360 = async (userId: number) => {
     try {
@@ -53,13 +69,13 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
     try {
       setIsTogglingStatus(true);
       await api.put(`/admin/customers/${user.id}/toggle-status`);
-      showToast(`Customer status updated`, 'success');
+      showToast(`Account status updated for ${user.first_name}`, 'success');
       onRefreshCustomers();
-      if (customerDetail && customerDetail.id === user.id) {
-        setCustomerDetail((prev) => (prev ? { ...prev, is_active: !prev.is_active } : null));
+      if (selectedCustomerId === user.id) {
+        fetchCustomer360(user.id);
       }
     } catch (err: any) {
-      showToast(err?.response?.data?.detail || 'Failed to update customer status', 'error');
+      showToast('Failed to update account status', 'error');
     } finally {
       setIsTogglingStatus(false);
     }
@@ -68,12 +84,12 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
   const columns: Column<CustomerUser>[] = [
     {
       key: 'name',
-      header: 'Client Profile',
+      header: 'Client / Patron',
       sortable: true,
       render: (c) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#D84B7E] to-[#6A1A3A] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-            {c.first_name ? c.first_name[0].toUpperCase() : 'C'}
+          <div className="w-9 h-9 rounded-full bg-[#FCE7F0] text-[#D84B7E] flex items-center justify-center font-bold text-xs shrink-0">
+            {c.first_name?.charAt(0) || 'U'}
           </div>
           <div>
             <p
@@ -82,28 +98,26 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
             >
               {c.first_name} {c.last_name}
             </p>
-            <p className="text-[10px] text-gray-600 font-mono">{c.email}</p>
+            <p className="text-[10px] text-gray-500 font-mono">{c.email}</p>
           </div>
         </div>
       ),
     },
     {
-      key: 'created_at',
-      header: 'Joined Date',
+      key: 'phone',
+      header: 'Contact Phone',
       sortable: true,
       render: (c) => (
-        <span className="text-[11px] text-gray-600">
-          {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
-        </span>
+        <span className="font-mono text-xs text-gray-700">{c.phone || '—'}</span>
       ),
     },
     {
       key: 'is_active',
-      header: 'Account Status',
+      header: 'Status',
       sortable: true,
       render: (c) => (
         <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
             c.is_active
               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
               : 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -113,21 +127,48 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
         </span>
       ),
     },
+    {
+      key: 'created_at',
+      header: 'Joined Date',
+      sortable: true,
+      render: (c) => (
+        <span className="text-[10px] text-gray-500">
+          {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
+        </span>
+      ),
+    },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <span className="text-[10px] uppercase tracking-widest font-bold text-[#D84B7E] block">
-          Client Relationship Management (CRM)
-        </span>
-        <h2 className="font-serif text-2xl font-bold text-[#111111]">
-          Customers &amp; Client 360°
-        </h2>
-        <p className="text-xs text-gray-500">
-          View registered clients, order frequency, lifetime spending, wishlists, and account status.
-        </p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-[10px] uppercase tracking-widest font-bold text-[#D84B7E] block">
+            Customer Relationship Management
+          </span>
+          <h2 className="font-serif text-2xl font-bold text-[#111111]">
+            Customers &amp; Client 360°
+          </h2>
+          <p className="text-xs text-gray-500">
+            View registered clients, order frequency, lifetime spending, wishlists, and account status.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 touch-target"
+          title="Refresh customer list"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+              isRefreshing ? 'animate-spin' : ''
+            }`}
+          />
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh Customers'}</span>
+        </button>
       </div>
 
       {/* Customer Table */}
@@ -135,8 +176,15 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
         data={customers}
         columns={columns}
         keyExtractor={(c) => c.id}
-        searchPlaceholder="Search customer by name or email..."
-        searchKeys={['first_name', 'last_name', 'email']}
+        searchPlaceholder="Search customer by name, email, phone..."
+        customSearchFilter={(c, q) => {
+          const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
+          const email = (c.email || '').toLowerCase();
+          const phone = (c.phone || '').toLowerCase();
+          const idStr = String(c.id);
+
+          return fullName.includes(q) || email.includes(q) || phone.includes(q) || idStr.includes(q);
+        }}
         renderActions={(c) => (
           <div className="flex items-center justify-end gap-1.5">
             <button

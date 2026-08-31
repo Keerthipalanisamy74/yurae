@@ -23,6 +23,7 @@ interface DataTableProps<T> {
   keyExtractor: (item: T) => string | number;
   searchPlaceholder?: string;
   searchKeys?: (keyof T | string)[];
+  customSearchFilter?: (item: T, query: string) => boolean;
   itemsPerPageOptions?: number[];
   defaultItemsPerPage?: number;
   selectable?: boolean;
@@ -37,12 +38,35 @@ interface DataTableProps<T> {
   renderActions?: (item: T) => React.ReactNode;
 }
 
+// Helper to safely extract nested object paths (e.g. 'user.first_name')
+const getNestedValue = (obj: any, path: string): any => {
+  if (!obj || !path) return undefined;
+  return path.split('.').reduce((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), obj);
+};
+
+// Helper for deep recursive search within nested objects & arrays
+const deepSearchMatch = (val: any, query: string, depth = 3): boolean => {
+  if (val === null || val === undefined) return false;
+  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+    return String(val).toLowerCase().includes(query);
+  }
+  if (depth <= 0) return false;
+  if (Array.isArray(val)) {
+    return val.some((item) => deepSearchMatch(item, query, depth - 1));
+  }
+  if (typeof val === 'object') {
+    return Object.values(val).some((item) => deepSearchMatch(item, query, depth - 1));
+  }
+  return false;
+};
+
 export function DataTable<T extends Record<string, any>>({
   data,
   columns,
   keyExtractor,
   searchPlaceholder = 'Search records...',
   searchKeys,
+  customSearchFilter,
   itemsPerPageOptions = [10, 25, 50, 100],
   defaultItemsPerPage = 10,
   selectable = false,
@@ -65,20 +89,26 @@ export function DataTable<T extends Record<string, any>>({
   // Filter Data
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return data;
-    const query = searchTerm.toLowerCase();
+    const query = searchTerm.toLowerCase().trim();
 
     return data.filter((item) => {
+      // 1. If explicit customSearchFilter function is provided, prioritize it
+      if (customSearchFilter) {
+        return customSearchFilter(item, query);
+      }
+
+      // 2. If explicit searchKeys provided, evaluate direct and nested keys
       if (searchKeys && searchKeys.length > 0) {
         return searchKeys.some((key) => {
-          const val = item[key as keyof T];
+          const val = getNestedValue(item, String(key));
           return val !== null && val !== undefined && String(val).toLowerCase().includes(query);
         });
       }
-      return Object.values(item).some((val) => {
-        return val !== null && val !== undefined && String(val).toLowerCase().includes(query);
-      });
+
+      // 3. Fallback: deep search across all properties including nested objects
+      return deepSearchMatch(item, query);
     });
-  }, [data, searchTerm, searchKeys]);
+  }, [data, searchTerm, searchKeys, customSearchFilter]);
 
   // Sort Data
   const sortedData = useMemo(() => {

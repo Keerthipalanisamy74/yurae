@@ -33,6 +33,7 @@ export const ShippingManagement: React.FC<ShippingManagementProps> = ({
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [selectedOrderForLabel, setSelectedOrderForLabel] = useState<Order | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filtered orders that have shipments or are in fulfillment pipeline
   const shipments = orders.filter((o) =>
@@ -42,6 +43,20 @@ export const ShippingManagement: React.FC<ShippingManagementProps> = ({
   useEffect(() => {
     fetchShippingSettings();
   }, []);
+
+  const handleManualRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      if (onRefreshOrders) {
+        await onRefreshOrders();
+      }
+      showToast('Refreshed just now', 'success');
+    } catch {
+      showToast('Failed to refresh shipments', 'error');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   const fetchShippingSettings = async () => {
     try {
@@ -93,14 +108,23 @@ export const ShippingManagement: React.FC<ShippingManagementProps> = ({
       key: 'order_number',
       header: 'Order & Recipient',
       sortable: true,
-      render: (o) => (
-        <div className="space-y-0.5">
-          <p className="font-bold text-gray-900">#{o.order_number}</p>
-          <p className="text-[10px] text-gray-600">
-            {o.user ? `${o.user.first_name} ${o.user.last_name}` : 'Client'}
-          </p>
-        </div>
-      ),
+      render: (o) => {
+        const customerName = o.user
+          ? `${o.user.first_name || ''} ${o.user.last_name || ''}`.trim()
+          : (o.address?.name ? o.address.name.trim() : 'Client');
+
+        return (
+          <div className="space-y-0.5">
+            <p className="font-bold text-gray-900">#{o.order_number}</p>
+            <p className="text-[11px] text-gray-700 font-semibold">
+              {customerName || 'Client'}
+            </p>
+            {o.user?.email && (
+              <p className="text-[10px] text-gray-600 font-mono">{o.user.email}</p>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'destination',
@@ -170,27 +194,44 @@ export const ShippingManagement: React.FC<ShippingManagementProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 p-1 bg-[#FAF0F4] border border-[#F1BCCE] rounded-2xl text-xs font-bold">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setSubTab('shipments')}
-            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-              subTab === 'shipments'
-                ? 'bg-[#D84B7E] text-white shadow-2xs'
-                : 'text-gray-700 hover:text-[#D84B7E]'
-            }`}
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="px-3.5 py-2 rounded-xl border border-[#F1BCCE] bg-white hover:bg-[#FCE7F0] text-xs font-bold text-gray-700 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 touch-target"
+            title="Refresh shipments data"
           >
-            Live Shipments ({shipments.length})
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
+                isRefreshing ? 'animate-spin' : ''
+              }`}
+            />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Shipments'}</span>
           </button>
-          <button
-            onClick={() => setSubTab('settings')}
-            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-              subTab === 'settings'
-                ? 'bg-[#D84B7E] text-white shadow-2xs'
-                : 'text-gray-700 hover:text-[#D84B7E]'
-            }`}
-          >
-            Shipping Rate Rules
-          </button>
+
+          <div className="flex items-center gap-1.5 p-1 bg-[#FAF0F4] border border-[#F1BCCE] rounded-2xl text-xs font-bold">
+            <button
+              onClick={() => setSubTab('shipments')}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                subTab === 'shipments'
+                  ? 'bg-[#D84B7E] text-white shadow-2xs'
+                  : 'text-gray-700 hover:text-[#D84B7E]'
+              }`}
+            >
+              Live Shipments ({shipments.length})
+            </button>
+            <button
+              onClick={() => setSubTab('settings')}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                subTab === 'settings'
+                  ? 'bg-[#D84B7E] text-white shadow-2xs'
+                  : 'text-gray-700 hover:text-[#D84B7E]'
+              }`}
+            >
+              Shipping Rate Rules
+            </button>
+          </div>
         </div>
       </div>
 
@@ -199,8 +240,36 @@ export const ShippingManagement: React.FC<ShippingManagementProps> = ({
           data={shipments}
           columns={columns}
           keyExtractor={(o) => o.id}
-          searchPlaceholder="Search by AWB code, courier, order number, or client..."
-          searchKeys={['awb_code', 'courier_name', 'order_number']}
+          searchPlaceholder="Search by customer name, order #, AWB code, courier, city, email..."
+          customSearchFilter={(o, q) => {
+            const customerName = `${o.user?.first_name || ''} ${o.user?.last_name || ''}`.toLowerCase();
+            const recipientName = (o.address?.name || '').toLowerCase();
+            const email = (o.user?.email || '').toLowerCase();
+            const phone = `${o.user?.phone || ''} ${o.address?.phone || ''}`.toLowerCase();
+            const orderNum = (o.order_number || '').toLowerCase();
+            const awb = (o.awb_code || '').toLowerCase();
+            const courier = (o.courier_name || '').toLowerCase();
+            const city = (o.address?.city || '').toLowerCase();
+            const state = (o.address?.state || '').toLowerCase();
+            const pincode = (o.address?.postal_code || '').toLowerCase();
+            const status = (o.order_status || '').toLowerCase();
+            const itemsMatch = o.items?.some((it) => it.product_name.toLowerCase().includes(q)) ?? false;
+
+            return (
+              customerName.includes(q) ||
+              recipientName.includes(q) ||
+              email.includes(q) ||
+              phone.includes(q) ||
+              orderNum.includes(q) ||
+              awb.includes(q) ||
+              courier.includes(q) ||
+              city.includes(q) ||
+              state.includes(q) ||
+              pincode.includes(q) ||
+              status.includes(q) ||
+              itemsMatch
+            );
+          }}
           renderActions={(o) => (
             <button
               type="button"

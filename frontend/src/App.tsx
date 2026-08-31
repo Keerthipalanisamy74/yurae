@@ -13,6 +13,7 @@ import { CartDrawer } from './components/common/CartDrawer';
 import { Footer } from './components/common/Footer';
 import { InstallAppPrompt } from './components/common/InstallAppPrompt';
 import { MarketingBannerHub } from './components/common/MarketingBannerHub';
+import { WelcomeSplashIntro } from './components/common/WelcomeSplashIntro';
 
 import { Home } from './pages/Home';
 import { Shop } from './pages/Shop';
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
               <WishlistProvider>
                 <CategoryProvider>
                   <div className="min-h-screen flex flex-col bg-[#FDF4F7] text-[#111111]">
+                    <WelcomeSplashIntro />
                     <Navbar />
                     <MarketingBannerHub />
                     <CartDrawer />

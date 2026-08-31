@@ -160,3 +160,50 @@
 .border-pink-accent {
   border-color: #F1BCCE;
 }
+
+/* Lovable Floating Hearts Keyframes */
+@keyframes float-heart-up {
+  0% {
+    transform: translateY(100vh) translateX(0) scale(0.6) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-20vh) translateX(25px) scale(1.1) rotate(15deg);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-love-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(216, 75, 126, 0.3);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 50px rgba(216, 75, 126, 0.55);
+  }
+}
+
+@keyframes progress-countdown {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-float-heart {
+  animation: float-heart-up linear infinite;
+}
+
+.animate-love-pulse {
+  animation: pulse-love-glow 3s ease-in-out infinite;
+}
+

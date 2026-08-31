@@ -351,14 +351,11 @@ export const AdminDashboard: React.FC = () => {
       {/* 17. Audit Trail Logs */}
       {activeTab === 'audit' && <AuditLogs />}
 
-      {/* 18. Settings & Database Diagnostics */}
-      {activeTab === 'settings' && <SettingsManagement />}
+      {/* 18. Settings & Environment Hub */}
+      {(activeTab === 'settings' || activeTab === 'database') && <SettingsManagement />}
 
       {/* 19. AI Copilot & Generative Studio */}
       {activeTab === 'ai_studio' && <AiStudio />}
-
-      {/* 20. Database Sub-View */}
-      {activeTab === 'database' && <SettingsManagement />}
 
       {/* Product Create / Edit Modal */}
       {isProductModalOpen && (

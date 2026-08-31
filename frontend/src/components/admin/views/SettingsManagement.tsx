@@ -229,10 +229,10 @@ export const SettingsManagement: React.FC = () => {
             Store Engine &amp; Diagnostics
           </span>
           <h2 className="font-serif text-2xl font-bold text-[#111111]">
-            Settings &amp; Database Health
+            Settings &amp; Environment Hub
           </h2>
           <p className="text-xs text-gray-500">
-            Configure enterprise brand metadata, tax identification, live multi-currency rates, and MySQL diagnostics.
+            Configure enterprise brand metadata, tax identification, live multi-currency rates, email SMTP gateways, and database schema diagnostics.
           </p>
         </div>
 

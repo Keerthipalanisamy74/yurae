@@ -158,8 +158,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       items: [
         { id: 'roles', label: 'Staff Roles & Access', icon: ShieldCheck },
         { id: 'audit', label: 'Audit Trail Logs', icon: Shield },
-        { id: 'settings', label: 'Settings & Gateways', icon: Settings },
-        { id: 'database', label: 'Database & Environment', icon: Database },
+        { id: 'settings', label: 'Settings & Environment', icon: Settings },
       ],
     },
   ];

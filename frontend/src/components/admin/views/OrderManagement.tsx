@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  ShoppingCart,
   CheckCircle2,
   Clock,
   Truck,
@@ -706,7 +705,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
 
   // 15 Lifecycle Cards Config
   const summaryCardsList = [
-    { key: 'TOTAL_ORDERS', label: 'Total Orders', icon: ShoppingCart },
+    { key: 'TOTAL_ORDERS', label: 'Total Orders', icon: ClipboardList },
     { key: 'NEW_ORDERS', label: 'New Orders', icon: Sparkles },
     { key: 'PENDING_PAYMENT', label: 'Pending Payment', icon: Clock },
     { key: 'PAID_ORDERS', label: 'Paid Orders', icon: CheckCircle2 },

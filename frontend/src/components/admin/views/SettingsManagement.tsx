@@ -239,41 +239,37 @@ export const SettingsManagement: React.FC = () => {
         <div className="flex items-center gap-1.5 p-1 bg-[#FAF0F4] border border-[#F1BCCE] rounded-2xl text-xs font-bold">
           <button
             onClick={() => setSubTab('store')}
-            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-              subTab === 'store'
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${subTab === 'store'
                 ? 'bg-[#D84B7E] text-white shadow-2xs'
                 : 'text-gray-700 hover:text-[#D84B7E]'
-            }`}
+              }`}
           >
             Store Profile
           </button>
           <button
             onClick={() => setSubTab('currency')}
-            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-              subTab === 'currency'
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${subTab === 'currency'
                 ? 'bg-[#D84B7E] text-white shadow-2xs'
                 : 'text-gray-700 hover:text-[#D84B7E]'
-            }`}
+              }`}
           >
             Currencies
           </button>
           <button
             onClick={() => setSubTab('email')}
-            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-              subTab === 'email'
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${subTab === 'email'
                 ? 'bg-[#D84B7E] text-white shadow-2xs'
                 : 'text-gray-700 hover:text-[#D84B7E]'
-            }`}
+              }`}
           >
             Email &amp; SMTP
           </button>
           <button
             onClick={() => setSubTab('database')}
-            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-              subTab === 'database'
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${subTab === 'database'
                 ? 'bg-[#D84B7E] text-white shadow-2xs'
                 : 'text-gray-700 hover:text-[#D84B7E]'
-            }`}
+              }`}
           >
             Database &amp; Env
           </button>
@@ -296,11 +292,10 @@ export const SettingsManagement: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    smtpConfig?.has_password
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${smtpConfig?.has_password
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                       : 'bg-amber-100 text-amber-800 border border-amber-300'
-                  }`}
+                    }`}
                 >
                   {smtpConfig?.has_password ? '● Live SMTP Active' : '○ Pending SMTP Password'}
                 </span>
@@ -473,15 +468,14 @@ export const SettingsManagement: React.FC = () => {
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                              log.status === 'SENT'
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${log.status === 'SENT'
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : log.status === 'RETRIED'
-                                ? 'bg-blue-100 text-blue-800'
-                                : log.status === 'SIMULATED'
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'bg-rose-100 text-rose-800'
-                            }`}
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : log.status === 'SIMULATED'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-rose-100 text-rose-800'
+                              }`}
                           >
                             {log.status}
                           </span>
@@ -614,7 +608,7 @@ export const SettingsManagement: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-gray-800 flex items-center gap-1.5">
                   <DollarSign className="w-4 h-4 text-[#D84B7E]" />
-                  <span>Live Checkout Conversion Sandbox</span>
+                  <span>Live Currency Rate Simulator / Sandbox</span>
                 </span>
                 <span className="text-[10px] text-gray-500">Real-time simulation for international patrons</span>
               </div>

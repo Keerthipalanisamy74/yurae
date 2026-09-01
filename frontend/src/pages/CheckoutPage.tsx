@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   CheckCircle2, Lock, CreditCard, Smartphone, Building2, Wallet, ArrowRight,
   Globe, Tag, Sparkles, X, ChevronDown, ChevronUp, Check, MessageSquare, Send, Heart,
@@ -15,11 +15,15 @@ import { InvoiceModal } from '../components/common/InvoiceModal';
 
 export const CheckoutPage: React.FC = () => {
   const { cart, fetchCart } = useCart();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const { currency, convertPrice, formatPrice, formatRawPrice, currentCurrencyInfo } = useCurrency();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const [step, setStep] = useState<number>(1);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);

@@ -432,50 +432,82 @@ def update_product(
 
     update_data = prod_in.model_dump(exclude_unset=True) if hasattr(prod_in, "model_dump") else prod_in.dict(exclude_unset=True)
 
-    # Handle images update
-    if "images" in update_data:
-        images_list = update_data.pop("images")
-        if images_list is not None:
-            db.query(ProductImage).filter(ProductImage.product_id == product_id).delete()
-            for idx, img_url in enumerate(images_list):
-                if img_url and str(img_url).strip():
-                    img = ProductImage(product_id=prod.id, image_url=str(img_url).strip(), sort_order=idx)
-                    db.add(img)
+    try:
+        # Handle images update
+        if "images" in update_data:
+            images_list = update_data.pop("images")
+            if images_list is not None:
+                db.query(ProductImage).filter(ProductImage.product_id == product_id).delete()
+                for idx, img_url in enumerate(images_list):
+                    if img_url and str(img_url).strip():
+                        img = ProductImage(product_id=prod.id, image_url=str(img_url).strip(), sort_order=idx)
+                        db.add(img)
 
-    # Handle variants update
-    if "variants" in update_data:
-        variants_list = update_data.pop("variants")
-        if variants_list is not None:
-            db.query(ProductVariant).filter(ProductVariant.product_id == product_id).delete()
-            for v in variants_list:
-                v_dict = v if isinstance(v, dict) else (v.model_dump() if hasattr(v, "model_dump") else v.dict())
-                if v_dict.get("variant_value") and str(v_dict.get("variant_value")).strip():
-                    var_stock = int(v_dict.get("stock_quantity")) if v_dict.get("stock_quantity") is not None else int(prod.stock_quantity)
-                    variant_obj = ProductVariant(
-                        product_id=prod.id,
-                        variant_name=v_dict.get("variant_name") or "Size",
-                        variant_value=str(v_dict.get("variant_value")).strip(),
-                        additional_price=float(v_dict.get("additional_price") or 0.0),
-                        stock_quantity=var_stock
-                    )
-                    db.add(variant_obj)
+        # Handle variants update with in-place synchronization to prevent foreign key errors
+        if "variants" in update_data:
+            variants_list = update_data.pop("variants")
+            if variants_list is not None:
+                existing_variants = db.query(ProductVariant).filter(ProductVariant.product_id == product_id).all()
+                existing_map = {v.variant_value.strip().lower(): v for v in existing_variants}
+                kept_ids = set()
 
-    # Regenerate slug if name changed and slug not given
-    if "name" in update_data and update_data["name"] and "slug" not in update_data:
-        update_data["slug"] = generate_unique_slug(update_data["name"], db, current_id=prod.id)
+                for v in variants_list:
+                    v_dict = v if isinstance(v, dict) else (v.model_dump() if hasattr(v, "model_dump") else v.dict())
+                    val_raw = v_dict.get("variant_value")
+                    if val_raw and str(val_raw).strip():
+                        val_str = str(val_raw).strip()
+                        var_name = v_dict.get("variant_name") or "Size"
+                        add_price = float(v_dict.get("additional_price") or 0.0)
+                        var_stock = int(v_dict.get("stock_quantity")) if v_dict.get("stock_quantity") is not None else int(prod.stock_quantity)
 
-    for field, val in update_data.items():
-        setattr(prod, field, val)
+                        if val_str.lower() in existing_map:
+                            var_obj = existing_map[val_str.lower()]
+                            var_obj.variant_name = var_name
+                            var_obj.variant_value = val_str
+                            var_obj.additional_price = add_price
+                            var_obj.stock_quantity = var_stock
+                            kept_ids.add(var_obj.id)
+                        else:
+                            new_var = ProductVariant(
+                                product_id=prod.id,
+                                variant_name=var_name,
+                                variant_value=val_str,
+                                additional_price=add_price,
+                                stock_quantity=var_stock
+                            )
+                            db.add(new_var)
+                            db.flush()
+                            kept_ids.add(new_var.id)
 
-    db.commit()
-    db.expire_all()
-    db.refresh(prod)
+                # For removed variants, clean up dependent records safely
+                for old_v in existing_variants:
+                    if old_v.id not in kept_ids:
+                        db.execute(text("DELETE FROM cart_items WHERE variant_id = :vid"), {"vid": old_v.id})
+                        db.execute(text("DELETE FROM stock_notifications WHERE variant_id = :vid"), {"vid": old_v.id})
+                        db.delete(old_v)
 
-    # If stock is positive, notify pending subscribers
-    if prod.stock_quantity > 0:
-        dispatch_pending_restock_notifications(product_id, None, db)
+        # Regenerate slug if name changed and slug not given
+        if "name" in update_data and update_data["name"] and "slug" not in update_data:
+            update_data["slug"] = generate_unique_slug(update_data["name"], db, current_id=prod.id)
 
-    return format_product_response(prod, db)
+        for field, val in update_data.items():
+            setattr(prod, field, val)
+
+        db.commit()
+        db.expire_all()
+        db.refresh(prod)
+
+        # If stock is positive, notify pending subscribers
+        if prod.stock_quantity > 0:
+            dispatch_pending_restock_notifications(product_id, None, db)
+
+        return format_product_response(prod, db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update product: {str(e)}"
+        )
 
 def dispatch_pending_restock_notifications(product_id: int, variant_id: Optional[int], db: Session):
     prod = db.query(Product).filter(Product.id == product_id).first()

@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { api } from '../services/api';
 
 export const CartPage: React.FC = () => {
+  const { isAdmin } = useAuth();
   const { cart, updateQuantity, removeFromCart } = useCart();
   const { showToast } = useToast();
   const { formatPrice, currentCurrencyInfo } = useCurrency();
   const navigate = useNavigate();
+
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_amount: number } | null>(null);

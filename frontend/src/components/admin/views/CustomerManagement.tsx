@@ -4,8 +4,7 @@ import {
   Eye,
   CheckCircle2,
   XCircle,
-  ShoppingBag,
-  Heart,
+  PackageCheck,
   Star,
   MapPin,
   Calendar,
@@ -117,11 +116,10 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
       sortable: true,
       render: (c) => (
         <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-            c.is_active
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${c.is_active
               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
               : 'bg-rose-50 text-rose-700 border border-rose-200'
-          }`}
+            }`}
         >
           {c.is_active ? 'ACTIVE' : 'SUSPENDED'}
         </span>
@@ -151,7 +149,7 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
             Customers &amp; Client 360°
           </h2>
           <p className="text-xs text-gray-500">
-            View registered clients, order frequency, lifetime spending, wishlists, and account status.
+            View registered clients, order frequency, lifetime spending, order history, and account status.
           </p>
         </div>
 
@@ -163,9 +161,8 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
           title="Refresh customer list"
         >
           <RefreshCw
-            className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${
-              isRefreshing ? 'animate-spin' : ''
-            }`}
+            className={`w-3.5 h-3.5 text-[#D84B7E] transition-transform duration-500 ${isRefreshing ? 'animate-spin' : ''
+              }`}
           />
           <span>{isRefreshing ? 'Refreshing...' : 'Refresh Customers'}</span>
         </button>
@@ -199,11 +196,10 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
             <button
               type="button"
               onClick={() => handleToggleStatus(c)}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                c.is_active
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${c.is_active
                   ? 'border-amber-200 text-amber-700 hover:bg-amber-50'
                   : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-              }`}
+                }`}
               title={c.is_active ? 'Suspend account' : 'Activate account'}
             >
               {c.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
@@ -279,11 +275,10 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
                     <button
                       onClick={() => handleToggleStatus(customerDetail)}
                       disabled={isTogglingStatus}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                        customerDetail.is_active
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${customerDetail.is_active
                           ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
                           : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                      }`}
+                        }`}
                     >
                       {customerDetail.is_active ? 'Suspend Account' : 'Reactivate Account'}
                     </button>
@@ -327,7 +322,7 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
                 {/* Recent Orders */}
                 <div className="p-4 rounded-2xl bg-white border border-gray-200 space-y-3">
                   <span className="font-bold text-gray-800 flex items-center gap-1.5">
-                    <ShoppingBag className="w-3.5 h-3.5 text-[#D84B7E]" />
+                    <PackageCheck className="w-3.5 h-3.5 text-[#D84B7E]" />
                     Purchase History ({customerDetail.recent_orders.length})
                   </span>
 
@@ -346,9 +341,8 @@ export const CustomerManagement: React.FC<CustomerManagementProps> = ({
                               {ord.currency} {ord.total_amount}
                             </span>
                             <span
-                              className={`block text-[9px] font-bold ${
-                                ord.payment_status === 'Paid' ? 'text-emerald-600' : 'text-amber-600'
-                              }`}
+                              className={`block text-[9px] font-bold ${ord.payment_status === 'Paid' ? 'text-emerald-600' : 'text-amber-600'
+                                }`}
                             >
                               {ord.payment_status}
                             </span>

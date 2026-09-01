@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Store, Heart, ShoppingBag, User as UserIcon } from 'lucide-react';
+import { Home, Store, Heart, ShoppingBag, User as UserIcon, Shield } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
@@ -9,15 +9,23 @@ export const MobileNav: React.FC = () => {
   const location = useLocation();
   const { itemCount, openCart } = useCart();
   const { wishlist } = useWishlist();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
 
-  const mobileItems = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Shop', path: '/shop', icon: Store },
-    { name: 'Wishlist', path: '/wishlist', icon: Heart, badge: wishlist.length },
-    { name: 'Bag', action: openCart, icon: ShoppingBag, badge: itemCount },
-    { name: 'Account', path: isAuthenticated ? '/account' : '/login', icon: UserIcon },
-  ];
+  // Admins do not have customer shopping options (Wishlist / Bag)
+  const mobileItems = isAdmin
+    ? [
+        { name: 'Home', path: '/', icon: Home },
+        { name: 'Shop', path: '/shop', icon: Store },
+        { name: 'Admin Studio', path: '/admin', icon: Shield },
+        { name: 'Account', path: '/account', icon: UserIcon },
+      ]
+    : [
+        { name: 'Home', path: '/', icon: Home },
+        { name: 'Shop', path: '/shop', icon: Store },
+        { name: 'Wishlist', path: '/wishlist', icon: Heart, badge: wishlist.length },
+        { name: 'Bag', action: openCart, icon: ShoppingBag, badge: itemCount },
+        { name: 'Account', path: isAuthenticated ? '/account' : '/login', icon: UserIcon },
+      ];
 
   return (
     <nav

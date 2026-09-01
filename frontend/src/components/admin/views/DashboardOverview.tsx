@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   DollarSign,
-  ShoppingCart,
+  ClipboardList,
   Package,
   Users,
   AlertTriangle,
@@ -99,7 +99,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             onClick={() => onNavigateTab('orders')}
             className="px-4 py-2.5 bg-black/30 hover:bg-black/40 border border-white/30 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            <ShoppingCart className="w-3.5 h-3.5" />
+            <ClipboardList className="w-3.5 h-3.5" />
             <span>Orders Board</span>
           </button>
 
@@ -134,7 +134,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           value={totalOrders}
           change="+12.5% this week"
           isPositive={true}
-          icon={ShoppingCart}
+          icon={ClipboardList}
           color="from-[#9C2758] to-[#54122E]"
           subtext={`${pendingOrders} awaiting fulfillment`}
           badge={pendingOrders > 0 ? `${pendingOrders} Pending` : undefined}

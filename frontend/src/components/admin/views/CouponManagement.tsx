@@ -155,7 +155,7 @@ export const CouponManagement: React.FC<CouponManagementProps> = ({
             Coupons &amp; Promotional Discounts
           </h2>
           <p className="text-xs text-gray-500">
-            Create coupon codes, percentage discounts, minimum cart spend rules, and expiry dates.
+            Create coupon codes, percentage discounts, minimum order value rules, and expiry dates.
           </p>
         </div>
 
@@ -249,7 +249,7 @@ export const CouponManagement: React.FC<CouponManagementProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-gray-700">Min Cart Spend (INR)</label>
+                  <label className="font-bold text-gray-700">Min Order Value (INR)</label>
                   <input
                     type="number"
                     min={0}
@@ -306,7 +306,7 @@ export const CouponManagement: React.FC<CouponManagementProps> = ({
       <ConfirmDialog
         isOpen={Boolean(deleteModalCoupon)}
         title={`Delete Coupon "${deleteModalCoupon?.code}"?`}
-        message="This discount code will immediately be invalidated for all checkout orders."
+        message="This discount code will immediately be invalidated for all customer orders."
         confirmLabel="Yes, Delete Coupon"
         variant="danger"
         isLoading={isSaving}

@@ -4,11 +4,15 @@ import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const CartDrawer: React.FC = () => {
+  const { isAdmin } = useAuth();
   const { cart, isCartOpen, closeCart, updateQuantity, removeFromCart } = useCart();
   const { formatPrice, currentCurrencyInfo } = useCurrency();
   const navigate = useNavigate();
+
+  if (isAdmin) return null;
 
   const subtotalInINR = cart ? cart.subtotal : 0;
   const freeShippingThresholdInINR = 1500;

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Star, Plus, Trash2, Edit, X } from 'lucide-react';
+import { Heart, Star, Plus, X, Edit, Trash2 } from 'lucide-react';
 import { Product, Category, ProductVariant } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
-import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { api } from '../../services/api';
 import { ProductFormModal } from './ProductFormModal';
 
 interface ProductCardProps {
@@ -17,7 +17,12 @@ interface ProductCardProps {
   onUpdate?: (updatedProduct: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product: initialProduct, categories = [], onDelete, onUpdate }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product: initialProduct,
+  categories = [],
+  onDelete,
+  onUpdate,
+}) => {
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { isAdmin } = useAuth();
@@ -191,11 +196,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product: initialProduc
                     <span>⚡ Only {product.stock_quantity} Left</span>
                   </span>
                 )}
-                {product.featured && (
-                  <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-[#D84B7E] text-[#FDF4F7] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs w-fit">
-                    {isFashion || isAccessories ? 'Featured' : 'Hero Ritual'}
-                  </span>
-                )}
                 {product.sale_price && (
                   <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-[#111111] text-[#FDF4F7] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs w-fit">
                     Offer
@@ -205,96 +205,100 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product: initialProduc
             )}
           </div>
 
-          {/* Wishlist Heart Button */}
-          <button
-            onClick={() => toggleWishlist(product)}
-            className={`absolute top-2.5 right-2.5 sm:top-3 sm:right-3 p-2 sm:p-2.5 rounded-full transition-all duration-300 shadow-md cursor-pointer z-10 touch-target min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center ${
-              isSaved
-                ? 'bg-[#D84B7E] text-[#FDF4F7]'
-                : 'bg-white/85 backdrop-blur-md text-[#111111] hover:bg-white hover:scale-110'
-            }`}
-            aria-label="Add to Wishlist"
-          >
-            <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isSaved ? 'fill-[#FDF4F7]' : ''}`} />
-          </button>
-
-          {/* Quick Add Button or Size Selection Pop-up */}
-          {product.stock_quantity !== undefined && product.stock_quantity <= 0 ? (
-            <div className="absolute bottom-2.5 inset-x-2.5 sm:bottom-3 sm:inset-x-3 z-10">
-              <button
-                disabled
-                className="w-full min-h-[40px] sm:min-h-[44px] py-2 sm:py-2.5 bg-gray-500/90 text-white text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl backdrop-blur-md shadow-md cursor-not-allowed"
-              >
-                Out of Stock
-              </button>
-            </div>
-          ) : isSelectingSize ? (
-            <div
-              className="absolute inset-x-0 bottom-0 bg-[#FFF8FA]/98 backdrop-blur-lg p-2.5 sm:p-3.5 pt-2.5 rounded-b-2xl border-t-2 border-[#F1BCCE] z-20 shadow-2xl space-y-2 animate-in fade-in slide-in-from-bottom duration-200"
-              onClick={(e) => e.stopPropagation()}
+          {/* Wishlist Heart Button - Customer Only */}
+          {!isAdmin && (
+            <button
+              onClick={() => toggleWishlist(product)}
+              className={`absolute top-2.5 right-2.5 sm:top-3 sm:right-3 p-2 sm:p-2.5 rounded-full transition-all duration-300 shadow-md cursor-pointer z-10 touch-target min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center ${
+                isSaved
+                  ? 'bg-[#D84B7E] text-[#FDF4F7]'
+                  : 'bg-white/85 backdrop-blur-md text-[#111111] hover:bg-white hover:scale-110'
+              }`}
+              aria-label="Add to Wishlist"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] sm:text-[11px] font-serif font-bold text-[#111111] uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D84B7E] inline-block animate-pulse" />
-                  Size: <span className="text-[#D84B7E] font-bold">{selectedSize}</span>
-                </span>
+              <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isSaved ? 'fill-[#FDF4F7]' : ''}`} />
+            </button>
+          )}
+
+          {/* Quick Add Button or Size Selection Pop-up - Customer Only */}
+          {!isAdmin && (
+            product.stock_quantity !== undefined && product.stock_quantity <= 0 ? (
+              <div className="absolute bottom-2.5 inset-x-2.5 sm:bottom-3 sm:inset-x-3 z-10">
                 <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsSelectingSize(false);
-                  }}
-                  className="p-1 text-gray-400 hover:text-black rounded-full transition-colors cursor-pointer"
-                  title="Close size selector"
+                  disabled
+                  className="w-full min-h-[40px] sm:min-h-[44px] py-2 sm:py-2.5 bg-gray-500/90 text-white text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl backdrop-blur-md shadow-md cursor-not-allowed"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  Out of Stock
                 </button>
               </div>
-
-              {/* Sizes Grid */}
-              <div className="flex flex-wrap gap-1 max-h-20 sm:max-h-24 overflow-y-auto touch-scroll">
-                {availableSizes.map((sizeItem) => (
+            ) : isSelectingSize ? (
+              <div
+                className="absolute inset-x-0 bottom-0 bg-[#FFF8FA]/98 backdrop-blur-lg p-2.5 sm:p-3.5 pt-2.5 rounded-b-2xl border-t-2 border-[#F1BCCE] z-20 shadow-2xl space-y-2 animate-in fade-in slide-in-from-bottom duration-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] sm:text-[11px] font-serif font-bold text-[#111111] uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D84B7E] inline-block animate-pulse" />
+                    Size: <span className="text-[#D84B7E] font-bold">{selectedSize}</span>
+                  </span>
                   <button
-                    key={sizeItem.label}
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setSelectedSize(sizeItem.label);
+                      setIsSelectingSize(false);
                     }}
-                    className={`px-2 py-1 rounded-lg font-bold text-[11px] sm:text-xs border transition-all cursor-pointer shadow-2xs flex-1 min-w-[32px] text-center touch-target min-h-[36px] ${
-                      selectedSize === sizeItem.label
-                        ? 'bg-[#D84B7E] text-white border-[#D84B7E] shadow-sm scale-105'
-                        : 'bg-white text-[#111111] border-[#F1BCCE] hover:bg-[#FCE7F0] hover:border-[#D84B7E]'
-                    }`}
+                    className="p-1 text-gray-400 hover:text-black rounded-full transition-colors cursor-pointer"
+                    title="Close size selector"
                   >
-                    {sizeItem.label}
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                ))}
-              </div>
+                </div>
 
-              {/* Quick Add Button inside the popup */}
-              <button
-                type="button"
-                disabled={isAdding || !selectedSize}
-                onClick={handleConfirmQuickAdd}
-                className="w-full py-2 bg-[#D84B7E] hover:bg-[#111111] text-[#FDF4F7] text-[10px] sm:text-xs uppercase tracking-widest font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 min-h-[38px]"
-              >
-                <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {isAdding ? 'Adding...' : `Add Size ${selectedSize}`}
-              </button>
-            </div>
-          ) : (
-            <div className="absolute bottom-2.5 inset-x-2.5 sm:bottom-3 sm:inset-x-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 transform translate-y-0 lg:translate-y-2 lg:group-hover:translate-y-0 z-10">
-              <button
-                onClick={handleQuickAddClick}
-                className="w-full min-h-[40px] sm:min-h-[44px] py-2 sm:py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-[#FDF4F7] text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-1.5 shadow-lg cursor-pointer active:scale-95 touch-target"
-              >
-                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                Quick Add
-              </button>
-            </div>
+                {/* Sizes Grid */}
+                <div className="flex flex-wrap gap-1 max-h-20 sm:max-h-24 overflow-y-auto touch-scroll">
+                  {availableSizes.map((sizeItem) => (
+                    <button
+                      key={sizeItem.label}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedSize(sizeItem.label);
+                      }}
+                      className={`px-2 py-1 rounded-lg font-bold text-[11px] sm:text-xs border transition-all cursor-pointer shadow-2xs flex-1 min-w-[32px] text-center touch-target min-h-[36px] ${
+                        selectedSize === sizeItem.label
+                          ? 'bg-[#D84B7E] text-white border-[#D84B7E] shadow-sm scale-105'
+                          : 'bg-white text-[#111111] border-[#F1BCCE] hover:bg-[#FCE7F0] hover:border-[#D84B7E]'
+                      }`}
+                    >
+                      {sizeItem.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Quick Add Button inside the popup */}
+                <button
+                  type="button"
+                  disabled={isAdding || !selectedSize}
+                  onClick={handleConfirmQuickAdd}
+                  className="w-full py-2 bg-[#D84B7E] hover:bg-[#111111] text-[#FDF4F7] text-[10px] sm:text-xs uppercase tracking-widest font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 min-h-[38px]"
+                >
+                  <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  {isAdding ? 'Adding...' : `Add Size ${selectedSize}`}
+                </button>
+              </div>
+            ) : (
+              <div className="absolute bottom-2.5 inset-x-2.5 sm:bottom-3 sm:inset-x-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 transform translate-y-0 lg:translate-y-2 lg:group-hover:translate-y-0 z-10">
+                <button
+                  onClick={handleQuickAddClick}
+                  className="w-full min-h-[40px] sm:min-h-[44px] py-2 sm:py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-[#FDF4F7] text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-1.5 shadow-lg cursor-pointer active:scale-95 touch-target"
+                >
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  Quick Add
+                </button>
+              </div>
+            )
           )}
         </div>
 

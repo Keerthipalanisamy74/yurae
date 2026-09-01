@@ -1,12 +1,17 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Heart, ShoppingBag, Trash2, ArrowRight } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useAuth } from '../context/AuthContext';
 
 export const WishlistPage: React.FC = () => {
+  const { isAdmin } = useAuth();
   const { wishlist, toggleWishlist, moveToCart } = useWishlist();
   const { formatPrice } = useCurrency();
+
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
 
   if (wishlist.length === 0) {
     return (

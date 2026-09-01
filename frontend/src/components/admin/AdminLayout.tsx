@@ -6,7 +6,7 @@ import {
   Package,
   Layers,
   Warehouse,
-  ShoppingCart,
+  ClipboardList,
   Users,
   CreditCard,
   Truck,
@@ -110,10 +110,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         {
           id: 'orders',
           label: 'Orders',
-          icon: ShoppingCart,
+          icon: ClipboardList,
           badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined,
           badgeColor: 'bg-rose-100 text-rose-700',
         },
+        { id: 'payments', label: 'Payment Ledgers', icon: CreditCard },
       ],
     },
     {

@@ -196,19 +196,21 @@ export const Navbar: React.FC = () => {
               <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            {/* Wishlist */}
-            <Link
-              to="/wishlist"
-              className="p-2 text-[#111111] hover:text-[#D84B7E] transition-colors relative cursor-pointer rounded-full hover:bg-[#FCE7F0]/60 shrink-0 touch-target"
-              aria-label="Wishlist"
-            >
-              <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
-              {wishlist.length > 0 && (
-                <span className="absolute top-1 right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#D84B7E] text-[#FDF4F7] text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
-                  {wishlist.length}
-                </span>
-              )}
-            </Link>
+            {/* Wishlist - ONLY for non-admins */}
+            {!isAdmin && (
+              <Link
+                to="/wishlist"
+                className="p-2 text-[#111111] hover:text-[#D84B7E] transition-colors relative cursor-pointer rounded-full hover:bg-[#FCE7F0]/60 shrink-0 touch-target"
+                aria-label="Wishlist"
+              >
+                <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                {wishlist.length > 0 && (
+                  <span className="absolute top-1 right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#D84B7E] text-[#FDF4F7] text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                    {wishlist.length}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* Myntra-Style Luxury Profile Dropdown */}
             <div
@@ -289,21 +291,23 @@ export const Navbar: React.FC = () => {
                         </div>
                       </Link>
 
-                      <Link
-                        to="/wishlist"
-                        onClick={() => setIsProfileMenuOpen(false)}
-                        className="flex items-center justify-between py-1.5 px-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FAF0F4] transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Heart className="w-4 h-4 text-gray-400" />
-                          <span>Wishlist</span>
-                        </div>
-                        {wishlist.length > 0 && (
-                          <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-1.5 py-0.2 rounded-full">
-                            {wishlist.length}
-                          </span>
-                        )}
-                      </Link>
+                      {!isAdmin && (
+                        <Link
+                          to="/wishlist"
+                          onClick={() => setIsProfileMenuOpen(false)}
+                          className="flex items-center justify-between py-1.5 px-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FAF0F4] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Heart className="w-4 h-4 text-gray-400" />
+                            <span>Wishlist</span>
+                          </div>
+                          {wishlist.length > 0 && (
+                            <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-1.5 py-0.2 rounded-full">
+                              {wishlist.length}
+                            </span>
+                          )}
+                        </Link>
+                      )}
 
                       <Link
                         to="/contact"
@@ -388,15 +392,26 @@ export const Navbar: React.FC = () => {
               </AnimatePresence>
             </div>
 
-            {/* Cart Drawer Toggle */}
-            <button
-              onClick={openCart}
-              className="p-2 sm:px-3 sm:py-2 bg-[#D84B7E] text-[#FDF4F7] border border-[#D84B7E] hover:bg-[#111111] hover:text-[#FDF4F7] transition-all rounded-full flex items-center gap-1.5 sm:gap-2 relative shadow-xs cursor-pointer shrink-0 touch-target active:scale-95"
-              aria-label="Shopping Cart"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FDF4F7]" />
-              <span className="text-xs font-bold px-0.5 text-[#FDF4F7]">{itemCount}</span>
-            </button>
+            {/* Cart Drawer Toggle or Admin Studio Button */}
+            {!isAdmin ? (
+              <button
+                onClick={openCart}
+                className="p-2 sm:px-3 sm:py-2 bg-[#D84B7E] text-[#FDF4F7] border border-[#D84B7E] hover:bg-[#111111] hover:text-[#FDF4F7] transition-all rounded-full flex items-center gap-1.5 sm:gap-2 relative shadow-xs cursor-pointer shrink-0 touch-target active:scale-95"
+                aria-label="Shopping Cart"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FDF4F7]" />
+                <span className="text-xs font-bold px-0.5 text-[#FDF4F7]">{itemCount}</span>
+              </button>
+            ) : (
+              <Link
+                to="/admin"
+                className="p-2 sm:px-3.5 sm:py-2 bg-[#111111] text-white hover:bg-[#D84B7E] transition-all rounded-full flex items-center gap-1.5 shadow-xs shrink-0 touch-target font-bold text-xs uppercase tracking-wider"
+                title="Open Admin Management Studio"
+              >
+                <Shield className="w-3.5 h-3.5 text-[#D84B7E]" />
+                <span className="hidden sm:inline">Admin Studio</span>
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -557,36 +572,40 @@ export const Navbar: React.FC = () => {
                     <Package className="w-4 h-4 text-[#D84B7E]" />
                     <span className="font-semibold">Track Your Order</span>
                   </Link>
-                  <Link
-                    to="/wishlist"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-between text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Heart className="w-4 h-4 text-[#D84B7E]" />
-                      <span className="font-semibold">Saved Wishlist</span>
-                    </div>
-                    {wishlist.length > 0 && (
-                      <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-2 py-0.5 rounded-full">
-                        {wishlist.length}
-                      </span>
-                    )}
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      openCart();
-                    }}
-                    className="w-full flex items-center justify-between text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <ShoppingBag className="w-4 h-4 text-[#D84B7E]" />
-                      <span className="font-semibold">Shopping Bag</span>
-                    </div>
-                    <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-2 py-0.5 rounded-full">
-                      {itemCount}
-                    </span>
-                  </button>
+                  {!isAdmin && (
+                    <>
+                      <Link
+                        to="/wishlist"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center justify-between text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Heart className="w-4 h-4 text-[#D84B7E]" />
+                          <span className="font-semibold">Saved Wishlist</span>
+                        </div>
+                        {wishlist.length > 0 && (
+                          <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-2 py-0.5 rounded-full">
+                            {wishlist.length}
+                          </span>
+                        )}
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          openCart();
+                        }}
+                        className="w-full flex items-center justify-between text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <ShoppingBag className="w-4 h-4 text-[#D84B7E]" />
+                          <span className="font-semibold">Shopping Bag</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-[#D84B7E] text-white px-2 py-0.5 rounded-full">
+                          {itemCount}
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* 4. CUSTOMER CARE & POLICIES */}

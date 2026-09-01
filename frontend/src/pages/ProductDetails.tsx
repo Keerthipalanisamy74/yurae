@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Star, Heart, Plus, Minus, ShieldCheck, Truck, RotateCcw,
-  ChevronDown, ChevronUp, Trash2, Edit, Bell, Mail, CheckCircle2,
-  Camera, Image as ImageIcon, X, ZoomIn, Upload, Sparkles, Share2, Ruler
+  ChevronDown, ChevronUp, Bell, Mail, CheckCircle2,
+  Camera, Image as ImageIcon, X, ZoomIn, Upload, Sparkles, Share2, Ruler,
+  Edit, Trash2
 } from 'lucide-react';
 import { Product, ProductVariant, Review, Category } from '../types';
 import { api } from '../services/api';
@@ -149,6 +150,19 @@ export const ProductDetails: React.FC = () => {
     }
   };
 
+  const handleDeleteThisProduct = async () => {
+    if (!product) return;
+    if (window.confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
+      try {
+        await api.delete(`/products/${product.id}`);
+        showToast(`Product "${product.name}" deleted successfully`, 'success');
+        navigate('/shop');
+      } catch (err: any) {
+        showToast(err?.response?.data?.detail || 'Failed to delete product', 'error');
+      }
+    }
+  };
+
   const toggleAccordion = (key: string) => {
     setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -188,19 +202,6 @@ export const ProductDetails: React.FC = () => {
       showToast(msg, 'error');
     } finally {
       setIsSubmittingNotify(false);
-    }
-  };
-
-  const handleDeleteThisProduct = async () => {
-    if (!product) return;
-    if (window.confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
-      try {
-        await api.delete(`/products/${product.id}`);
-        showToast(`Product "${product.name}" deleted successfully`, 'success');
-        navigate('/shop');
-      } catch (err: any) {
-        showToast(err?.response?.data?.detail || 'Failed to delete product', 'error');
-      }
     }
   };
 
@@ -418,15 +419,17 @@ export const ProductDetails: React.FC = () => {
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
-              <button
-                onClick={() => toggleWishlist(product)}
-                className={`absolute top-3 right-3 p-2.5 rounded-full shadow-md transition-all cursor-pointer ${
-                  isSaved ? 'bg-[#D84B7E] text-[#FDF4F7]' : 'bg-white/85 backdrop-blur-md text-[#111111] hover:scale-110'
-                }`}
-                title="Save to wishlist"
-              >
-                <Heart className={`w-4 h-4 ${isSaved ? 'fill-[#FDF4F7]' : ''}`} />
-              </button>
+              {!isAdmin && (
+                <button
+                  onClick={() => toggleWishlist(product)}
+                  className={`absolute top-3 right-3 p-2.5 rounded-full shadow-md transition-all cursor-pointer ${
+                    isSaved ? 'bg-[#D84B7E] text-[#FDF4F7]' : 'bg-white/85 backdrop-blur-md text-[#111111] hover:scale-110'
+                  }`}
+                  title="Save to wishlist"
+                >
+                  <Heart className={`w-4 h-4 ${isSaved ? 'fill-[#FDF4F7]' : ''}`} />
+                </button>
+              )}
             </div>
 
             {/* Thumbnail Selectors */}
@@ -608,20 +611,6 @@ export const ProductDetails: React.FC = () => {
                 );
               }
 
-              if (isAdmin) {
-                return (
-                  <div className="pt-0.5">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-amber-50 text-amber-800 text-[11px] font-semibold rounded-full border border-amber-300">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      <span>
-                        Admin Stock: {currentStock} units in stock
-                        {selectedVariant ? ` (${selectedVariant.variant_value})` : ''}
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
-
               return null;
             })()}
 
@@ -637,7 +626,32 @@ export const ProductDetails: React.FC = () => {
 
               return (
                 <div className="space-y-3 pt-1">
-                  {isOutOfStock ? (
+                  {isAdmin ? (
+                    <div className="space-y-2.5 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <button
+                          onClick={() => setIsEditModalOpen(true)}
+                          className="w-full py-3 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          Edit Product &amp; Photos
+                        </button>
+                        <button
+                          onClick={handleDeleteThisProduct}
+                          className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete Product
+                        </button>
+                      </div>
+                      <Link
+                        to="/admin"
+                        className="w-full py-2.5 px-4 bg-[#FFF8FA] hover:bg-[#FCE7F0] border border-[#F1BCCE] text-[#D84B7E] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs"
+                      >
+                        Open Full Admin Catalog Studio →
+                      </Link>
+                    </div>
+                  ) : isOutOfStock ? (
                     <div className="p-4 bg-[#FFF0F5] border border-[#F1BCCE] rounded-2xl space-y-3 shadow-xs">
                       <div className="flex items-start gap-2.5">
                         <div className="p-2 bg-white text-[#D84B7E] rounded-xl border border-[#F1BCCE] shrink-0 shadow-2xs">
@@ -649,43 +663,40 @@ export const ProductDetails: React.FC = () => {
                               ? `Size ${selectedVariant.variant_value} is Currently Sold Out`
                               : 'This Item is Currently Sold Out'}
                           </h4>
-                          <p className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">
-                            Leave your email below to receive an instant priority notification the moment inventory is restocked.
+                          <p className="text-xs text-gray-600">
+                            Enter your email to receive an instant priority restock notification when units arrive.
                           </p>
                         </div>
                       </div>
 
                       {hasSubscribedForCurrent ? (
-                        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>
-                            ✓ You're on the priority list! We'll alert you at <span className="underline font-bold">{notifyEmail}</span> the moment {selectedVariant ? `Size ${selectedVariant.variant_value}` : 'this item'} returns.
-                          </span>
+                        <div className="p-3 bg-[#EAF8F0] border border-[#A7E2C0] rounded-xl flex items-center gap-2 text-xs text-[#1E7246] font-bold">
+                          <CheckCircle2 className="w-4 h-4 shrink-0 text-[#1E7246]" />
+                          <span>You're on the VIP waitlist for this piece! We'll alert you right away.</span>
                         </div>
                       ) : (
                         <form onSubmit={handleSubscribeStockAlert} className="space-y-2">
-                          <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex gap-2">
                             <div className="relative flex-1">
-                              <Mail className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                               <input
                                 type="email"
+                                required
                                 value={notifyEmail}
                                 onChange={(e) => setNotifyEmail(e.target.value)}
-                                required
                                 placeholder="Enter your email address..."
-                                className="w-full pl-9 pr-3 py-2 bg-white border border-[#F1BCCE] rounded-full text-xs outline-none focus:border-[#D84B7E] text-[#111111]"
+                                className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#F1BCCE] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#D84B7E] shadow-2xs"
                               />
                             </div>
                             <button
                               type="submit"
                               disabled={isSubmittingNotify}
-                              className="px-5 py-2 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                              className="px-4 py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
                             >
-                              <Bell className="w-3.5 h-3.5" />
-                              {isSubmittingNotify ? 'Registering...' : 'Notify Me'}
+                              {isSubmittingNotify ? 'Saving...' : 'Notify Me'}
                             </button>
                           </div>
-                          <p className="text-[10px] text-gray-500 italic pl-1">
+                          <p className="text-[10px] text-gray-500">
                             Private alert • We will only email you once when restocked.
                           </p>
                         </form>
@@ -744,25 +755,6 @@ export const ProductDetails: React.FC = () => {
                 </div>
               );
             })()}
-
-            {isAdmin && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="w-full py-2.5 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Edit className="w-3.5 h-3.5" />
-                  Admin: Edit Product & Photos
-                </button>
-                <button
-                  onClick={handleDeleteThisProduct}
-                  className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Admin: Delete Product
-                </button>
-              </div>
-            )}
 
             {/* INSTANT SOCIAL SHARING BAR */}
             <div className="p-3.5 sm:p-4 bg-gradient-to-br from-[#FFF8FA] via-[#FDF4F7] to-[#FFF0F5] border border-[#F1BCCE] rounded-2xl space-y-2.5 shadow-2xs">

@@ -53,39 +53,39 @@ export const App: React.FC = () => {
                         <Route path="/skincare" element={<Shop categorySlug="skincare" />} />
                         <Route path="/fashion" element={<Shop categorySlug="fashion" />} />
                         <Route path="/accessories" element={<Shop categorySlug="accessories" />} />
-                      <Route path="/product/:slug" element={<ProductDetails />} />
-                      <Route path="/cart" element={<CartPage />} />
-                      <Route path="/checkout" element={<CheckoutPage />} />
-                      <Route path="/wishlist" element={<WishlistPage />} />
-                      <Route path="/account" element={<AccountPage />} />
-                      <Route path="/track" element={<TrackingPage />} />
-                      <Route path="/track/:orderNumber" element={<TrackingPage />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/register" element={<Register />} />
-                      <Route path="/forgot-password" element={<ForgotPassword />} />
-                      <Route path="/admin" element={<AdminDashboard />} />
-                      <Route path="/about" element={<AboutPage />} />
-                      <Route path="/contact" element={<ContactPage />} />
-                      <Route path="/faq" element={<FAQHelpPage />} />
-                      <Route path="/help" element={<FAQHelpPage />} />
-                      <Route path="/policies" element={<PoliciesHubPage />} />
-                      <Route path="/legal" element={<PoliciesHubPage />} />
-                      <Route path="/shipping" element={<ShippingPolicyPage />} />
-                      <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
-                      <Route path="/returns" element={<ReturnRefundPolicyPage />} />
-                      <Route path="/return-policy" element={<ReturnRefundPolicyPage />} />
-                      <Route path="/refund-policy" element={<ReturnRefundPolicyPage />} />
-                      <Route path="/privacy" element={<PrivacyPolicyPage />} />
-                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-                      <Route path="/terms" element={<TermsConditionsPage />} />
-                      <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
-                      <Route path="*" element={<Home />} />
-                    </Routes>
-                  </main>
-                  <Footer />
-                  <MobileNav />
-                  <InstallAppPrompt />
-                </div>
+                        <Route path="/product/:slug" element={<ProductDetails />} />
+                        <Route path="/cart" element={<CartPage />} />
+                        <Route path="/checkout" element={<CheckoutPage />} />
+                        <Route path="/wishlist" element={<WishlistPage />} />
+                        <Route path="/account" element={<AccountPage />} />
+                        <Route path="/track" element={<TrackingPage />} />
+                        <Route path="/track/:orderNumber" element={<TrackingPage />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/admin" element={<AdminDashboard />} />
+                        <Route path="/about" element={<AboutPage />} />
+                        <Route path="/contact" element={<ContactPage />} />
+                        <Route path="/faq" element={<FAQHelpPage />} />
+                        <Route path="/help" element={<FAQHelpPage />} />
+                        <Route path="/policies" element={<PoliciesHubPage />} />
+                        <Route path="/legal" element={<PoliciesHubPage />} />
+                        <Route path="/shipping" element={<ShippingPolicyPage />} />
+                        <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+                        <Route path="/returns" element={<ReturnRefundPolicyPage />} />
+                        <Route path="/return-policy" element={<ReturnRefundPolicyPage />} />
+                        <Route path="/refund-policy" element={<ReturnRefundPolicyPage />} />
+                        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                        <Route path="/terms" element={<TermsConditionsPage />} />
+                        <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
+                        <Route path="*" element={<Home />} />
+                      </Routes>
+                    </main>
+                    <Footer />
+                    <MobileNav />
+                    <InstallAppPrompt />
+                  </div>
                 </CategoryProvider>
               </WishlistProvider>
             </CartProvider>

@@ -7,8 +7,13 @@ from app.database.session import engine, Base
 import app.models.models  # Register all models with Base.metadata
 from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo, webhooks, fulfillment, marketing, newsletter
 
-# Create tables automatically
-Base.metadata.create_all(bind=engine)
+# Create tables and sync schema automatically on startup
+try:
+    from app.database.migrate_all import run_full_schema_migration
+    run_full_schema_migration()
+except Exception as e:
+    print(f"[STARTUP] Schema sync notice: {e}")
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

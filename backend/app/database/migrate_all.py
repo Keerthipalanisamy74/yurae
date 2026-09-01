@@ -24,6 +24,10 @@ def run_full_schema_migration():
 
     # 2. Add missing columns safely per table
     schema_definitions = {
+        "users": [
+            ("reset_otp", "VARCHAR(10) NULL"),
+            ("reset_otp_expires_at", "DATETIME NULL"),
+        ],
         "products": [
             ("weight_kg", "FLOAT DEFAULT 0.35"),
             ("length_cm", "FLOAT DEFAULT 15.0"),
@@ -74,10 +78,15 @@ def run_full_schema_migration():
             ("updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
         ],
         "addresses": [
+            ("address_type", "VARCHAR(50) DEFAULT 'Home'"),
             ("building_or_flat", "VARCHAR(255) NULL"),
             ("landmark", "VARCHAR(255) NULL"),
             ("country", "VARCHAR(100) DEFAULT 'India'"),
             ("is_default", "BOOLEAN DEFAULT 0"),
+        ],
+        "reviews": [
+            ("photo_url", "LONGTEXT NULL"),
+            ("is_approved", "BOOLEAN DEFAULT 1"),
         ],
         "payments": [
             ("currency", "VARCHAR(10) DEFAULT 'INR' NOT NULL"),
@@ -90,6 +99,27 @@ def run_full_schema_migration():
             ("customs_currency", "VARCHAR(10) NULL"),
             ("customs_hs_code", "VARCHAR(50) NULL"),
             ("customs_description", "VARCHAR(255) NULL"),
+        ],
+        "contact_messages": [
+            ("source", "VARCHAR(50) DEFAULT 'CONTACT_FORM'"),
+            ("order_number", "VARCHAR(100) NULL"),
+            ("phone", "VARCHAR(50) NULL"),
+            ("subject", "VARCHAR(255) NULL"),
+            ("rating", "VARCHAR(50) NULL"),
+            ("status", "VARCHAR(50) DEFAULT 'UNREAD'"),
+            ("admin_notes", "TEXT NULL"),
+            ("updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
+        ],
+        "return_requests": [
+            ("request_type", "VARCHAR(50) DEFAULT 'EXCHANGE'"),
+            ("preferred_exchange_size", "VARCHAR(100) NULL"),
+            ("refund_mode", "VARCHAR(50) DEFAULT 'ORIGINAL_PAYMENT'"),
+            ("admin_notes", "TEXT NULL"),
+            ("photos", "LONGTEXT NULL"),
+            ("items_json", "TEXT NULL"),
+            ("reverse_awb_code", "VARCHAR(100) NULL"),
+            ("reverse_courier_name", "VARCHAR(100) NULL"),
+            ("pickup_date", "VARCHAR(100) NULL"),
         ]
     }
 

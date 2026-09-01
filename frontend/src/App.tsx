@@ -40,7 +40,7 @@ export const App: React.FC = () => {
             <CartProvider>
               <WishlistProvider>
                 <CategoryProvider>
-                  <div className="min-h-screen flex flex-col bg-[#FDF4F7] text-[#111111]">
+                  <div className="min-h-screen flex flex-col bg-[#F8B4CB] text-[#111111]">
                     <WelcomeSplashIntro />
                     <Navbar />
                     <MarketingBannerHub />

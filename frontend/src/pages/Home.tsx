@@ -55,7 +55,7 @@ export const Home: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-10 sm:space-y-14">
+    <div className="space-y-10 sm:space-y-14 bg-[#F8B4CB] pb-24">
       <SEO
         title="YURAE — Luxury Outfits & Korean-Inspired Botanical Skincare"
         description="Discover bespoke minimalist fashion, artisanal jewelry, and Korean-inspired botanical skincare rituals crafted for radiant, timeless elegance."
@@ -64,7 +64,7 @@ export const Home: React.FC = () => {
       />
       
       {/* 1. HERO SECTION */}
-      <section className="relative flex items-center bg-gradient-to-br from-[#F8B4CB] via-[#F6A2BE] to-[#F48FB1] overflow-hidden border-b-2 border-[#F06292] shadow-sm">
+      <section className="relative flex items-center bg-gradient-to-b from-[#F8B4CB] via-[#F6A2BE] to-[#F48FB1] overflow-hidden border-b-2 border-[#F06292] shadow-xs">
         {/* Soft Background Ambient Gradients */}
         <div className="absolute top-0 right-0 w-56 sm:w-72 h-56 sm:h-72 bg-[#D81B60]/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-48 sm:w-64 h-48 sm:h-64 bg-[#C2185B]/20 rounded-full blur-2xl pointer-events-none" />

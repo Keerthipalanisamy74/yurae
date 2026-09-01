@@ -162,6 +162,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setWeight(productToEdit.weight || '');
       setDesc(productToEdit.description || '');
       setShortDesc(productToEdit.short_description || '');
+      setIngredients(productToEdit.ingredients || '');
       setSkinType(productToEdit.skin_type || '');
 
       // Populate selected skin types
@@ -255,7 +256,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       };
       setSizeStocks(defaultStocks);
     }
-  }, [productToEdit, initialCategorySlug, isOpen]);
+  }, [productToEdit?.id, isOpen]);
 
   // Toggle Skin Type selection (Optional)
   const toggleSkinType = (typeId: string) => {
@@ -421,13 +422,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         skinTypeVal = skinType ? skinType.trim() : '';
       }
 
-      const shortDescVal = shortDesc.trim() || (isFashion ? `${subCategory} • Premium Fashion` : name);
-      const descVal = desc.trim() || (isFashion
+      const shortDescVal = shortDesc.trim();
+      const descVal = desc.trim() || (shortDescVal ? `${name} - ${shortDescVal}` : (isFashion
         ? `${name} - Luxury ${subCategory} crafted with premium fabrics and tailored silhouette by Yurae.`
         : isAccessory
         ? `${name} - Artisanal luxury accessory handcrafted by Yurae.`
         : `${name} - Premium botanical skincare by Yurae Beauty.`
-      );
+      ));
+      const ingredientsVal = ingredients.trim();
 
       const effectiveWeight = isSkincare && selectedSkincareSizes.length > 0
         ? selectedSkincareSizes.join(', ')
@@ -453,7 +455,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         weight: formattedWeight || undefined,
         weight_kg: numWeightKg,
         brand: 'Yurae Beauty',
-        ingredients: ingredients.trim() || undefined,
+        ingredients: ingredientsVal,
         skin_type: skinTypeVal,
         status: 'ACTIVE',
         featured: true,

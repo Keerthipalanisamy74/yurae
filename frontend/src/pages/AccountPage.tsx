@@ -20,7 +20,7 @@ export const AccountPage: React.FC = () => {
   const { formatRawPrice } = useCurrency();
   const [searchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'addresses' | 'password'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'addresses' | 'password'>(isAdmin ? 'profile' : 'orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<string | number | null>(null);
@@ -69,7 +69,14 @@ export const AccountPage: React.FC = () => {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   useEffect(() => {
-    // Fetch personal orders
+    if (isAdmin) {
+      if (activeTab === 'orders' || activeTab === 'addresses') {
+        setActiveTab('profile');
+      }
+      return;
+    }
+
+    // Fetch personal orders for customers
     api.get('/orders')
       .then((res) => {
         setOrders(res.data);
@@ -91,7 +98,7 @@ export const AccountPage: React.FC = () => {
     api.get('/shipping/returns')
       .then((res) => setUserReturnRequests(res.data))
       .catch(() => {});
-  }, [searchParams]);
+  }, [searchParams, isAdmin]);
 
   const handleOpenTracking = async (ord: Order) => {
     setTrackingOrder(ord);
@@ -393,12 +400,18 @@ export const AccountPage: React.FC = () => {
           
           {/* Navigation Sidebar / Mobile Tab Bar */}
           <div className="grid grid-cols-2 min-[500px]:grid-cols-4 lg:grid-cols-1 gap-2 bg-[#FFF8FA] p-2.5 sm:p-4 border border-[#F1BCCE] rounded-2xl h-fit shadow-xs">
-            {[
-              { id: 'orders', label: 'My Orders', icon: Package },
-              { id: 'profile', label: 'Profile Details', icon: User },
-              { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
-              { id: 'password', label: 'Security & Password', icon: Key },
-            ].map((tab) => {
+            {(isAdmin
+              ? [
+                  { id: 'profile', label: 'Admin Profile', icon: User },
+                  { id: 'password', label: 'Security & Password', icon: Key },
+                ]
+              : [
+                  { id: 'orders', label: 'My Orders', icon: Package },
+                  { id: 'profile', label: 'Profile Details', icon: User },
+                  { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
+                  { id: 'password', label: 'Security & Password', icon: Key },
+                ]
+            ).map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
@@ -419,8 +432,8 @@ export const AccountPage: React.FC = () => {
           {/* Main Dashboard Content Area */}
           <div className="lg:col-span-3">
             
-            {/* MY ORDERS TAB */}
-            {activeTab === 'orders' && (
+            {/* MY ORDERS TAB - Customer Only */}
+            {activeTab === 'orders' && !isAdmin && (
               <div className="space-y-6">
                 <div className="flex flex-wrap justify-between items-center gap-3">
                   <h2 className="font-serif text-2xl font-bold text-[#111111]">Order History</h2>
@@ -643,8 +656,8 @@ export const AccountPage: React.FC = () => {
               </form>
             )}
 
-            {/* ADDRESSES TAB */}
-            {activeTab === 'addresses' && (
+            {/* ADDRESSES TAB - Customer Only */}
+            {activeTab === 'addresses' && !isAdmin && (
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
                   <div>

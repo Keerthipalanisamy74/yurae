@@ -255,11 +255,11 @@ export const Navbar: React.FC = () => {
                           </div>
                         </div>
                         <Link
-                          to="/account"
+                          to={isAdmin ? '/admin' : '/account'}
                           onClick={() => setIsProfileMenuOpen(false)}
                           className="block w-full py-2 px-3 bg-[#FAF0F4] hover:bg-[#FCE7F0] text-[#D84B7E] text-xs font-bold text-center rounded-xl border border-[#F1BCCE] transition-colors"
                         >
-                          View Account &amp; Orders
+                          {isAdmin ? 'Open Store Admin Studio' : 'View Account & Orders'}
                         </Link>
                       </div>
                     ) : (
@@ -280,16 +280,29 @@ export const Navbar: React.FC = () => {
 
                     {/* Quick E-Commerce Links */}
                     <div className="py-2 border-b border-gray-100 space-y-0.5 text-xs font-semibold">
-                      <Link
-                        to={isAuthenticated ? '/account' : '/track'}
-                        onClick={() => setIsProfileMenuOpen(false)}
-                        className="flex items-center justify-between py-1.5 px-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FAF0F4] transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Package className="w-4 h-4 text-gray-400" />
-                          <span>Orders &amp; Tracking</span>
-                        </div>
-                      </Link>
+                      {!isAdmin ? (
+                        <Link
+                          to={isAuthenticated ? '/account' : '/track'}
+                          onClick={() => setIsProfileMenuOpen(false)}
+                          className="flex items-center justify-between py-1.5 px-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FAF0F4] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Package className="w-4 h-4 text-gray-400" />
+                            <span>Orders &amp; Tracking</span>
+                          </div>
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/account"
+                          onClick={() => setIsProfileMenuOpen(false)}
+                          className="flex items-center justify-between py-1.5 px-2 rounded-lg text-gray-700 hover:text-[#D84B7E] hover:bg-[#FAF0F4] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <UserIcon className="w-4 h-4 text-gray-400" />
+                            <span>Admin Profile &amp; Settings</span>
+                          </div>
+                        </Link>
+                      )}
 
                       {!isAdmin && (
                         <Link
@@ -562,16 +575,18 @@ export const Navbar: React.FC = () => {
                 {/* 3. QUICK SERVICES & DISCOVERY */}
                 <div className="pt-2 border-t border-[#F1BCCE]/60 space-y-1">
                   <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 px-2 block mb-1">
-                    Discovery &amp; Orders
+                    Discovery &amp; Services
                   </span>
-                  <Link
-                    to="/track"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-2.5 text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors"
-                  >
-                    <Package className="w-4 h-4 text-[#D84B7E]" />
-                    <span className="font-semibold">Track Your Order</span>
-                  </Link>
+                  {!isAdmin && (
+                    <Link
+                      to="/track"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2.5 text-xs text-[#111111] hover:text-[#D84B7E] py-2 px-3 rounded-xl hover:bg-[#FCE7F0] transition-colors"
+                    >
+                      <Package className="w-4 h-4 text-[#D84B7E]" />
+                      <span className="font-semibold">Track Your Order</span>
+                    </Link>
+                  )}
                   {!isAdmin && (
                     <>
                       <Link

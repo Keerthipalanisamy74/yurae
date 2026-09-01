@@ -95,7 +95,7 @@ export const CartDrawer: React.FC = () => {
                   </p>
                   <button
                     onClick={closeCart}
-                    className="mt-4 px-6 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer touch-target min-h-[44px]"
+                    className="mt-4 px-6 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-colors cursor-pointer touch-target min-h-[44px]"
                   >
                     Start Shopping
                   </button>
@@ -185,13 +185,13 @@ export const CartDrawer: React.FC = () => {
                   <Link
                     to="/cart"
                     onClick={closeCart}
-                    className="w-full text-center py-3 border border-[#111111] text-[#111111] text-xs tracking-widest uppercase font-bold rounded-full hover:bg-[#F8D7E3] transition-colors touch-target min-h-[44px] flex items-center justify-center"
+                    className="w-full text-center py-3 border-2 border-[#D84B7E] text-[#D84B7E] bg-white text-xs tracking-widest uppercase font-bold rounded-full hover:bg-[#FCE7F0] transition-colors touch-target min-h-[44px] flex items-center justify-center"
                   >
                     View Bag
                   </Link>
                   <button
                     onClick={handleCheckoutClick}
-                    className="w-full py-3 bg-[#D84B7E] text-[#FDF4F7] text-xs tracking-widest uppercase font-bold rounded-full hover:bg-[#111111] transition-colors flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md touch-target min-h-[44px] active:scale-98"
+                    className="w-full py-3 bg-[#D84B7E] text-[#FDF4F7] text-xs tracking-widest uppercase font-bold rounded-full hover:bg-[#4A0E2E] transition-colors flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md touch-target min-h-[44px] active:scale-98"
                   >
                     Checkout
                     <ArrowRight className="w-3.5 h-3.5" />

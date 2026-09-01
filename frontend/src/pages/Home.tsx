@@ -96,7 +96,7 @@ export const Home: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3 pt-1 sm:pt-2">
                 <Link
                   to="/shop"
-                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-[#D84B7E] hover:bg-[#111111] text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-sm flex items-center gap-2 cursor-pointer touch-target min-h-[44px]"
+                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-[#D84B7E] hover:bg-[#4A0E2E] text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-sm flex items-center gap-2 cursor-pointer touch-target min-h-[44px]"
                 >
                   Explore All Products
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -304,14 +304,14 @@ export const Home: React.FC = () => {
             {isAdmin ? (
               <Link
                 to="/admin"
-                className="inline-block mt-3 px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all touch-target"
+                className="inline-block mt-3 px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#4A0E2E] transition-all touch-target"
               >
                 Open Admin Dashboard
               </Link>
             ) : (
               <Link
                 to="/skincare"
-                className="inline-block mt-3 px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#111111] transition-all touch-target"
+                className="inline-block mt-3 px-5 py-2 bg-[#D84B7E] text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-[#4A0E2E] transition-all touch-target"
               >
                 Explore Categories
               </Link>
@@ -390,7 +390,7 @@ export const Home: React.FC = () => {
               href="https://www.instagram.com/yuraebeauty/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 bg-[#D84B7E] hover:bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-md transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 touch-target cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 bg-[#D84B7E] hover:bg-[#4A0E2E] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-md transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 touch-target cursor-pointer"
             >
               <InstagramIcon className="w-4 h-4" />
               <span>Visit Instagram</span>

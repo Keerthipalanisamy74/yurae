@@ -99,7 +99,7 @@ export const Login: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98"
+            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98"
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
@@ -216,7 +216,7 @@ export const Register: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98"
+            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98"
           >
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>
@@ -364,7 +364,7 @@ export const ForgotPassword: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
               {loading ? 'Sending Code...' : 'Send Verification Code'}
             </button>
@@ -399,7 +399,7 @@ export const ForgotPassword: React.FC = () => {
             <button
               type="submit"
               disabled={loading || otp.length < 4}
-              className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
               {loading ? 'Verifying...' : 'Verify Code & Proceed'}
             </button>
@@ -450,7 +450,7 @@ export const ForgotPassword: React.FC = () => {
             <button
               type="submit"
               disabled={loading || !newPassword || newPassword !== confirmPassword}
-              className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
               {loading ? 'Updating Password...' : 'Save New Password & Login'}
             </button>

@@ -360,7 +360,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
         <button
           type="button"
           onClick={handleResetFilters}
-          className="px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#D84B7E] text-white shadow-md border border-[#D84B7E] hover:bg-[#111111] hover:border-[#111111] transition-all duration-300 flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
+          className="px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#D84B7E] text-white shadow-md border border-[#D84B7E] hover:bg-[#4A0E2E] hover:border-[#4A0E2E] transition-all duration-300 flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
           title="Display all products in this collection"
         >
           <span>{buttonLabel}</span>

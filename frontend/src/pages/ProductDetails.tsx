@@ -731,7 +731,7 @@ export const ProductDetails: React.FC = () => {
                           type="button"
                           onClick={handleAddToCart}
                           disabled={isOutOfStock}
-                          className="flex-1 py-3 px-5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl hover:bg-[#111111] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed min-h-[40px] active:scale-98"
+                          className="flex-1 py-3 px-5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl hover:bg-[#4A0E2E] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed min-h-[40px] active:scale-98"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           {isFashion
@@ -746,7 +746,7 @@ export const ProductDetails: React.FC = () => {
                         type="button"
                         onClick={handleBuyNow}
                         disabled={isOutOfStock}
-                        className="w-full py-3 px-5 bg-[#111111] hover:bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-xs cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed min-h-[40px] active:scale-98"
+                        className="w-full py-3 px-5 bg-[#4A0E2E] hover:bg-[#E0218A] text-[#FDF4F7] text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-xs cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed min-h-[40px] active:scale-98"
                       >
                         Buy Now — Express Checkout
                       </button>

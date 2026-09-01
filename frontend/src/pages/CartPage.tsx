@@ -66,7 +66,7 @@ export const CartPage: React.FC = () => {
         </p>
         <Link
           to="/shop"
-          className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-md"
+          className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-colors cursor-pointer shadow-md"
         >
           Explore Shop
           <ArrowRight className="w-4 h-4" />
@@ -211,7 +211,7 @@ export const CartPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isApplyingCoupon}
-                    className="px-4 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase font-bold rounded-xl hover:bg-[#111111] transition-colors cursor-pointer touch-target min-h-[44px]"
+                    className="px-4 py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase font-bold rounded-xl hover:bg-[#4A0E2E] transition-colors cursor-pointer touch-target min-h-[44px]"
                   >
                     Apply
                   </button>
@@ -247,7 +247,7 @@ export const CartPage: React.FC = () => {
 
               <button
                 onClick={() => navigate('/checkout', { state: { couponCode: appliedCoupon?.code } })}
-                className="w-full py-3.5 sm:py-4 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer touch-target min-h-[44px] active:scale-98"
+                className="w-full py-3.5 sm:py-4 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer touch-target min-h-[44px] active:scale-98"
               >
                 Proceed to Checkout
                 <ArrowRight className="w-4 h-4" />

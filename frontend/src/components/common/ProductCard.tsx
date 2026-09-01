@@ -282,7 +282,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   type="button"
                   disabled={isAdding || !selectedSize}
                   onClick={handleConfirmQuickAdd}
-                  className="w-full py-2 bg-[#D84B7E] hover:bg-[#111111] text-[#FDF4F7] text-[10px] sm:text-xs uppercase tracking-widest font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 min-h-[38px]"
+                  className="w-full py-2 bg-[#D84B7E] hover:bg-[#4A0E2E] text-[#FDF4F7] text-[10px] sm:text-xs uppercase tracking-widest font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 min-h-[38px]"
                 >
                   <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   {isAdding ? 'Adding...' : `Add Size ${selectedSize}`}
@@ -292,7 +292,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <div className="absolute bottom-2.5 inset-x-2.5 sm:bottom-3 sm:inset-x-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 transform translate-y-0 lg:translate-y-2 lg:group-hover:translate-y-0 z-10">
                 <button
                   onClick={handleQuickAddClick}
-                  className="w-full min-h-[40px] sm:min-h-[44px] py-2 sm:py-2.5 bg-[#D84B7E] hover:bg-[#111111] text-[#FDF4F7] text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-1.5 shadow-lg cursor-pointer active:scale-95 touch-target"
+                  className="w-full min-h-[40px] sm:min-h-[44px] py-2 sm:py-2.5 bg-[#D84B7E] hover:bg-[#4A0E2E] text-[#FDF4F7] text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl backdrop-blur-md transition-all flex items-center justify-center gap-1.5 shadow-lg cursor-pointer active:scale-95 touch-target"
                 >
                   <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   Quick Add

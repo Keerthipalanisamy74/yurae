@@ -84,7 +84,7 @@ class Product(Base):
     height_cm = Column(Float, default=8.0)
     ingredients = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
     how_to_use = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
-    skin_type = Column(String(100), nullable=True)
+    skin_type = Column(String(255), nullable=True)
     status = Column(String(20), default="ACTIVE")
     featured = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -231,12 +231,12 @@ export const MarketingBannerHub: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleCopyCoupon(config.coupon_code!)}
-                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border border-white/40 hover:bg-white/20 transition-all cursor-pointer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-black text-white border border-black hover:bg-black/85 transition-all cursor-pointer shadow-xs"
                 title="Click to copy promo code"
               >
-                <Tag className="w-3 h-3" />
-                <span>{config.coupon_code}</span>
-                {isCopied ? <Check className="w-3 h-3 text-emerald-300" /> : <Copy className="w-3 h-3 opacity-70" />}
+                <Tag className="w-3 h-3 text-amber-300" />
+                <span className="font-mono text-white">{config.coupon_code}</span>
+                {isCopied ? <Check className="w-3 h-3 text-emerald-300" /> : <Copy className="w-3 h-3 text-white/70" />}
               </button>
             )}
           </div>

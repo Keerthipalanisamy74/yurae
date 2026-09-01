@@ -53,9 +53,29 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   const [loading, setLoading] = useState(true);
 
   // Price & Sorting state
+  const rawSortParam = searchParams.get('sort_by') || searchParams.get('sort') || '';
+  const isBestsellersParam = searchParams.get('bestsellers') === 'true' || rawSortParam === 'bestsellers' || rawSortParam === 'best_selling' || location.pathname === '/bestsellers';
+  const isNewArrivalsParam = searchParams.get('new_arrivals') === 'true' || rawSortParam === 'newest' || location.pathname === '/new-arrivals';
+
   const [maxPrice, setMaxPrice] = useState<number>(10000);
-  const [sortBy, setSortBy] = useState<string>('featured');
+  const [sortBy, setSortBy] = useState<string>(
+    isBestsellersParam
+      ? 'bestsellers'
+      : isNewArrivalsParam
+      ? 'newest'
+      : (rawSortParam || 'featured')
+  );
   const [isFilterMobileOpen, setIsFilterMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (isBestsellersParam || rawSortParam === 'bestsellers' || rawSortParam === 'best_selling') {
+      setSortBy('bestsellers');
+    } else if (isNewArrivalsParam || rawSortParam === 'newest') {
+      setSortBy('newest');
+    } else if (rawSortParam) {
+      setSortBy(rawSortParam);
+    }
+  }, [rawSortParam, isBestsellersParam, isNewArrivalsParam, location.pathname, searchParams]);
 
   // 1. Skincare-Specific Filter States
   const [selectedSkinType, setSelectedSkinType] = useState<string>(searchSkinType);
@@ -77,7 +97,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Filter Option Constants
-  const skinTypeOptions = ['All', 'Sensitive', 'Oily', 'Dry', 'Combination', 'Normal', 'Acne-Prone'];
+  const skinTypeOptions = ['All', 'Sensitive', 'Normal', 'Oily', 'Combination', 'Dry', 'Oily Acne Prone'];
   const skincareRoutineOptions = ['All', 'Cleanser / Face Wash', 'Toner & Essence', 'Serum & Ampoule', 'Moisturizer & Cream', 'Sunscreen', 'Face Mask'];
   const skincareConcernOptions = ['All', 'Hydration & Glass Skin', 'Soothing & Calming', 'Brightening & Glow', 'Pore Clarifying', 'Anti-Aging'];
 
@@ -98,7 +118,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
         url += `&category_slug=${currentCategory}`;
       }
       if (currentCategory === 'skincare' && selectedSkinType && selectedSkinType !== 'All') {
-        url += `&skin_type=${selectedSkinType}`;
+        url += `&skin_type=${encodeURIComponent(selectedSkinType)}`;
       }
       if (searchQuery) {
         url += `&search=${encodeURIComponent(searchQuery)}`;
@@ -162,9 +182,12 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     // 1. Skincare Sub-filters
     if (currentCategory === 'skincare') {
       if (selectedSkinType && selectedSkinType !== 'All') {
-        const matchesSkin = pSkinType.includes(selectedSkinType.toLowerCase()) ||
-                            pDesc.includes(selectedSkinType.toLowerCase()) ||
-                            pName.includes(selectedSkinType.toLowerCase());
+        const queryTerm = selectedSkinType.toLowerCase();
+        const matchesSkin = pSkinType.includes('all') ||
+                            pSkinType.includes(queryTerm) ||
+                            (queryTerm.includes('acne') && (pSkinType.includes('acne') || pCombined.includes('acne'))) ||
+                            pDesc.includes(queryTerm) ||
+                            pName.includes(queryTerm);
         if (!matchesSkin) return false;
       }
       if (selectedSkincareRoutine && selectedSkincareRoutine !== 'All') {
@@ -238,11 +261,43 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     return true;
   });
 
+  const isBestsellersActive = (sortBy === 'bestsellers' || sortBy === 'best_selling') && (currentCategory === 'all' || !currentCategory);
+  const isNewArrivalsActive = sortBy === 'newest' && (currentCategory === 'all' || !currentCategory);
+
+  const sortedAndFilteredProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'bestsellers' || sortBy === 'best_selling') {
+      const ordersA = a.total_ordered || 0;
+      const ordersB = b.total_ordered || 0;
+      if (ordersB !== ordersA) return ordersB - ordersA;
+      if (b.featured !== a.featured) return b.featured ? 1 : -1;
+      return (b.avg_rating || 5) - (a.avg_rating || 5);
+    }
+    if (sortBy === 'newest') {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.id || 0) - (a.id || 0);
+    }
+    if (sortBy === 'price_low') {
+      return (a.sale_price || a.price) - (b.sale_price || b.price);
+    }
+    if (sortBy === 'price_high') {
+      return (b.sale_price || b.price) - (a.sale_price || a.price);
+    }
+    return 0;
+  });
+
   const activeCategoryObj = categories.find(
     (c) => c.slug.toLowerCase() === currentCategory.toLowerCase()
   );
 
   const getCategoryTitle = () => {
+    if (isBestsellersActive) {
+      return 'Bestsellers & Most Loved';
+    }
+    if (isNewArrivalsActive) {
+      return 'New Arrivals & Fresh Creations';
+    }
     if (activeCategoryObj) {
       return activeCategoryObj.name.toLowerCase().startsWith('yurae')
         ? activeCategoryObj.name
@@ -255,6 +310,12 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   };
 
   const getCategoryDescription = () => {
+    if (isBestsellersActive) {
+      return 'Explore our most ordered iconic creations, ordered chronologically by customer demand from most ordered to emerging essentials.';
+    }
+    if (isNewArrivalsActive) {
+      return 'Discover the latest creations from Yurae Beauty. Ordered chronologically from the most recently uploaded products to older editions.';
+    }
     if (activeCategoryObj?.description) {
       return activeCategoryObj.description;
     }
@@ -832,6 +893,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                 className="appearance-none bg-[#FFF8FA] border border-[#F1BCCE] rounded-full px-3.5 sm:px-4 py-2 pr-7 sm:pr-8 text-xs font-bold text-[#111111] outline-none cursor-pointer focus:border-[#D84B7E] min-h-[40px]"
               >
                 <option value="featured">Featured</option>
+                <option value="bestsellers">Bestsellers (Most Ordered)</option>
                 <option value="newest">New Arrivals</option>
                 <option value="price_low">Price: Low to High</option>
                 <option value="price_high">Price: High to Low</option>
@@ -986,7 +1048,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                   <div key={i} className="h-80 sm:h-96 bg-[#FCE7F0] rounded-2xl animate-pulse" />
                 ))}
               </div>
-            ) : filteredProducts.length === 0 ? (
+            ) : sortedAndFilteredProducts.length === 0 ? (
               <div className="text-center py-16 sm:py-24 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl space-y-4 p-6 sm:p-8 shadow-xs">
                 <h3 className="font-serif text-xl sm:text-2xl text-[#111111] font-bold">
                   No matching {getCategoryTitle().toLowerCase()} found.
@@ -1013,7 +1075,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
               </div>
             ) : (
               <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-                {filteredProducts.map((product) => (
+                {sortedAndFilteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}

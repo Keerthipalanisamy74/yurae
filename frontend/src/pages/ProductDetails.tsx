@@ -500,22 +500,21 @@ export const ProductDetails: React.FC = () => {
                 </span>
               </div>
 
-              {/* Badges: only show when there are no selectable variants and value is a genuine single attribute */}
-              {(!product.variants || product.variants.length === 0) && (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {product.weight && (
-                    <span className="text-[11px] bg-[#FFF0F5] text-[#D84B7E] font-bold px-2.5 py-0.5 rounded-full border border-[#F1BCCE] flex items-center gap-1.5 shadow-2xs">
-                      <span>⚖️</span>
-                      <span>Net Wt: {product.weight}</span>
-                    </span>
-                  )}
-                  {product.skin_type && !product.skin_type.toLowerCase().includes('size') && (
-                    <span className="text-[11px] bg-[#F8D7E3] text-[#111111] font-bold px-2.5 py-0.5 rounded-full border border-[#F1BCCE]">
-                      {product.skin_type}
-                    </span>
-                  )}
-                </div>
-              )}
+              {/* Badges: Weight and Skin Compatibility */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {product.weight && (!product.variants || product.variants.length === 0) && (
+                  <span className="text-[11px] bg-[#FFF0F5] text-[#D84B7E] font-bold px-2.5 py-0.5 rounded-full border border-[#F1BCCE] flex items-center gap-1.5 shadow-2xs">
+                    <span>⚖️</span>
+                    <span>Net Wt: {product.weight}</span>
+                  </span>
+                )}
+                {product.skin_type && !product.skin_type.toLowerCase().includes('size') && (
+                  <span className="text-[11px] bg-[#FFF0F5] text-[#D84B7E] font-bold px-2.5 py-0.5 rounded-full border border-[#F1BCCE] flex items-center gap-1 shadow-2xs">
+                    <span>🌸</span>
+                    <span>{product.skin_type.toLowerCase() === 'all' ? 'All Skin Types' : `Suitable for: ${product.skin_type}`}</span>
+                  </span>
+                )}
+              </div>
 
               <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed pt-1">
                 {product.short_description || product.description}

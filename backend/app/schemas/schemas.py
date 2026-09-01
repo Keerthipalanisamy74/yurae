@@ -211,6 +211,7 @@ class ProductResponse(ProductBase):
     variants: List[ProductVariantResponse] = []
     avg_rating: Optional[float] = 5.0
     review_count: Optional[int] = 0
+    total_ordered: Optional[int] = 0
 
     class Config:
         from_attributes = True

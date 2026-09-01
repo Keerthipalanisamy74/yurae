@@ -62,131 +62,59 @@ export const Home: React.FC = () => {
         image={heroProduct?.images?.[0]?.image_url || '/images/hero-skincare-model.jpg'}
         type="website"
       />
-      
-      {/* 1. HERO SECTION */}
-      <section className="relative flex items-center bg-gradient-to-b from-[#F8B4CB] via-[#F6A2BE] to-[#F48FB1] overflow-hidden border-b-2 border-[#F06292] shadow-xs">
+            {/* 1. HERO SECTION */}
+      <section className="relative flex items-center justify-center bg-gradient-to-b from-[#F8B4CB] via-[#F6A2BE] to-[#F48FB1] overflow-hidden border-b-2 border-[#F06292] shadow-xs text-center">
         {/* Soft Background Ambient Gradients */}
         <div className="absolute top-0 right-0 w-56 sm:w-72 h-56 sm:h-72 bg-[#D81B60]/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-48 sm:w-64 h-48 sm:h-64 bg-[#C2185B]/20 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
-            
-            {/* Hero Left Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:col-span-6 space-y-3 sm:space-y-4"
-            >
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D84B7E] text-[#FDF4F7] text-[10px] sm:text-[11px] font-bold uppercase tracking-wider border border-[#F1BCCE] shadow-xs">
-                <Sparkles className="w-3 h-3 text-[#FDF4F7]" />
-                Korean Botanical Rituals • Yurae Beauty
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16 w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center space-y-4 sm:space-y-5"
+          >
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#D84B7E] text-[#FDF4F7] text-[10px] sm:text-[11px] font-bold uppercase tracking-wider border border-[#F1BCCE] shadow-xs">
+              <Sparkles className="w-3 h-3 text-[#FDF4F7]" />
+              Korean Botanical Rituals • Yurae Beauty
+            </div>
+
+            <h1 className="font-serif text-3xl min-[400px]:text-4xl sm:text-5xl lg:text-[54px] font-bold text-[#111111] leading-[1.15] tracking-tight max-w-2xl">
+              The Origin of <span className="italic font-light text-[#D84B7E]">Skincare</span>
+            </h1>
+
+            <p className="text-xs sm:text-sm md:text-base text-gray-700 font-light leading-relaxed max-w-xl mx-auto">
+              Clean, artisanal botanical skincare and modern luxury essentials crafted to nourish, restore, and reveal timeless skin brilliance.
+            </p>
+
+            {/* CTAs */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1 sm:pt-2">
+              <Link
+                to="/shop"
+                className="px-7 py-3 sm:py-3.5 rounded-full bg-[#D84B7E] hover:bg-[#4A0E2E] text-white text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 flex items-center gap-2 cursor-pointer touch-target min-h-[44px]"
+              >
+                <span>Explore All Products</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Brand Highlights */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 pt-5 sm:pt-6 border-t border-[#F1BCCE]/60 max-w-md w-full">
+              <div className="space-y-0.5 text-center">
+                <span className="font-serif text-base sm:text-xl font-bold text-[#111111] block">100%</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-wider font-medium">Authentic</span>
               </div>
-
-              <h1 className="font-serif text-2xl min-[400px]:text-3xl sm:text-4xl lg:text-[44px] font-bold text-[#111111] leading-[1.18] tracking-tight">
-                The Origin of <span className="italic font-light text-[#D84B7E]">Skincare</span>
-              </h1>
-
-              <p className="text-xs sm:text-sm text-gray-700 font-light leading-relaxed max-w-lg">
-                Clean, artisanal botanical skincare and modern luxury essentials crafted to nourish, restore, and reveal timeless skin brilliance.
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-wrap items-center gap-3 pt-1 sm:pt-2">
-                <Link
-                  to="/shop"
-                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-[#D84B7E] hover:bg-[#4A0E2E] text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-sm flex items-center gap-2 cursor-pointer touch-target min-h-[44px]"
-                >
-                  Explore All Products
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              <div className="space-y-0.5 text-center border-x border-[#F1BCCE]/60 px-2 sm:px-4">
+                <span className="font-serif text-base sm:text-xl font-bold text-[#111111] block">Pure</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-wider font-medium">Botanicals</span>
               </div>
-
-              {/* Brand Highlights */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-[#F1BCCE]/60 max-w-md">
-                <div className="space-y-0.5">
-                  <span className="font-serif text-sm sm:text-base font-bold text-[#111111] block">100%</span>
-                  <span className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-wider">Authentic</span>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="font-serif text-sm sm:text-base font-bold text-[#111111] block">Pure</span>
-                  <span className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-wider">Botanicals</span>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="font-serif text-sm sm:text-base font-bold text-[#111111] block">Luxury</span>
-                  <span className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-wider">Formulas</span>
-                </div>
+              <div className="space-y-0.5 text-center">
+                <span className="font-serif text-base sm:text-xl font-bold text-[#111111] block">Luxury</span>
+                <span className="text-[9px] sm:text-[10px] text-gray-600 uppercase tracking-wider font-medium">Formulas</span>
               </div>
-            </motion.div>
-
-            {/* Hero Right: Dynamic All Categories Showcase */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.15 }}
-              className={`lg:col-span-6 flex flex-col justify-center space-y-2.5 sm:space-y-3 ${
-                heroCategories.length > 3
-                  ? 'max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1.5 py-1 touch-scroll'
-                  : ''
-              }`}
-            >
-              {heroCategories.map((cat, idx) => {
-                const prod = getCategoryProduct(cat.slug);
-                const coverImage = cat.image || prod?.images?.[0]?.image_url;
-                const icon = getCategoryIcon(cat);
-                const cardHeight = heroCategories.length > 3 ? 'h-18 sm:h-20' : 'h-20 sm:h-24';
-
-                const categoryBadge = cat.slug.toLowerCase().includes('skin')
-                  ? 'Hero Rituals'
-                  : cat.slug.toLowerCase().includes('fashion')
-                  ? 'Fashion Collection'
-                  : cat.slug.toLowerCase().includes('access')
-                  ? 'Fine Jewelry'
-                  : `${cat.name} Collection`;
-
-                return (
-                  <Link
-                    key={cat.id || cat.slug || idx}
-                    to={`/category/${cat.slug}`}
-                    className={`group relative ${cardHeight} rounded-xl sm:rounded-2xl overflow-hidden border border-[#F1BCCE] shadow-xs hover:shadow-md transition-all duration-300 flex items-center justify-between p-3.5 sm:p-4 text-white cursor-pointer touch-target shrink-0`}
-                  >
-                    {coverImage ? (
-                      <>
-                        <img
-                          src={coverImage}
-                          alt={cat.name}
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          loading="eager"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25 group-hover:from-black/90 group-hover:via-black/60 transition-colors" />
-                      </>
-                    ) : (
-                      <div className={`absolute inset-0 bg-gradient-to-r ${cardGradients[idx % cardGradients.length]} opacity-95`} />
-                    )}
-
-                    <div className="relative z-10 space-y-0.5">
-                      <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[#F8D7E3] font-bold flex items-center gap-1">
-                        <span>{icon}</span>
-                        <span>{categoryBadge}</span>
-                      </span>
-                      <h3 className="font-serif text-base sm:text-lg md:text-xl font-bold text-white tracking-wide leading-tight">
-                        {cat.name.toLowerCase().startsWith('yurae') ? cat.name : `Yurae ${cat.name}`}
-                      </h3>
-                      <p className="text-[10px] sm:text-[11px] text-gray-200 font-light line-clamp-1">
-                        {cat.description || `Explore ${cat.name} formulations and luxury essentials`}
-                      </p>
-                    </div>
-
-                    <div className="relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-md border border-white/40 group-hover:bg-[#D84B7E] group-hover:border-[#D84B7E] flex items-center justify-center transition-all duration-300 shrink-0 shadow-xs">
-                      <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
-                    </div>
-                  </Link>
-                );
-              })}
-            </motion.div>
-
-          </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 

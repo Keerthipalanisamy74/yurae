@@ -55,6 +55,12 @@ def format_product_response(product: Product, db: Session) -> dict:
     avg_rating = float(review_stats.avg_rating) if review_stats and review_stats.avg_rating else 5.0
     review_count = int(review_stats.review_count) if review_stats and review_stats.review_count else 0
 
+    # Calculate total units ordered
+    order_stats = db.query(
+        func.coalesce(func.sum(OrderItem.quantity), 0).label("total_ordered")
+    ).filter(OrderItem.product_id == product.id).first()
+    total_ordered = int(order_stats.total_ordered) if order_stats and order_stats.total_ordered else 0
+
     p_dict = {
         "id": product.id,
         "category_id": product.category_id,
@@ -84,7 +90,8 @@ def format_product_response(product: Product, db: Session) -> dict:
         "images": product.images,
         "variants": product.variants,
         "avg_rating": round(avg_rating, 1),
-        "review_count": review_count
+        "review_count": review_count,
+        "total_ordered": total_ordered
     }
     return p_dict
 
@@ -99,84 +106,58 @@ def get_products(
     featured: Optional[bool] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
-    sort_by: Optional[str] = "featured", # featured, newest, price_low, price_high, rating, best_selling
-    limit: int = 50,
-    offset: int = 0,
+    sort_by: Optional[str] = "featured", # featured, bestsellers, newest, price_low, price_high, rating
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
     query = db.query(Product).filter(Product.status == "ACTIVE")
 
-    if category_slug:
-        cat = db.query(Category).filter(Category.slug == category_slug.lower()).first()
-        if cat:
-            query = query.filter(Product.category_id == cat.id)
+    # Category filter
+    if category_slug and category_slug != "all":
+        category = db.query(Category).filter(Category.slug == category_slug).first()
+        if category:
+            query = query.filter(Product.category_id == category.id)
         else:
             return []
 
+    # Skin type filter (Skincare specific)
     if skin_type and skin_type != "All":
-        query = query.filter(Product.skin_type.ilike(f"%{skin_type}%"))
-
-    if subcategory and subcategory != "All":
-        sub_fmt = f"%{subcategory}%"
-        query = query.filter(
-            or_(
-                Product.name.ilike(sub_fmt),
-                Product.description.ilike(sub_fmt),
-                Product.ingredients.ilike(sub_fmt),
-                Product.skin_type.ilike(sub_fmt)
-            )
-        )
-
-    if gender and gender != "All":
-        if gender.lower() in ["women", "woman", "female"]:
+        skin_term = skin_type.strip().lower()
+        if skin_term in ["all", "all skin types"]:
             query = query.filter(
                 or_(
-                    Product.name.ilike("%woman%"),
-                    Product.name.ilike("%women%"),
-                    Product.name.ilike("%lady%"),
-                    Product.name.ilike("%female%"),
-                    Product.description.ilike("%woman%"),
-                    Product.description.ilike("%women%"),
-                    Product.skin_type.ilike("%women%")
+                    Product.skin_type.ilike("%all%"),
+                    Product.skin_type.is_(None),
+                    Product.skin_type == ""
                 )
             )
-        elif gender.lower() in ["men", "man", "male"]:
+        else:
             query = query.filter(
                 or_(
-                    Product.name.ilike("%men%"),
-                    Product.name.ilike("%man%"),
-                    Product.name.ilike("%male%"),
-                    Product.description.ilike("%men%"),
-                    Product.description.ilike("%man%"),
-                    Product.skin_type.ilike("%men%")
+                    Product.skin_type.ilike(f"%{skin_term}%"),
+                    Product.skin_type.ilike("%all%")
                 )
             )
 
-    if tag and tag != "All":
-        tag_fmt = f"%{tag}%"
-        query = query.filter(
-            or_(
-                Product.name.ilike(tag_fmt),
-                Product.description.ilike(tag_fmt),
-                Product.ingredients.ilike(tag_fmt)
-            )
-        )
-
+    # Featured filter
     if featured is not None:
         query = query.filter(Product.featured == featured)
 
+    # Price range
     if min_price is not None:
         query = query.filter(Product.price >= min_price)
-
     if max_price is not None:
         query = query.filter(Product.price <= max_price)
 
+    # Search keyword filter (matches name, description, brand, sku, ingredients)
     if search:
         search_fmt = f"%{search}%"
         query = query.filter(
             or_(
                 Product.name.ilike(search_fmt),
                 Product.description.ilike(search_fmt),
+                Product.short_description.ilike(search_fmt),
                 Product.brand.ilike(search_fmt),
                 Product.sku.ilike(search_fmt),
                 Product.ingredients.ilike(search_fmt)
@@ -184,14 +165,46 @@ def get_products(
         )
 
     # Sorting
-    if sort_by == "newest":
-        query = query.order_by(Product.created_at.desc())
+    if sort_by in ["bestsellers", "bestseller", "best_selling", "best_seller", "popular"]:
+        order_sum_subquery = (
+            db.query(
+                OrderItem.product_id,
+                func.coalesce(func.sum(OrderItem.quantity), 0).label("total_sales")
+            )
+            .group_by(OrderItem.product_id)
+            .subquery()
+        )
+        query = (
+            query.outerjoin(order_sum_subquery, Product.id == order_sum_subquery.c.product_id)
+            .order_by(
+                func.coalesce(order_sum_subquery.c.total_sales, 0).desc(),
+                Product.featured.desc(),
+                Product.created_at.desc(),
+                Product.id.desc()
+            )
+        )
+    elif sort_by in ["newest", "new_arrivals", "latest", "recent"]:
+        query = query.order_by(Product.created_at.desc(), Product.id.desc())
     elif sort_by == "price_low":
-        query = query.order_by(Product.price.asc())
+        query = query.order_by(Product.price.asc(), Product.id.desc())
     elif sort_by == "price_high":
-        query = query.order_by(Product.price.desc())
+        query = query.order_by(Product.price.desc(), Product.id.desc())
+    elif sort_by == "rating":
+        rating_subquery = (
+            db.query(
+                Review.product_id,
+                func.avg(Review.rating).label("avg_rating")
+            )
+            .filter(Review.is_approved == True)
+            .group_by(Review.product_id)
+            .subquery()
+        )
+        query = (
+            query.outerjoin(rating_subquery, Product.id == rating_subquery.c.product_id)
+            .order_by(func.coalesce(rating_subquery.c.avg_rating, 0).desc(), Product.created_at.desc())
+        )
     else:
-        query = query.order_by(Product.featured.desc(), Product.created_at.desc())
+        query = query.order_by(Product.featured.desc(), Product.created_at.desc(), Product.id.desc())
 
     products = query.offset(offset).limit(limit).all()
     return [format_product_response(p, db) for p in products]

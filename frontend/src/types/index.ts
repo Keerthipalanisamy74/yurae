@@ -97,6 +97,7 @@ export interface Product {
   variants: ProductVariant[];
   avg_rating?: number;
   review_count?: number;
+  total_ordered?: number;
 }
 
 export interface CartItem {

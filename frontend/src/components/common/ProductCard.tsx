@@ -48,6 +48,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const categoryName = product.category?.name?.toLowerCase() || '';
   const isFashion = categorySlug === 'fashion' || categoryName.includes('fashion') || categoryName.includes('dress') || categoryName.includes('apparel') || categoryName.includes('kurti') || categoryName.includes('saree') || categoryName.includes('clothing');
   const isAccessories = categorySlug === 'accessories' || categoryName.includes('accessories') || categoryName.includes('jewelry') || categoryName.includes('bag') || categoryName.includes('pendant') || categoryName.includes('ring') || categoryName.includes('earring');
+  const isSkincare = !isFashion && !isAccessories;
 
   const sizeVariants = product.variants?.filter((v) => v.variant_name?.toLowerCase() === 'size') || [];
   const parsedSizesFromSkinType = product.skin_type && product.skin_type.includes('Sizes:')
@@ -305,12 +306,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* 2. Info Container */}
         <div className="p-3 min-[400px]:p-4 sm:p-5 flex-1 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-1 mb-1">
+            {/* Category header & Rating */}
+            <div className="flex items-center justify-between gap-1 mb-1 min-h-[16px]">
               <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-[#D84B7E] font-bold truncate">
                 {product.category?.name || 'Skincare'}
               </span>
               {product.avg_rating && product.avg_rating > 0 && (
-                <div className="flex items-center gap-0.5 text-xs text-[#D84B7E] shrink-0">
+                <div className="flex items-center gap-0.5 text-xs text-[#D84B7E] shrink-0 ml-auto">
                   <Star className="w-3 h-3 fill-[#D84B7E]" />
                   <span className="font-bold text-[#111111] text-[10px] sm:text-[11px]">{product.avg_rating}</span>
                   <span className="text-gray-400 text-[9px] sm:text-[10px]">({product.review_count})</span>
@@ -324,7 +326,39 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </h3>
             </Link>
 
-            <p className="text-[11px] sm:text-xs text-gray-600 font-light mt-0.5 sm:mt-1 line-clamp-2 leading-relaxed">
+            {/* Target Skin Types below product name */}
+            {product.skin_type && !product.skin_type.toLowerCase().includes('size') && isSkincare && (
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                {product.skin_type.trim().toLowerCase() === 'all' || product.skin_type.trim().toLowerCase() === 'all skin types' ? (
+                  <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-[#D84B7E] bg-[#FFF0F5] border border-[#F1BCCE] px-2 py-0.5 rounded-full shadow-2xs">
+                    <span>🌟</span>
+                    <span>All Skin Types</span>
+                  </span>
+                ) : (
+                  product.skin_type.split(',').map((st) => st.trim()).filter(Boolean).map((st) => {
+                    const lower = st.toLowerCase();
+                    const icon = lower.includes('sensitive') ? '🌿'
+                      : lower.includes('normal') ? '✨'
+                      : lower.includes('acne') ? '🛡️'
+                      : lower.includes('oily') ? '💧'
+                      : lower.includes('combination') ? '⚖️'
+                      : lower.includes('dry') ? '🌸'
+                      : '✨';
+                    return (
+                      <span
+                        key={st}
+                        className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-[#111111] bg-[#FFF0F5] border border-[#F1BCCE] px-1.5 py-0.5 rounded-md shadow-2xs"
+                      >
+                        <span className="text-[10px]">{icon}</span>
+                        <span>{st}</span>
+                      </span>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            <p className="text-[11px] sm:text-xs text-gray-600 font-light mt-1 line-clamp-2 leading-relaxed">
               {product.short_description || product.description}
             </p>
 
@@ -335,7 +369,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           </div>
 
-          {/* Price & Weight/Skin Type Footer */}
+          {/* Price & Weight/Category Footer */}
           <div className="mt-3 pt-2.5 sm:mt-4 sm:pt-3 border-t border-[#F1BCCE] flex items-center justify-between gap-1">
             <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="font-serif text-base sm:text-lg font-bold text-[#111111]">
@@ -349,16 +383,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              {product.weight && (!product.variants || product.variants.length === 0) && (
+              {product.weight && (!product.variants || product.variants.length === 0) ? (
                 <span className="text-[9px] sm:text-[10px] bg-[#FFF0F5] text-[#D84B7E] px-1.5 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
                   {product.weight}
                 </span>
-              )}
-              {product.skin_type && !isFashion && !isAccessories && !product.skin_type.toLowerCase().includes('size') && !product.weight && (
+              ) : isSkincare ? (
                 <span className="text-[9px] sm:text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-1.5 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
-                  {product.skin_type.split(',')[0]}
+                  Skincare
                 </span>
-              )}
+              ) : null}
               {isFashion && (
                 <span className="text-[9px] sm:text-[10px] bg-[#F8D7E3] text-[#D84B7E] px-1.5 py-0.5 rounded-md font-bold border border-[#F1BCCE]">
                   Apparel

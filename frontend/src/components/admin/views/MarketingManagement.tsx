@@ -1018,8 +1018,8 @@ export const MarketingManagement: React.FC = () => {
                     {config.announcement_text || config.headline}
                   </p>
                   {config.coupon_code && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/20 border border-white/30">
-                      <Tag className="w-2.5 h-2.5" />
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-black text-white border border-black">
+                      <Tag className="w-2.5 h-2.5 text-amber-300" />
                       {config.coupon_code}
                     </span>
                   )}

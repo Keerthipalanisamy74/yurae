@@ -206,7 +206,7 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/shop?featured=true" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/shop?sort_by=bestsellers" className="hover:text-[#F8A4C4] transition-colors">
                   Bestsellers
                 </Link>
               </li>

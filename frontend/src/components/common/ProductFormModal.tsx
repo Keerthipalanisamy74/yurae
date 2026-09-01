@@ -85,6 +85,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [shortDesc, setShortDesc] = useState('');
   const [ingredients, setIngredients] = useState('');
   const [skinType, setSkinType] = useState('All');
+  const [selectedSkinTypes, setSelectedSkinTypes] = useState<string[]>(['All']);
+  const [customSkinTypeInput, setCustomSkinTypeInput] = useState<string>('');
   const [subCategory, setSubCategory] = useState('Maxi & Midi Dresses');
   const [selectedSizes, setSelectedSizes] = useState<string[]>(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
   const [selectedSkincareSizes, setSelectedSkincareSizes] = useState<string[]>(['50g', '100g']);
@@ -106,6 +108,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   const availableFashionSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
   const availableSkincareSizes = ['30g', '50g', '75g', '100g', '150g', '200g', '250g', '500g', '30ml', '50ml', '100ml', '150ml', '200ml'];
+
+  const availableSkinTypes = [
+    { id: 'Sensitive', label: 'Sensitive', icon: '🌿' },
+    { id: 'Normal', label: 'Normal', icon: '✨' },
+    { id: 'Oily', label: 'Oily', icon: '💧' },
+    { id: 'Combination', label: 'Combination', icon: '⚖️' },
+    { id: 'Dry', label: 'Dry', icon: '🌸' },
+    { id: 'Oily Acne Prone', label: 'Oily Acne Prone', icon: '🛡️' },
+  ];
 
   const dressCategories = [
     'T-Shirts & Tops',
@@ -153,6 +164,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setShortDesc(productToEdit.short_description || '');
       setIngredients(productToEdit.ingredients || '');
       setSkinType(productToEdit.skin_type || 'All');
+
+      // Populate selected skin types
+      if (productToEdit.skin_type && !productToEdit.skin_type.toLowerCase().includes('size')) {
+        const raw = productToEdit.skin_type.trim();
+        if (raw.toLowerCase() === 'all' || raw.toLowerCase() === 'all skin types') {
+          setSelectedSkinTypes(['All']);
+        } else {
+          const split = raw.split(',').map((s) => s.trim()).filter(Boolean);
+          const mapped = split.map((t) => {
+            if (/acne/i.test(t)) return 'Oily Acne Prone';
+            const found = availableSkinTypes.find((a) => a.id.toLowerCase() === t.toLowerCase() || a.label.toLowerCase() === t.toLowerCase());
+            return found ? found.id : t;
+          });
+          setSelectedSkinTypes(mapped.length > 0 ? mapped : ['All']);
+        }
+      } else {
+        setSelectedSkinTypes(['All']);
+      }
 
       // Category
       const catSlug = productToEdit.category?.slug?.toLowerCase() || 'skincare';
@@ -207,6 +236,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setIngredients('');
       setTargetCategory(initialCategorySlug || 'skincare');
       setSkinType(initialCategorySlug === 'fashion' ? 'Standard Fit' : 'All');
+      setSelectedSkinTypes(['All']);
+      setCustomSkinTypeInput('');
       setSubCategory(initialCategorySlug === 'fashion' ? 'Maxi & Midi Dresses' : skincareCategories[0]);
       setSelectedSizes(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
       setSelectedSkincareSizes(['50g', '100g']);
@@ -227,6 +258,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setSizeStocks(defaultStocks);
     }
   }, [productToEdit, initialCategorySlug, isOpen]);
+
+  // Toggle Skin Type selection
+  const toggleSkinType = (typeId: string) => {
+    if (typeId === 'All') {
+      setSelectedSkinTypes(['All']);
+      return;
+    }
+
+    let next = selectedSkinTypes.filter((t) => t !== 'All');
+    if (next.includes(typeId)) {
+      next = next.filter((t) => t !== typeId);
+      if (next.length === 0) {
+        next = ['All'];
+      }
+    } else {
+      next.push(typeId);
+    }
+    setSelectedSkinTypes(next);
+  };
 
   // Handler to update stock for a single size and recalculate total stock
   const handleSizeStockChange = (size: string, val: string | number) => {
@@ -368,7 +418,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const skinTypeVal = isFashion
         ? (selectedSizes.length > 0 ? `Sizes: ${selectedSizes.join(', ')}` : (skinType || 'Standard Fit'))
         : isSkincare
-        ? (selectedSkincareSizes.length > 0 ? `Sizes: ${selectedSkincareSizes.join(', ')}` : (skinType || 'All'))
+        ? (selectedSkinTypes.length === 0 || selectedSkinTypes.includes('All') ? 'All' : selectedSkinTypes.join(', '))
         : (skinType || 'All');
 
       const shortDescVal = shortDesc.trim() || (isFashion ? `${subCategory} • Premium Fashion` : name);
@@ -823,6 +873,138 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* SKINCARE TARGET SKIN TYPES / COMPATIBILITY (MULTI-SELECT) */}
+          {targetCategory === 'skincare' && (
+            <div className="p-4 bg-[#FFF0F5] border border-[#F1BCCE] rounded-2xl space-y-3">
+              <div className="flex flex-wrap justify-between items-center gap-2">
+                <label className="font-bold text-[#111111] text-xs flex items-center gap-2">
+                  <span className="text-sm">🌸</span>
+                  <span>Target Skin Types / Skin Compatibility (Multi-Select)</span>
+                  <span className="px-2 py-0.5 bg-[#D84B7E] text-white text-[10px] font-bold rounded-full shadow-2xs">
+                    {selectedSkinTypes.includes('All') ? 'All Skin Types' : `${selectedSkinTypes.length} selected`}
+                  </span>
+                </label>
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSkinTypes(['All'])}
+                    className="text-[#D84B7E] font-bold hover:underline cursor-pointer"
+                  >
+                    All Skin Types
+                  </button>
+                  <span className="text-gray-400">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSkinTypes(availableSkinTypes.map((st) => st.id))}
+                    className="text-[#D84B7E] font-bold hover:underline cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-gray-400">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSkinTypes([])}
+                    className="text-gray-500 font-bold hover:underline cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Multi-Select Skin Type Pill Buttons */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {/* All Skin Types pill */}
+                <button
+                  type="button"
+                  onClick={() => toggleSkinType('All')}
+                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer border flex items-center gap-1.5 ${
+                    selectedSkinTypes.includes('All')
+                      ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105'
+                      : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
+                  }`}
+                >
+                  <span>🌟</span>
+                  <span>{selectedSkinTypes.includes('All') ? '✓ All Skin Types' : 'All Skin Types'}</span>
+                </button>
+
+                {/* Individual Skin Type Pills */}
+                {availableSkinTypes.map((st) => {
+                  const isSelected = !selectedSkinTypes.includes('All') && selectedSkinTypes.includes(st.id);
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => toggleSkinType(st.id)}
+                      className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer border flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105'
+                          : 'bg-[#FDF4F7] text-gray-700 border-[#F1BCCE] hover:border-[#D84B7E]'
+                      }`}
+                    >
+                      <span>{st.icon}</span>
+                      <span>{isSelected ? `✓ ${st.label}` : st.label}</span>
+                    </button>
+                  );
+                })}
+
+                {/* Custom Skin Types added by Admin */}
+                {selectedSkinTypes
+                  .filter((t) => t !== 'All' && !availableSkinTypes.some((st) => st.id === t))
+                  .map((customType) => (
+                    <button
+                      key={customType}
+                      type="button"
+                      onClick={() => setSelectedSkinTypes(selectedSkinTypes.filter((t) => t !== customType))}
+                      className="px-3.5 py-1.5 rounded-xl font-bold text-xs bg-[#D84B7E] text-[#FDF4F7] border-[#D84B7E] shadow-sm scale-105 cursor-pointer flex items-center gap-1"
+                    >
+                      <span>✓ {customType}</span>
+                      <span className="text-[10px] hover:text-black">✕</span>
+                    </button>
+                  ))}
+              </div>
+
+              {/* Custom Skin Concern / Type Input */}
+              <div className="flex gap-2 pt-2 border-t border-[#F1BCCE]/60 items-center">
+                <input
+                  type="text"
+                  value={customSkinTypeInput}
+                  onChange={(e) => setCustomSkinTypeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const val = customSkinTypeInput.trim();
+                      if (val) {
+                        const next = selectedSkinTypes.filter((t) => t !== 'All');
+                        if (!next.includes(val)) {
+                          setSelectedSkinTypes([...next, val]);
+                        }
+                        setCustomSkinTypeInput('');
+                      }
+                    }
+                  }}
+                  placeholder="Or enter custom skin type/concern (e.g. Dehydrated, Hyperpigmentation)..."
+                  className="flex-1 p-2.5 bg-white border border-[#F1BCCE] rounded-xl outline-none focus:border-[#D84B7E] text-[#111111] text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = customSkinTypeInput.trim();
+                    if (val) {
+                      const next = selectedSkinTypes.filter((t) => t !== 'All');
+                      if (!next.includes(val)) {
+                        setSelectedSkinTypes([...next, val]);
+                      }
+                      setCustomSkinTypeInput('');
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-[#111111] text-white hover:bg-[#D84B7E] rounded-xl font-bold transition-colors text-xs shrink-0 cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Type
+                </button>
+              </div>
             </div>
           )}
 

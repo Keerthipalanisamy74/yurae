@@ -25,7 +25,7 @@ export const WishlistPage: React.FC = () => {
         </p>
         <Link
           to="/shop"
-          className="inline-flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#111111] transition-colors cursor-pointer shadow-md touch-target min-h-[44px]"
+          className="inline-flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-[#D81B60] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-colors cursor-pointer shadow-md touch-target min-h-[44px]"
         >
           Discover Products
           <ArrowRight className="w-4 h-4" />
@@ -59,7 +59,7 @@ export const WishlistPage: React.FC = () => {
                   />
                   <button
                     onClick={() => toggleWishlist(item.product)}
-                    className="absolute top-2 right-2 p-2 bg-white/90 backdrop-blur-xs rounded-full text-gray-500 hover:text-red-500 transition-colors cursor-pointer touch-target min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    className="absolute top-2 right-2 p-2 bg-[#FCE7F0] backdrop-blur-xs rounded-full text-gray-500 hover:text-red-500 transition-colors cursor-pointer touch-target min-w-[36px] min-h-[36px] flex items-center justify-center border border-[#F1BCCE]"
                     aria-label="Remove from wishlist"
                   >
                     <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -83,7 +83,7 @@ export const WishlistPage: React.FC = () => {
 
               <button
                 onClick={() => moveToCart(item.product)}
-                className="w-full py-2.5 bg-[#D84B7E] text-[#FDF4F7] text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl hover:bg-[#111111] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs touch-target min-h-[40px] active:scale-95"
+                className="w-full py-2.5 bg-[#D81B60] text-[#FDF4F7] text-[11px] sm:text-xs uppercase tracking-widest font-bold rounded-xl hover:bg-[#4A0E2E] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs touch-target min-h-[40px] active:scale-95"
               >
                 <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Move to Bag
               </button>

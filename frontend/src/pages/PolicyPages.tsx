@@ -91,11 +91,11 @@ export const ShippingPolicyPage: React.FC = () => {
         <section className="space-y-2">
           <h2 className="font-serif text-base sm:text-lg font-bold text-[#111111]">2. Domestic Delivery (India)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-2">
-            <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl">
+            <div className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl">
               <h3 className="font-bold text-[#111111] mb-1 text-sm">Metro Cities</h3>
               <p className="text-xs text-gray-600">Mumbai, Delhi NCR, Bangalore, Chennai, Hyderabad, Kolkata: <strong>1 to 3 Business Days</strong></p>
             </div>
-            <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl">
+            <div className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl">
               <h3 className="font-bold text-[#111111] mb-1 text-sm">Rest of India</h3>
               <p className="text-xs text-gray-600">Tier 2/3 Cities & Regional Towns: <strong>3 to 5 Business Days</strong></p>
             </div>
@@ -275,7 +275,7 @@ export const FAQHelpPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search questions (e.g. sizing, return)..."
-            className="w-full pl-11 pr-4 py-2.5 sm:py-3 bg-white border border-[#F1BCCE] rounded-2xl outline-none focus:border-[#D84B7E] text-xs shadow-xs min-h-[44px]"
+            className="w-full pl-11 pr-4 py-2.5 sm:py-3 bg-[#F8D7E3] border border-[#F1BCCE] rounded-2xl outline-none focus:border-[#D84B7E] text-xs shadow-xs min-h-[44px]"
           />
         </div>
       </div>
@@ -330,7 +330,7 @@ export const FAQHelpPage: React.FC = () => {
         </div>
         <a
           href="mailto:concierge@yuraebeauty.com"
-          className="px-6 py-3 bg-[#D84B7E] hover:bg-white hover:text-[#111111] text-white text-xs uppercase tracking-widest font-bold rounded-full transition-all shadow-md shrink-0 cursor-pointer touch-target min-h-[44px] flex items-center justify-center"
+          className="px-6 py-3 bg-[#D84B7E] hover:bg-[#AD1457] text-white text-xs uppercase tracking-widest font-bold rounded-full transition-all shadow-md shrink-0 cursor-pointer touch-target min-h-[44px] flex items-center justify-center"
         >
           Contact Concierge
         </a>
@@ -408,7 +408,7 @@ export const PoliciesHubPage: React.FC = () => {
           >
             <div className="space-y-2.5 sm:space-y-3">
               <div className="flex justify-between items-start">
-                <div className="p-2.5 sm:p-3 bg-white rounded-2xl border border-[#F1BCCE] group-hover:scale-105 transition-transform shadow-2xs">
+                <div className="p-2.5 sm:p-3 bg-[#F8D7E3] rounded-2xl border border-[#F1BCCE] group-hover:scale-105 transition-transform shadow-2xs">
                   {p.icon}
                 </div>
                 <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[#D84B7E] bg-[#FCE7F0] px-2.5 py-0.5 sm:py-1 rounded-full">

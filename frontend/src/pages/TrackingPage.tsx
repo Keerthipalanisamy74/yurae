@@ -149,14 +149,14 @@ export const TrackingPage: React.FC = () => {
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl">
+              <div className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl">
                 <span className="text-xs text-gray-500 font-bold block mb-1">Carrier Partner</span>
                 <span className="font-bold text-[#111111] text-base block">
                   {trackingData.courier_name || 'Blue Dart Express Air'}
                 </span>
               </div>
 
-              <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl">
+              <div className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl">
                 <span className="text-xs text-gray-500 font-bold block mb-1">Air Waybill (AWB)</span>
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-[#D84B7E] text-base">
@@ -178,7 +178,7 @@ export const TrackingPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl">
+              <div className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl">
                 <span className="text-xs text-gray-500 font-bold block mb-1">Estimated Delivery</span>
                 <span className="font-bold text-emerald-700 text-base block">
                   {trackingData.estimated_delivery || '2-4 Business Days'}
@@ -187,7 +187,7 @@ export const TrackingPage: React.FC = () => {
             </div>
 
             {/* Stepper Timeline */}
-            <div className="p-4 sm:p-8 bg-white border border-[#F1BCCE] rounded-2xl space-y-5 sm:space-y-6">
+            <div className="p-4 sm:p-8 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl space-y-5 sm:space-y-6">
               <h3 className="font-serif text-sm sm:text-base font-bold text-[#111111] uppercase tracking-wider">
                 Fulfillment Journey
               </h3>
@@ -215,7 +215,7 @@ export const TrackingPage: React.FC = () => {
                               className={`w-9 h-9 rounded-full flex items-center justify-center border text-xs font-bold transition-all shadow-xs ${
                                 isDone
                                   ? 'bg-[#D84B7E] text-white border-[#D84B7E]'
-                                  : 'bg-white text-gray-400 border-[#F1BCCE]'
+                                  : 'bg-[#F8D7E3] text-gray-400 border-[#F1BCCE]'
                               } ${isCurrent ? 'ring-4 ring-[#F8D7E3]' : ''}`}
                             >
                               {isDone ? <Check className="w-4 h-4" /> : idx + 1}
@@ -241,7 +241,7 @@ export const TrackingPage: React.FC = () => {
                               className={`w-8 h-8 rounded-full flex items-center justify-center border text-xs font-bold shrink-0 transition-all shadow-xs ${
                                 isDone
                                   ? 'bg-[#D84B7E] text-white border-[#D84B7E]'
-                                  : 'bg-white text-gray-400 border-[#F1BCCE]'
+                                  : 'bg-[#F8D7E3] text-gray-400 border-[#F1BCCE]'
                               } ${isCurrent ? 'ring-4 ring-[#F8D7E3]' : ''}`}
                             >
                               {isDone ? <Check className="w-3.5 h-3.5" /> : idx + 1}
@@ -268,7 +268,7 @@ export const TrackingPage: React.FC = () => {
               </h3>
 
               {(!trackingData.events || trackingData.events.length === 0) ? (
-                <div className="p-4 bg-white border border-[#F1BCCE] rounded-2xl text-xs text-gray-600 flex items-center gap-2">
+                <div className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl text-xs text-gray-600 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-[#D84B7E]" />
                   <span>Shipment registered in courier manifest. Live checkpoint scans will appear here as package moves across fulfillment centers.</span>
                 </div>
@@ -277,7 +277,7 @@ export const TrackingPage: React.FC = () => {
                   {trackingData.events.map((ev) => (
                     <div
                       key={ev.id}
-                      className="p-4 bg-white border border-[#F1BCCE] rounded-2xl flex items-start gap-3.5 text-xs shadow-2xs"
+                      className="p-4 bg-[#FCE7F0] border border-[#F1BCCE] rounded-2xl flex items-start gap-3.5 text-xs shadow-2xs"
                     >
                       <div className="w-3 h-3 rounded-full bg-[#D84B7E] mt-1 shrink-0 ring-4 ring-[#F8D7E3]" />
                       <div className="flex-1">

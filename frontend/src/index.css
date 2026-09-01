@@ -4,17 +4,17 @@
   :root {
     --font-serif: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-    --pink-50: #FFF5F8;
+    --pink-50: #FFF0F5;
     --pink-100: #FCE7F0;
     --pink-200: #F8D7E3;
-    --pink-300: #F1BCCE;
-    --pink-400: #F8A4C4;
-    --pink-500: #E0218A;
-    --pink-600: #D84B7E;
-    --pink-700: #BE185D;
-    --pink-800: #881337;
-    --pink-900: #4A0E2E;
-    --pink-950: #2D081C;
+    --pink-300: #F4C2D7;
+    --pink-400: #F1BCCE;
+    --pink-500: #F06292;
+    --pink-600: #E0218A;
+    --pink-700: #D81B60;
+    --pink-800: #C2185B;
+    --pink-900: #880E4F;
+    --pink-950: #4A0E2E;
   }
 
   *, *::before, *::after {
@@ -22,7 +22,7 @@
   }
 
   ::selection {
-    background: #E0218A;
+    background: #D81B60;
     color: #FFFFFF;
   }
 
@@ -33,17 +33,19 @@
     -webkit-text-size-adjust: 100%;
     overflow-x: hidden;
     max-width: 100vw;
+    background-color: #FCE4EC;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #FFF0F5; /* Ultra-Soft Luxury Lavender Blush Pink */
+    background-color: #FCE4EC; /* Rich Vibrant All-Pink Base */
     background-image: 
-      radial-gradient(at 0% 0%, rgba(252, 231, 240, 0.7) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(248, 215, 227, 0.6) 0px, transparent 50%),
-      radial-gradient(at 50% 100%, rgba(254, 226, 236, 0.8) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(248, 187, 208, 0.95) 0px, transparent 55%),
+      radial-gradient(at 100% 0%, rgba(244, 143, 177, 0.8) 0px, transparent 55%),
+      radial-gradient(at 50% 100%, rgba(248, 187, 208, 0.9) 0px, transparent 60%),
+      radial-gradient(at 100% 100%, rgba(252, 228, 236, 0.95) 0px, transparent 60%);
     background-attachment: fixed;
-    color: #2D081C; /* Rich Velvet Plum-Rose Dark Contrast */
+    color: #111111;
     overflow-x: hidden;
     max-width: 100vw;
     width: 100%;
@@ -58,11 +60,12 @@
     min-height: 100vh;
     overflow-x: hidden;
     max-width: 100vw;
+    background-color: #FCE4EC;
   }
 
   h1, h2, h3, h4, .font-serif {
     font-family: var(--font-serif);
-    color: #2D081C;
+    color: #111111;
   }
 
   /* Prevent auto-zoom on iOS Safari when tapping input elements */
@@ -86,26 +89,73 @@
     max-width: 100%;
     height: auto;
   }
+
+  /* ZERO WHITE SPACE RULES: Transform any white or off-white background to luxury rich pink */
+  .bg-white,
+  .bg-white\/95,
+  .bg-white\/90,
+  .bg-white\/85,
+  .bg-white\/80,
+  .bg-white\/50,
+  .bg-white\/40,
+  .bg-white\/20,
+  .bg-white\/10,
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-slate-50,
+  .bg-zinc-50,
+  .bg-neutral-50,
+  [class*="bg-white"],
+  [class*="bg-[#FFF8FA]"],
+  [class*="bg-[#FDF4F7]"],
+  [class*="bg-[#FFF9FB]"],
+  [class*="bg-[#FFF0F5]"],
+  [class*="bg-[#FAF0F4]"],
+  [class*="bg-[#FFF5F8]"],
+  [class*="bg-[#FDF0F5]"],
+  [class*="bg-[#FFF0F2]"],
+  [class*="bg-gray-50"],
+  [class*="bg-gray-100"] {
+    background-color: #FCE7F0 !important;
+  }
+
+  /* Pink Input Fields & Form Controls */
+  input, select, textarea {
+    background-color: #F8D7E3 !important;
+    border: 1.5px solid #F1BCCE !important;
+    color: #111111 !important;
+    border-radius: 0.75rem;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #8C2C55 !important;
+    opacity: 0.75;
+  }
+  input:focus, select:focus, textarea:focus {
+    background-color: #FDF0F5 !important;
+    border-color: #D81B60 !important;
+    box-shadow: 0 0 0 3px rgba(216, 27, 96, 0.25) !important;
+    outline: none !important;
+  }
 }
 
 /* Custom Luxury Pink Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #FCE7F0;
+  background: #FCE4EC;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #E0218A;
+  background: #D81B60;
   border-radius: 9999px;
-  border: 1px solid #FFF5F8;
+  border: 1px solid #FCE4EC;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #BE185D;
+  background: #880E4F;
 }
 
 /* Touch-Optimized Utilities */
@@ -145,54 +195,74 @@
   justify-content: center;
 }
 
-/* Luxury Pink Glassmorphism */
+/* Luxury Pink Glassmorphism & Cards (No white space) */
 .glass-panel {
-  background: rgba(255, 245, 248, 0.94);
+  background: rgba(252, 231, 240, 0.96) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(241, 188, 206, 0.85);
-  box-shadow: 0 8px 32px 0 rgba(216, 75, 126, 0.08);
+  border: 1.5px solid #F1BCCE !important;
+  box-shadow: 0 8px 32px 0 rgba(216, 27, 96, 0.12);
 }
 
 .glass-nav {
-  background: rgba(255, 245, 248, 0.96);
+  background: rgba(252, 231, 240, 0.98) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(241, 188, 206, 0.9);
-  box-shadow: 0 4px 20px -2px rgba(216, 75, 126, 0.08);
+  border-bottom: 1.5px solid #F1BCCE !important;
+  box-shadow: 0 4px 20px -2px rgba(216, 27, 96, 0.12);
 }
 
 .luxury-card {
+  background-color: #FCE7F0 !important;
+  border: 1.5px solid #F1BCCE !important;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .luxury-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 40px -12px rgba(216, 75, 126, 0.28);
-    border-color: #E0218A;
+    box-shadow: 0 20px 40px -10px rgba(216, 27, 96, 0.35);
+    border-color: #D81B60 !important;
   }
 }
 
-/* Pink Utility Accent Classes */
+/* Highlight Utilities in Dark Pink & Black */
+.highlight-dark-pink {
+  background-color: #D81B60 !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  border: 1.5px solid #AD1457 !important;
+}
+
+.highlight-black {
+  background-color: #111111 !important;
+  color: #FCE4EC !important;
+  font-weight: 700 !important;
+  border: 1.5px solid #000000 !important;
+}
+
 .text-pink-accent {
-  color: #E0218A;
+  color: #D81B60 !important;
 }
 
 .bg-pink-accent {
-  background-color: #E0218A;
+  background-color: #D81B60 !important;
 }
 
 .border-pink-accent {
-  border-color: #F1BCCE;
+  border-color: #F1BCCE !important;
+}
+
+.border-dark-pink {
+  border-color: #D81B60 !important;
 }
 
 .pink-glow {
-  box-shadow: 0 0 25px rgba(224, 33, 138, 0.35);
+  box-shadow: 0 0 25px rgba(216, 27, 96, 0.4);
 }
 
 .pink-glow-sm {
-  box-shadow: 0 0 15px rgba(224, 33, 138, 0.25);
+  box-shadow: 0 0 15px rgba(216, 27, 96, 0.3);
 }
 
 /* Lovable Floating Hearts Keyframes */

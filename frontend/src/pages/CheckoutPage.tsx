@@ -1179,13 +1179,13 @@ export const CheckoutPage: React.FC = () => {
                             onClick={() => applyAddressToForm(addr)}
                             className={`p-4 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between space-y-2.5 ${
                               isSelected
-                                ? 'bg-white border-[#D84B7E] ring-2 ring-[#F1BCCE] shadow-sm'
+                                ? 'bg-[#F8D7E3] border-[#D84B7E] ring-2 ring-[#F1BCCE] shadow-sm'
                                 : 'bg-[#FDF4F7] border-[#F1BCCE] hover:border-[#D84B7E]/60'
                             }`}
                           >
                             <div className="space-y-1.5">
                               <div className="flex justify-between items-center">
-                                <span className="px-2.5 py-0.5 bg-white border border-[#F1BCCE] rounded-full text-[11px] font-bold text-[#111111] flex items-center gap-1 shadow-2xs">
+                                <span className="px-2.5 py-0.5 bg-[#F8D7E3] border border-[#F1BCCE] rounded-full text-[11px] font-bold text-[#111111] flex items-center gap-1 shadow-2xs">
                                   <span>{typeIcon}</span>
                                   <span>{typeLabel}</span>
                                 </span>
@@ -1198,7 +1198,7 @@ export const CheckoutPage: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={(e) => handleStartEditSavedAddress(addr, e)}
-                                    className="px-2 py-0.5 bg-white hover:bg-[#FCE7F0] text-gray-700 hover:text-[#D84B7E] border border-[#F1BCCE] rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                    className="px-2 py-0.5 bg-[#F8D7E3] hover:bg-[#FCE7F0] text-gray-700 hover:text-[#D84B7E] border border-[#F1BCCE] rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                                   >
                                     <Edit className="w-2.5 h-2.5" /> Edit
                                   </button>
@@ -1642,7 +1642,7 @@ export const CheckoutPage: React.FC = () => {
                   </div>
 
                   {showQrCode ? (
-                    <div className="p-4 bg-white rounded-xl border border-[#F1BCCE] text-center space-y-2">
+                    <div className="p-4 bg-[#FCE7F0] rounded-xl border border-[#F1BCCE] text-center space-y-2">
                       <div className="w-36 h-36 mx-auto bg-gray-900 text-white rounded-lg flex items-center justify-center font-mono text-xs p-2 text-center">
                         [QR Code for {formatRawPrice(totalPayable, currency)}]
                       </div>
@@ -1656,7 +1656,7 @@ export const CheckoutPage: React.FC = () => {
                         value={upiId}
                         onChange={(e) => setUpiId(e.target.value)}
                         placeholder="e.g. mobileNumber@okhdfcbank or yourname@upi"
-                        className="w-full bg-white border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
+                        className="w-full bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
                       />
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {['@okhdfcbank', '@okicici', '@paytm', '@ybl', '@axl'].map((sfx) => (
@@ -1664,7 +1664,7 @@ export const CheckoutPage: React.FC = () => {
                             key={sfx}
                             type="button"
                             onClick={() => setUpiId((prev) => (prev ? prev.split('@')[0] + sfx : sfx))}
-                            className="px-2 py-0.5 bg-white border border-[#F1BCCE] rounded text-[10px] font-mono text-gray-600 hover:border-[#D84B7E]"
+                            className="px-2 py-0.5 bg-[#F8D7E3] border border-[#F1BCCE] rounded text-[10px] font-mono text-gray-600 hover:border-[#D84B7E]"
                           >
                             {sfx}
                           </button>
@@ -1700,7 +1700,7 @@ export const CheckoutPage: React.FC = () => {
                       onChange={(e) => setCardNumber(e.target.value)}
                       placeholder="Card Number (e.g. 4532 •••• •••• 8892)"
                       maxLength={19}
-                      className="w-full bg-white border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E] font-mono"
+                      className="w-full bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E] font-mono"
                     />
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <input
@@ -1709,7 +1709,7 @@ export const CheckoutPage: React.FC = () => {
                         onChange={(e) => setCardExpiry(e.target.value)}
                         placeholder="MM / YY"
                         maxLength={5}
-                        className="bg-white border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
+                        className="bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
                       />
                       <input
                         type="password"
@@ -1717,14 +1717,14 @@ export const CheckoutPage: React.FC = () => {
                         onChange={(e) => setCardCvv(e.target.value)}
                         placeholder="CVV"
                         maxLength={4}
-                        className="bg-white border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
+                        className="bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
                       />
                       <input
                         type="text"
                         value={cardName}
                         onChange={(e) => setCardName(e.target.value)}
                         placeholder="Name on Card"
-                        className="col-span-2 sm:col-span-1 bg-white border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
+                        className="col-span-2 sm:col-span-1 bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-[#D84B7E]"
                       />
                     </div>
                   </div>
@@ -1743,7 +1743,7 @@ export const CheckoutPage: React.FC = () => {
                   <select
                     value={selectedBank}
                     onChange={(e) => setSelectedBank(e.target.value)}
-                    className="w-full bg-white border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs font-bold outline-none focus:border-[#D84B7E]"
+                    className="w-full bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl px-3.5 py-2.5 text-xs font-bold outline-none focus:border-[#D84B7E]"
                   >
                     <option value="HDFC Bank">HDFC Bank</option>
                     <option value="State Bank of India">State Bank of India (SBI)</option>

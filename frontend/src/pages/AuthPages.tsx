@@ -56,14 +56,14 @@ export const Login: React.FC = () => {
             <button
               type="button"
               onClick={() => handleQuickDemoFill('customer')}
-              className="px-3.5 py-1.5 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer touch-target min-h-[36px]"
+              className="px-3.5 py-1.5 bg-[#F8D7E3] rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer touch-target min-h-[36px]"
             >
               User
             </button>
             <button
               type="button"
               onClick={() => handleQuickDemoFill('admin')}
-              className="px-3.5 py-1.5 bg-white rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer text-[#D84B7E] touch-target min-h-[36px]"
+              className="px-3.5 py-1.5 bg-[#F8D7E3] rounded-full text-[11px] font-bold border border-[#F1BCCE] hover:border-[#D84B7E] cursor-pointer text-[#D84B7E] touch-target min-h-[36px]"
             >
               Admin
             </button>
@@ -357,7 +357,7 @@ export const ForgotPassword: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="e.g. yourname@domain.com"
-                className="w-full bg-white border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] text-[#111111]"
+                className="w-full bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] text-[#111111]"
               />
             </div>
 
@@ -392,7 +392,7 @@ export const ForgotPassword: React.FC = () => {
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 required
                 placeholder="123456"
-                className="w-full bg-white border border-[#F1BCCE] rounded-xl p-3 text-center text-2xl font-mono tracking-[0.4em] font-bold outline-none focus:border-[#D84B7E] text-[#111111]"
+                className="w-full bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl p-3 text-center text-2xl font-mono tracking-[0.4em] font-bold outline-none focus:border-[#D84B7E] text-[#111111]"
               />
             </div>
 
@@ -429,7 +429,7 @@ export const ForgotPassword: React.FC = () => {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 placeholder="Minimum 6 characters"
-                className="w-full bg-white border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] text-[#111111]"
+                className="w-full bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] text-[#111111]"
               />
             </div>
 
@@ -443,7 +443,7 @@ export const ForgotPassword: React.FC = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 placeholder="Re-type new password"
-                className="w-full bg-white border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] text-[#111111]"
+                className="w-full bg-[#F8D7E3] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] text-[#111111]"
               />
             </div>
 

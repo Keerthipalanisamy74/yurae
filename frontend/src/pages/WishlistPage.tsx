@@ -15,7 +15,7 @@ export const WishlistPage: React.FC = () => {
 
   if (wishlist.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-6 bg-[#FDF4F7] pb-32 xl:pb-20">
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-6 bg-[#F8B4CB] pb-32 xl:pb-20">
         <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#F8D7E3] mx-auto flex items-center justify-center">
           <Heart className="w-8 h-8 sm:w-10 sm:h-10 text-[#D84B7E]" />
         </div>
@@ -35,7 +35,7 @@ export const WishlistPage: React.FC = () => {
   }
 
   return (
-    <div className="pb-32 xl:pb-24 pt-6 sm:pt-8 bg-[#FDF4F7]">
+    <div className="pb-32 xl:pb-24 pt-6 sm:pt-8 bg-[#F8B4CB]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="mb-6 sm:mb-8">
           <span className="text-[10px] sm:text-xs uppercase tracking-widest text-[#D84B7E] font-bold block mb-1">

@@ -627,7 +627,7 @@ export const CheckoutPage: React.FC = () => {
 
   if (step === 5 && createdOrder) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-8 bg-[#FDF4F7]">
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-8 bg-[#F8B4CB]">
         <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full mx-auto flex items-center justify-center shadow-lg">
           <CheckCircle2 className="w-10 h-10" />
         </div>
@@ -1094,7 +1094,7 @@ export const CheckoutPage: React.FC = () => {
   );
 
   return (
-    <div className="pb-32 xl:pb-24 pt-6 sm:pt-8 bg-[#FDF4F7]">
+    <div className="pb-32 xl:pb-24 pt-6 sm:pt-8 bg-[#F8B4CB]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         
         {/* Step Indicator Bar */}

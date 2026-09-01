@@ -6,7 +6,7 @@ import { api } from '../services/api';
 import { SEO } from '../components/common/SEO';
 
 export const AboutPage: React.FC = () => (
-  <div className="pb-32 xl:pb-24 pt-8 sm:pt-12 max-w-4xl mx-auto px-3 sm:px-4 space-y-8 sm:space-y-12 bg-[#FDF4F7]">
+  <div className="pb-32 xl:pb-24 pt-8 sm:pt-12 max-w-4xl mx-auto px-3 sm:px-4 space-y-8 sm:space-y-12 bg-[#F8B4CB]">
     <SEO
       title="About YURAE — The Philosophy of Botanical Skincare & Luxury"
       description="Learn about Yurae's commitment to botanical integrity, clean Korean formulation chemistry, and minimalist luxury aesthetics."
@@ -111,7 +111,7 @@ export const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="pb-32 xl:pb-24 pt-8 sm:pt-12 max-w-5xl mx-auto px-3 sm:px-4 space-y-8 sm:space-y-12 bg-[#FDF4F7]">
+    <div className="pb-32 xl:pb-24 pt-8 sm:pt-12 max-w-5xl mx-auto px-3 sm:px-4 space-y-8 sm:space-y-12 bg-[#F8B4CB]">
       <SEO
         title="Contact YURAE Concierge & Client Services"
         description="Connect with Yurae's client advisors for questions on botanical formulations, bespoke sizing, styling advice, or order tracking."

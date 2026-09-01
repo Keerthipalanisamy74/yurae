@@ -386,7 +386,7 @@ export const PoliciesHubPage: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-8 sm:py-14 pb-32 xl:pb-16 space-y-8 sm:space-y-10 bg-[#FDF4F7]">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-8 sm:py-14 pb-32 xl:pb-16 space-y-8 sm:space-y-10 bg-[#F8B4CB]">
       <div className="text-center space-y-2 sm:space-y-3">
         <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">
           Client Trust & Compliance

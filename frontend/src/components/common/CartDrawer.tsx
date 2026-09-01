@@ -43,20 +43,20 @@ export const CartDrawer: React.FC = () => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md bg-[#FDF4F7] shadow-2xl flex flex-col border-l border-[#F1BCCE]"
+            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-md bg-[#FAD2E1] shadow-2xl flex flex-col border-l-2 border-[#F06292]"
           >
             {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-[#F1BCCE] flex items-center justify-between bg-[#FFF8FA] pt-safe">
+            <div className="p-4 sm:p-6 border-b border-[#F06292] flex items-center justify-between bg-[#F8BED3] pt-safe">
               <div className="flex items-center gap-2.5 sm:gap-3">
-                <ShoppingBag className="w-5 h-5 text-[#D84B7E]" />
+                <ShoppingBag className="w-5 h-5 text-[#D81B60]" />
                 <h2 className="font-serif text-lg sm:text-xl tracking-wide text-[#111111] font-bold">Your Beauty Bag</h2>
-                <span className="text-xs bg-[#F8D7E3] text-[#D84B7E] px-2.5 py-0.5 rounded-full font-bold">
+                <span className="text-xs bg-[#D81B60] text-white px-2.5 py-0.5 rounded-full font-bold">
                   {cart?.item_count || 0}
                 </span>
               </div>
               <button
                 onClick={closeCart}
-                className="p-2 hover:bg-[#F8D7E3] rounded-full transition-colors cursor-pointer touch-target min-w-[40px] min-h-[40px] flex items-center justify-center"
+                className="p-2 hover:bg-[#F6ABC5] rounded-full transition-colors cursor-pointer touch-target min-w-[40px] min-h-[40px] flex items-center justify-center"
                 aria-label="Close cart"
               >
                 <X className="w-5 h-5 text-[#111111]" />
@@ -64,7 +64,7 @@ export const CartDrawer: React.FC = () => {
             </div>
 
             {/* Free Shipping Progress Bar */}
-            <div className="bg-[#FCE7F0] px-4 sm:px-6 py-2.5 sm:py-3 border-b border-[#F1BCCE]">
+            <div className="bg-[#F8BED3] px-4 sm:px-6 py-2.5 sm:py-3 border-b border-[#F06292]">
               {remainingInINR > 0 ? (
                 <p className="text-xs text-[#111111]/80 text-center mb-1.5 font-medium">
                   Add <span className="font-bold text-[#111111]">{formatPrice(remainingInINR)}</span> more for <span className="text-[#D84B7E] font-bold">Free Shipping</span>

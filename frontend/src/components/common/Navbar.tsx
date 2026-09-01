@@ -110,7 +110,7 @@ export const Navbar: React.FC = () => {
       <AnnouncementBar />
       <header
         className={`sticky top-0 z-40 transition-all duration-300 ${
-          isScrolled ? 'glass-nav shadow-xs py-2 sm:py-2.5' : 'bg-[#FDF4F7] py-2.5 sm:py-4 border-b border-[#F1BCCE]'
+          isScrolled ? 'glass-nav shadow-md py-2 sm:py-2.5' : 'bg-[#F8B4CB] py-2.5 sm:py-4 border-b-2 border-[#F06292] shadow-xs'
         }`}
       >
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center justify-between gap-1.5 sm:gap-4">
@@ -449,10 +449,10 @@ export const Navbar: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className="relative z-50 w-full max-w-sm sm:max-w-md bg-[#FFF8FA] h-full shadow-2xl flex flex-col border-r border-[#F1BCCE] overflow-hidden"
+              className="relative z-50 w-full max-w-sm sm:max-w-md bg-[#FAD2E1] h-full shadow-2xl flex flex-col border-r-2 border-[#F06292] overflow-hidden"
             >
               {/* Drawer Header */}
-              <div className="p-4 sm:p-5 border-b border-[#F1BCCE] bg-[#FDF4F7] flex items-center justify-between">
+              <div className="p-4 sm:p-5 border-b border-[#F06292] bg-[#F8BED3] flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <img
                     src="/logo/logo-emblem.png"

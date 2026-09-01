@@ -41,7 +41,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center py-10 sm:py-16 px-3 sm:px-4 bg-[#FDF4F7] pb-32 xl:pb-16">
+    <div className="min-h-[75vh] flex items-center justify-center py-10 sm:py-16 px-3 sm:px-4 bg-[#F8B4CB] pb-32 xl:pb-16">
       <div className="max-w-md w-full p-5 sm:p-8 md:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xl space-y-5 sm:space-y-6">
         <div className="text-center space-y-1.5 sm:space-y-2">
           <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Client Portal</span>
@@ -148,7 +148,7 @@ export const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-10 sm:py-16 px-3 sm:px-4 bg-[#FDF4F7] pb-32 xl:pb-16">
+    <div className="min-h-[80vh] flex items-center justify-center py-10 sm:py-16 px-3 sm:px-4 bg-[#F8B4CB] pb-32 xl:pb-16">
       <div className="max-w-lg w-full p-5 sm:p-8 md:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xl space-y-5 sm:space-y-6">
         <div className="text-center space-y-1.5 sm:space-y-2">
           <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Join Yurae</span>
@@ -321,7 +321,7 @@ export const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center py-16 px-4 bg-[#FDF4F7]">
+    <div className="min-h-[75vh] flex items-center justify-center py-16 px-4 bg-[#F8B4CB]">
       <div className="max-w-md w-full p-8 sm:p-10 bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl shadow-xl space-y-6">
         <div className="text-center space-y-2">
           <span className="text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">Account Recovery</span>

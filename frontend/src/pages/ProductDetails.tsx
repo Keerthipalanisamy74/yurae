@@ -423,7 +423,7 @@ export const ProductDetails: React.FC = () => {
                 <button
                   onClick={() => toggleWishlist(product)}
                   className={`absolute top-3 right-3 p-2.5 rounded-full shadow-md transition-all cursor-pointer ${
-                    isSaved ? 'bg-[#D84B7E] text-[#FDF4F7]' : 'bg-white/85 backdrop-blur-md text-[#111111] hover:scale-110'
+                    isSaved ? 'bg-[#D81B60] text-white' : 'bg-[#FAD2E1] text-[#111111] border border-[#F06292] hover:scale-110'
                   }`}
                   title="Save to wishlist"
                 >

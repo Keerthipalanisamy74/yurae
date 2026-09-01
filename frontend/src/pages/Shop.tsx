@@ -759,7 +759,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   };
 
   return (
-    <div className="pb-24 bg-[#FDF4F7]">
+    <div className="pb-24 bg-[#F8B4CB]">
       <SEO
         title={`${getCategoryTitle()} — YURAE Luxury Collection`}
         description={getCategoryDescription()}
@@ -771,9 +771,9 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
         ]}
       />
       {/* Category Banner */}
-      <section className="bg-[#FCE7F0] py-8 sm:py-14 px-3 sm:px-4 border-b border-[#F1BCCE]">
+      <section className="bg-gradient-to-b from-[#F8B4CB] via-[#F6A2BE] to-[#F48FB1] py-8 sm:py-14 px-3 sm:px-4 border-b-2 border-[#F06292] shadow-xs">
         <div className="max-w-7xl mx-auto text-center space-y-2.5 sm:space-y-4">
-          <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D84B7E] font-bold">
+          <span className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-[#D81B60] font-bold">
             Yurae Beauty
           </span>
           <h1 className="font-serif text-3xl sm:text-5xl font-bold text-[#111111]">

@@ -170,7 +170,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const totalNotifications = pendingOrdersCount + lowStockCount + unreadMessagesCount + pendingReturnsCount;
 
   return (
-    <div className="min-h-screen bg-[#FFF9FB] text-[#111111] flex flex-col antialiased selection:bg-[#D84B7E] selection:text-white">
+    <div className="min-h-screen bg-[#F8B4CB] text-[#111111] flex flex-col antialiased selection:bg-[#D81B60] selection:text-white">
       {/* GLOBAL SEARCH COMMAND PALETTE MODAL */}
       <GlobalSearchModal
         isOpen={isSearchModalOpen}

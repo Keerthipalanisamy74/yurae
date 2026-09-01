@@ -64,10 +64,10 @@ export const Home: React.FC = () => {
       />
       
       {/* 1. HERO SECTION */}
-      <section className="relative flex items-center bg-gradient-to-br from-[#FFF5F8] via-[#FCE7F0] to-[#FDF4F7] overflow-hidden border-b border-[#F1BCCE]">
+      <section className="relative flex items-center bg-gradient-to-br from-[#F8B4CB] via-[#F6A2BE] to-[#F48FB1] overflow-hidden border-b-2 border-[#F06292] shadow-sm">
         {/* Soft Background Ambient Gradients */}
-        <div className="absolute top-0 right-0 w-56 sm:w-72 h-56 sm:h-72 bg-[#F1BCCE]/40 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-48 sm:w-64 h-48 sm:h-64 bg-[#D84B7E]/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-56 sm:w-72 h-56 sm:h-72 bg-[#D81B60]/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-48 sm:w-64 h-48 sm:h-64 bg-[#C2185B]/20 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
@@ -367,7 +367,7 @@ export const Home: React.FC = () => {
 
       {/* 5. INSTAGRAM COMMUNITY BANNER */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-        <div className="relative overflow-hidden p-6 sm:p-8 md:p-10 bg-gradient-to-r from-[#FFF5F8] via-[#FCE7F0] to-[#FDF4F7] border border-[#F1BCCE] rounded-2xl sm:rounded-3xl shadow-xs">
+        <div className="relative overflow-hidden p-6 sm:p-8 md:p-10 bg-gradient-to-r from-[#F8B4CB] via-[#F6A2BE] to-[#F48FB1] border-2 border-[#F06292] rounded-2xl sm:rounded-3xl shadow-sm">
           <div className="absolute -top-12 -right-12 w-44 h-44 bg-[#D84B7E]/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
             <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-5">

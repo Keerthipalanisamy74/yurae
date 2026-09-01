@@ -162,8 +162,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setWeight(productToEdit.weight || '');
       setDesc(productToEdit.description || '');
       setShortDesc(productToEdit.short_description || '');
-      setIngredients(productToEdit.ingredients || '');
-      setSkinType(productToEdit.skin_type || 'All');
+      setSkinType(productToEdit.skin_type || '');
 
       // Populate selected skin types
       if (productToEdit.skin_type && !productToEdit.skin_type.toLowerCase().includes('size')) {
@@ -177,10 +176,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             const found = availableSkinTypes.find((a) => a.id.toLowerCase() === t.toLowerCase() || a.label.toLowerCase() === t.toLowerCase());
             return found ? found.id : t;
           });
-          setSelectedSkinTypes(mapped.length > 0 ? mapped : ['All']);
+          setSelectedSkinTypes(mapped);
         }
       } else {
-        setSelectedSkinTypes(['All']);
+        setSelectedSkinTypes([]);
       }
 
       // Category
@@ -234,9 +233,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setDesc('');
       setShortDesc('');
       setIngredients('');
-      setTargetCategory(initialCategorySlug || 'skincare');
-      setSkinType(initialCategorySlug === 'fashion' ? 'Standard Fit' : 'All');
-      setSelectedSkinTypes(['All']);
+      setSkinType('');
+      setSelectedSkinTypes([]);
       setCustomSkinTypeInput('');
       setSubCategory(initialCategorySlug === 'fashion' ? 'Maxi & Midi Dresses' : skincareCategories[0]);
       setSelectedSizes(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
@@ -259,19 +257,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   }, [productToEdit, initialCategorySlug, isOpen]);
 
-  // Toggle Skin Type selection
+  // Toggle Skin Type selection (Optional)
   const toggleSkinType = (typeId: string) => {
     if (typeId === 'All') {
-      setSelectedSkinTypes(['All']);
+      if (selectedSkinTypes.includes('All')) {
+        setSelectedSkinTypes([]);
+      } else {
+        setSelectedSkinTypes(['All']);
+      }
       return;
     }
 
     let next = selectedSkinTypes.filter((t) => t !== 'All');
     if (next.includes(typeId)) {
       next = next.filter((t) => t !== typeId);
-      if (next.length === 0) {
-        next = ['All'];
-      }
     } else {
       next.push(typeId);
     }
@@ -345,39 +344,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setIsSubmitting(true);
 
       // 1. Resolve Category ID Safely
-      let cat = categories.find((c) => c.slug.toLowerCase() === targetCategory.toLowerCase());
-      let catId = cat?.id;
-
+      let catId = productToEdit?.category_id || productToEdit?.category?.id;
       if (!catId) {
-        try {
-          const catRes = await api.get('/categories');
-          const latestCats = catRes.data as Category[];
-          setCategories(latestCats);
-          const foundCat = latestCats.find((c) => c.slug.toLowerCase() === targetCategory.toLowerCase());
-          if (foundCat) {
-            catId = foundCat.id;
-          } else {
-            const createRes = await api.post('/categories', {
-              name: targetCategory.charAt(0).toUpperCase() + targetCategory.slice(1),
-              slug: targetCategory.toLowerCase(),
-            });
-            catId = createRes.data.id;
-          }
-        } catch (catErr) {
-          console.warn('Category resolution warning:', catErr);
-          catId = categories[0]?.id || 1;
-        }
+        let cat = categories.find((c) => c.slug.toLowerCase() === targetCategory.toLowerCase());
+        catId = cat?.id;
+      }
+      if (!catId && categories.length > 0) {
+        catId = categories[0].id;
+      }
+      if (!catId) {
+        catId = 1;
       }
 
-      const numPrice = Number(price);
-      if (!price || isNaN(numPrice) || numPrice <= 0) {
+      const cleanPriceStr = String(price).replace(/[^0-9.]/g, '');
+      const numPrice = Number(cleanPriceStr);
+      if (!cleanPriceStr || isNaN(numPrice) || numPrice <= 0) {
         showToast('Please enter a valid regular price', 'error');
         setIsSubmitting(false);
         return;
       }
 
-      const numStock = stock === '' ? 0 : Math.max(0, Number(stock));
-      const numSalePrice = salePrice !== '' && salePrice !== undefined && !isNaN(Number(salePrice)) ? Number(salePrice) : undefined;
+      const numStock = stock === '' || stock === null || stock === undefined
+        ? 0
+        : Number(String(stock).replace(/[^0-9]/g, '')) || 0;
+
+      const numSalePrice = salePrice !== '' && salePrice !== undefined && salePrice !== null && !isNaN(Number(String(salePrice).replace(/[^0-9.]/g, '')))
+        ? Number(String(salePrice).replace(/[^0-9.]/g, ''))
+        : undefined;
 
       const isFashion = targetCategory === 'fashion';
       const isAccessory = targetCategory === 'accessories';
@@ -415,11 +408,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         ? variantsPayload.reduce((sum, v) => sum + v.stock_quantity, 0)
         : numStock;
 
-      const skinTypeVal = isFashion
-        ? (selectedSizes.length > 0 ? `Sizes: ${selectedSizes.join(', ')}` : (skinType || 'Standard Fit'))
-        : isSkincare
-        ? (selectedSkinTypes.length === 0 || selectedSkinTypes.includes('All') ? 'All' : selectedSkinTypes.join(', '))
-        : (skinType || 'All');
+      let skinTypeVal = '';
+      if (isFashion) {
+        skinTypeVal = selectedSizes.length > 0 ? `Sizes: ${selectedSizes.join(', ')}` : (skinType || 'Standard Fit');
+      } else if (isSkincare) {
+        if (selectedSkinTypes.length > 0) {
+          skinTypeVal = selectedSkinTypes.includes('All') ? 'All' : selectedSkinTypes.join(', ');
+        } else {
+          skinTypeVal = '';
+        }
+      } else {
+        skinTypeVal = skinType ? skinType.trim() : '';
+      }
 
       const shortDescVal = shortDesc.trim() || (isFashion ? `${subCategory} • Premium Fashion` : name);
       const descVal = desc.trim() || (isFashion
@@ -876,16 +876,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
-          {/* SKINCARE TARGET SKIN TYPES / COMPATIBILITY (MULTI-SELECT) */}
+          {/* SKINCARE TARGET SKIN TYPES / COMPATIBILITY (MULTI-SELECT - OPTIONAL) */}
           {targetCategory === 'skincare' && (
             <div className="p-4 bg-[#FFF0F5] border border-[#F1BCCE] rounded-2xl space-y-3">
               <div className="flex flex-wrap justify-between items-center gap-2">
                 <label className="font-bold text-[#111111] text-xs flex items-center gap-2">
                   <span className="text-sm">🌸</span>
-                  <span>Target Skin Types / Skin Compatibility (Multi-Select)</span>
-                  <span className="px-2 py-0.5 bg-[#D84B7E] text-white text-[10px] font-bold rounded-full shadow-2xs">
-                    {selectedSkinTypes.includes('All') ? 'All Skin Types' : `${selectedSkinTypes.length} selected`}
-                  </span>
+                  <span>Target Skin Types / Skin Compatibility</span>
+                  <span className="text-[10px] text-gray-500 font-normal">(Optional)</span>
+                  {selectedSkinTypes.length > 0 && (
+                    <span className="px-2 py-0.5 bg-[#D84B7E] text-white text-[10px] font-bold rounded-full shadow-2xs">
+                      {selectedSkinTypes.includes('All') ? 'All Skin Types' : `${selectedSkinTypes.length} selected`}
+                    </span>
+                  )}
                 </label>
                 <div className="flex items-center gap-2 text-xs">
                   <button
@@ -906,10 +909,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   <span className="text-gray-400">|</span>
                   <button
                     type="button"
-                    onClick={() => setSelectedSkinTypes([])}
+                    onClick={() => {
+                      setSelectedSkinTypes([]);
+                      setSkinType('');
+                    }}
                     className="text-gray-500 font-bold hover:underline cursor-pointer"
                   >
-                    Clear
+                    Clear (None)
                   </button>
                 </div>
               </div>

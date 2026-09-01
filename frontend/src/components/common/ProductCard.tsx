@@ -327,7 +327,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </Link>
 
             {/* Target Skin Types below product name */}
-            {product.skin_type && !product.skin_type.toLowerCase().includes('size') && isSkincare && (
+            {product.skin_type && product.skin_type.trim().length > 0 && product.skin_type.trim().toLowerCase() !== 'none' && !product.skin_type.toLowerCase().includes('size') && isSkincare && (
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 {product.skin_type.trim().toLowerCase() === 'all' || product.skin_type.trim().toLowerCase() === 'all skin types' ? (
                   <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-[#D84B7E] bg-[#FFF0F5] border border-[#F1BCCE] px-2 py-0.5 rounded-full shadow-2xs">

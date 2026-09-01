@@ -508,7 +508,7 @@ export const ProductDetails: React.FC = () => {
                     <span>Net Wt: {product.weight}</span>
                   </span>
                 )}
-                {product.skin_type && !product.skin_type.toLowerCase().includes('size') && (
+                {product.skin_type && product.skin_type.trim().length > 0 && product.skin_type.trim().toLowerCase() !== 'none' && !product.skin_type.toLowerCase().includes('size') && (
                   <span className="text-[11px] bg-[#FFF0F5] text-[#D84B7E] font-bold px-2.5 py-0.5 rounded-full border border-[#F1BCCE] flex items-center gap-1 shadow-2xs">
                     <span>🌸</span>
                     <span>{product.skin_type.toLowerCase() === 'all' ? 'All Skin Types' : `Suitable for: ${product.skin_type}`}</span>

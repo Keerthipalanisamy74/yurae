@@ -358,9 +358,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             )}
 
-            <p className="text-[11px] sm:text-xs text-gray-600 font-light mt-1 line-clamp-2 leading-relaxed">
-              {product.short_description || product.description}
-            </p>
+            {(product.short_description || product.description) && (
+              <p className="text-[11px] sm:text-xs text-gray-600 font-light mt-1 line-clamp-2 leading-relaxed">
+                {product.short_description || product.description}
+              </p>
+            )}
 
             {product.stock_quantity !== undefined && product.stock_quantity > 0 && product.stock_quantity < 5 && (
               <div className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[9px] sm:text-[10px] font-bold">

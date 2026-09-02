@@ -516,9 +516,11 @@ export const ProductDetails: React.FC = () => {
                 )}
               </div>
 
-              <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed pt-1">
-                {product.short_description || product.description}
-              </p>
+              {(product.short_description || product.description) && (
+                <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed pt-1">
+                  {product.short_description || product.description}
+                </p>
+              )}
             </div>
 
             {/* Variants Selector */}

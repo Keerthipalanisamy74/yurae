@@ -14,6 +14,7 @@ import { Footer } from './components/common/Footer';
 import { InstallAppPrompt } from './components/common/InstallAppPrompt';
 import { MarketingBannerHub } from './components/common/MarketingBannerHub';
 import { WelcomeSplashIntro } from './components/common/WelcomeSplashIntro';
+import { ScrollToTop } from './components/common/ScrollToTop';
 
 import { Home } from './pages/Home';
 import { Shop } from './pages/Shop';
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
             <CartProvider>
               <WishlistProvider>
                 <CategoryProvider>
+                  <ScrollToTop />
                   <div className="min-h-screen flex flex-col bg-[#F8B4CB] text-[#111111]">
                     <WelcomeSplashIntro />
                     <Navbar />

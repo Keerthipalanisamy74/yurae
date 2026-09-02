@@ -49,6 +49,12 @@ export const Footer: React.FC = () => {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+
   return (
     <footer className="bg-[#1F0B14] text-[#FDF4F7] pt-14 pb-28 xl:pb-12 border-t border-[#D84B7E]/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -175,6 +181,7 @@ export const Footer: React.FC = () => {
                   <li key={cat.id}>
                     <Link
                       to={`/category/${cat.slug}`}
+                      onClick={scrollToTop}
                       className="hover:text-[#F8A4C4] transition-colors"
                     >
                       {cat.name}
@@ -184,29 +191,29 @@ export const Footer: React.FC = () => {
               ) : (
                 <>
                   <li>
-                    <Link to="/skincare" className="hover:text-[#F8A4C4] transition-colors">
+                    <Link to="/skincare" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                       Skincare
                     </Link>
                   </li>
                   <li>
-                    <Link to="/fashion" className="hover:text-[#F8A4C4] transition-colors">
+                    <Link to="/fashion" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                       Fashion
                     </Link>
                   </li>
                   <li>
-                    <Link to="/accessories" className="hover:text-[#F8A4C4] transition-colors">
+                    <Link to="/accessories" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                       Accessories
                     </Link>
                   </li>
                 </>
               )}
               <li>
-                <Link to="/shop?sort_by=newest" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/shop?sort_by=newest" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   New Arrivals
                 </Link>
               </li>
               <li>
-                <Link to="/shop?sort_by=bestsellers" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/shop?sort_by=bestsellers" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Bestsellers
                 </Link>
               </li>
@@ -220,27 +227,27 @@ export const Footer: React.FC = () => {
             </h3>
             <ul className="space-y-2 text-sm text-gray-300 font-light">
               <li>
-                <Link to="/contact" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/contact" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Contact Us
                 </Link>
               </li>
               <li>
-                <Link to="/faq" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/faq" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   FAQ
                 </Link>
               </li>
               <li>
-                <Link to="/shipping" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/shipping" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Shipping & Delivery
                 </Link>
               </li>
               <li>
-                <Link to="/returns" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/returns" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Returns & Refunds
                 </Link>
               </li>
               <li>
-                <Link to="/account" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/account" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Track Your Order
                 </Link>
               </li>
@@ -266,27 +273,27 @@ export const Footer: React.FC = () => {
             </h3>
             <ul className="space-y-2 text-sm text-gray-300 font-light">
               <li>
-                <Link to="/about" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/about" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   About Yurae
                 </Link>
               </li>
               <li>
-                <Link to="/about#story" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/about#story" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Our Philosophy
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/privacy" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link to="/policies" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/policies" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Policies & Legal Center
                 </Link>
               </li>
               <li>
-                <Link to="/terms" className="hover:text-[#F8A4C4] transition-colors">
+                <Link to="/terms" onClick={scrollToTop} className="hover:text-[#F8A4C4] transition-colors">
                   Terms & Conditions
                 </Link>
               </li>

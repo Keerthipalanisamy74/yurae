@@ -423,12 +423,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       }
 
       const shortDescVal = shortDesc.trim();
-      const descVal = desc.trim() || (shortDescVal ? `${name} - ${shortDescVal}` : (isFashion
-        ? `${name} - Luxury ${subCategory} crafted with premium fabrics and tailored silhouette by Yurae.`
-        : isAccessory
-        ? `${name} - Artisanal luxury accessory handcrafted by Yurae.`
-        : `${name} - Premium botanical skincare by Yurae Beauty.`
-      ));
+      const descVal = desc.trim();
       const ingredientsVal = ingredients.trim();
 
       const effectiveWeight = isSkincare && selectedSkincareSizes.length > 0

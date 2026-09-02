@@ -77,6 +77,12 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     }
   }, [rawSortParam, isBestsellersParam, isNewArrivalsParam, location.pathname, searchParams]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [sortBy, currentCategory, searchParams]);
+
   // 1. Skincare-Specific Filter States
   const [selectedSkinType, setSelectedSkinType] = useState<string>(searchSkinType);
   const [selectedSkincareRoutine, setSelectedSkincareRoutine] = useState<string>('');

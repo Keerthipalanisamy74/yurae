@@ -46,11 +46,24 @@ export const SettingsManagement: React.FC = () => {
   // SMTP Settings State
   const [smtpConfig, setSmtpConfig] = useState<any | null>(null);
   const [testEmailAddress, setTestEmailAddress] = useState('pkiruthika101@gmail.com');
-  const [selectedTemplate, setSelectedTemplate] = useState('WELCOME_REGISTRATION');
+  const [selectedTemplate, setSelectedTemplate] = useState('OTP_VERIFICATION');
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [emailLogs, setEmailLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [retryingLogId, setRetryingLogId] = useState<number | null>(null);
+  const [showSmtpEdit, setShowSmtpEdit] = useState(false);
+  const [isSavingSmtp, setIsSavingSmtp] = useState(false);
+  const [smtpFormData, setSmtpFormData] = useState({
+    smtp_host: 'smtp.gmail.com',
+    smtp_port: 587,
+    smtp_username: '',
+    smtp_password: '',
+    from_name: 'Yurae Beauty',
+    from_noreply: 'noreply@yuraebeauty.com',
+    from_orders: 'orders@yuraebeauty.com',
+    from_support: 'support@yuraebeauty.com',
+    mode: 'smtp'
+  });
 
   useEffect(() => {
     fetchDbOverview();
@@ -63,8 +76,36 @@ export const SettingsManagement: React.FC = () => {
     try {
       const res = await api.get('/admin/smtp-settings');
       setSmtpConfig(res.data);
+      if (res.data) {
+        setSmtpFormData(prev => ({
+          ...prev,
+          smtp_host: res.data.smtp_host || 'smtp.gmail.com',
+          smtp_port: res.data.smtp_port || 587,
+          smtp_username: res.data.smtp_username || '',
+          from_name: res.data.from_name || 'Yurae Beauty',
+          from_noreply: res.data.from_noreply || 'noreply@yuraebeauty.com',
+          from_orders: res.data.from_orders || 'orders@yuraebeauty.com',
+          from_support: res.data.from_support || 'support@yuraebeauty.com',
+          mode: res.data.mode || 'smtp'
+        }));
+      }
     } catch {
       // Non-blocking
+    }
+  };
+
+  const handleSaveSmtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsSavingSmtp(true);
+      const res = await api.put('/admin/smtp-settings', smtpFormData);
+      showToast(res.data.message || 'SMTP Credentials saved successfully!', 'success');
+      setShowSmtpEdit(false);
+      fetchSmtpConfig();
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to save SMTP settings', 'error');
+    } finally {
+      setIsSavingSmtp(false);
     }
   };
 
@@ -291,6 +332,13 @@ export const SettingsManagement: React.FC = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSmtpEdit(!showSmtpEdit)}
+                  className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#D84B7E] text-white hover:bg-[#4A0E2E] transition-all cursor-pointer shadow-2xs"
+                >
+                  {showSmtpEdit ? 'Close Editor' : '⚙️ Configure SMTP'}
+                </button>
                 <span
                   className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${smtpConfig?.has_password
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
@@ -301,6 +349,119 @@ export const SettingsManagement: React.FC = () => {
                 </span>
               </div>
             </div>
+
+            {/* Collapsible SMTP Configuration Form */}
+            {showSmtpEdit && (
+              <form onSubmit={handleSaveSmtp} className="p-4 bg-[#FAF0F4] border border-[#F1BCCE] rounded-2xl space-y-4">
+                <div className="border-b border-[#F1BCCE]/60 pb-2 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm">SMTP Gateway Connection Credentials</h4>
+                    <p className="text-[11px] text-gray-500">Provide your mail provider credentials (Gmail, Brevo, Zoho, SendGrid) to deliver real-time emails to customer inboxes.</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSmtpFormData(p => ({ ...p, smtp_host: 'smtp.gmail.com', smtp_port: 587 }))}
+                      className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold hover:border-[#D84B7E]"
+                    >
+                      Gmail
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSmtpFormData(p => ({ ...p, smtp_host: 'smtp-relay.brevo.com', smtp_port: 587 }))}
+                      className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold hover:border-[#D84B7E]"
+                    >
+                      Brevo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSmtpFormData(p => ({ ...p, smtp_host: 'smtp.zoho.com', smtp_port: 587 }))}
+                      className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold hover:border-[#D84B7E]"
+                    >
+                      Zoho
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-700 block mb-1">SMTP Host *</label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpFormData.smtp_host}
+                      onChange={e => setSmtpFormData({ ...smtpFormData, smtp_host: e.target.value })}
+                      placeholder="e.g. smtp.gmail.com"
+                      className="w-full px-3 py-2 bg-white border border-[#F1BCCE] rounded-xl text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-700 block mb-1">SMTP Port *</label>
+                    <input
+                      type="number"
+                      required
+                      value={smtpFormData.smtp_port}
+                      onChange={e => setSmtpFormData({ ...smtpFormData, smtp_port: parseInt(e.target.value) || 587 })}
+                      placeholder="587"
+                      className="w-full px-3 py-2 bg-white border border-[#F1BCCE] rounded-xl text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-700 block mb-1">Username / Email *</label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpFormData.smtp_username}
+                      onChange={e => setSmtpFormData({ ...smtpFormData, smtp_username: e.target.value })}
+                      placeholder="your-email@gmail.com"
+                      className="w-full px-3 py-2 bg-white border border-[#F1BCCE] rounded-xl text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-700 block mb-1">Password / App Password *</label>
+                    <input
+                      type="password"
+                      value={smtpFormData.smtp_password}
+                      onChange={e => setSmtpFormData({ ...smtpFormData, smtp_password: e.target.value })}
+                      placeholder={smtpConfig?.has_password ? '●●●●●●●● (Leave blank to keep)' : '16-char App Password'}
+                      className="w-full px-3 py-2 bg-white border border-[#F1BCCE] rounded-xl text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-700 block mb-1">Sender Noreply Email *</label>
+                    <input
+                      type="email"
+                      value={smtpFormData.from_noreply}
+                      onChange={e => setSmtpFormData({ ...smtpFormData, from_noreply: e.target.value })}
+                      placeholder="noreply@yuraebeauty.com"
+                      className="w-full px-3 py-2 bg-white border border-[#F1BCCE] rounded-xl text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-700 block mb-1">Brand Name *</label>
+                    <input
+                      type="text"
+                      value={smtpFormData.from_name}
+                      onChange={e => setSmtpFormData({ ...smtpFormData, from_name: e.target.value })}
+                      placeholder="Yurae Beauty"
+                      className="w-full px-3 py-2 bg-white border border-[#F1BCCE] rounded-xl text-xs"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="submit"
+                      disabled={isSavingSmtp}
+                      className="w-full py-2.5 bg-[#D84B7E] text-white font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-[#4A0E2E] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                    >
+                      {isSavingSmtp ? 'Saving...' : '💾 Save SMTP Credentials'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
 
             {/* 5 Professional Role Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">

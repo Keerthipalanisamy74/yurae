@@ -1135,6 +1135,64 @@ def get_smtp_settings_admin(
         "frontend_url": cfg.get("frontend_url"),
     }
 
+class SmtpSettingsUpdateRequest(BaseModel):
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    from_name: Optional[str] = None
+    from_noreply: Optional[str] = None
+    from_orders: Optional[str] = None
+    from_support: Optional[str] = None
+    mode: Optional[str] = "smtp"
+
+@router.put("/smtp-settings")
+def update_smtp_settings_admin(
+    body: SmtpSettingsUpdateRequest,
+    current_admin: User = Depends(get_current_admin)
+):
+    import os
+    from pathlib import Path
+    env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+    
+    lines = []
+    if env_file.exists():
+        lines = env_file.read_text(encoding="utf-8").splitlines()
+    
+    updates = {}
+    if body.smtp_host: updates["SMTP_HOST"] = body.smtp_host.strip()
+    if body.smtp_port: updates["SMTP_PORT"] = str(body.smtp_port)
+    if body.smtp_username is not None: updates["SMTP_USERNAME"] = body.smtp_username.strip()
+    if body.smtp_password is not None and body.smtp_password != "": updates["SMTP_PASSWORD"] = body.smtp_password.strip()
+    if body.from_name: updates["EMAIL_FROM_NAME"] = body.from_name.strip()
+    if body.from_noreply: updates["EMAIL_FROM_NOREPLY"] = body.from_noreply.strip()
+    if body.from_orders: updates["EMAIL_FROM_ORDERS"] = body.from_orders.strip()
+    if body.from_support: updates["EMAIL_FROM_SUPPORT"] = body.from_support.strip()
+    if body.mode: updates["EMAIL_SERVICE_MODE"] = body.mode.strip()
+    
+    new_lines = []
+    seen_keys = set()
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            k = stripped.split("=")[0].strip()
+            if k in updates:
+                new_lines.append(f'{k}="{updates[k]}"')
+                seen_keys.add(k)
+                continue
+        new_lines.append(line)
+        
+    for k, v in updates.items():
+        if k not in seen_keys:
+            new_lines.append(f'{k}="{v}"')
+            
+    env_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    
+    for k, v in updates.items():
+        os.environ[k] = v
+        
+    return {"success": True, "message": "SMTP configuration saved and activated successfully!"}
+
 @router.get("/email-logs")
 def get_email_logs_admin(
     status: Optional[str] = None,

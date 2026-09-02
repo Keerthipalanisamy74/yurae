@@ -9,6 +9,8 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { first_name: string; last_name: string; email: string; phone?: string; password: string }) => Promise<void>;
+  sendRegistrationOtp: (data: { first_name: string; last_name: string; email: string; phone?: string; password: string }) => Promise<{ message: string; dev_otp?: string }>;
+  verifyRegistrationOtp: (email: string, otp: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -57,6 +59,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('yurae_user', JSON.stringify(registeredUser));
   };
 
+  const sendRegistrationOtp = async (data: { first_name: string; last_name: string; email: string; phone?: string; password: string }) => {
+    const res = await api.post('/auth/send-registration-otp', data);
+    return res.data;
+  };
+
+  const verifyRegistrationOtp = async (email: string, otp: string) => {
+    const res = await api.post('/auth/verify-registration-otp', { email, otp });
+    const { access_token, user: registeredUser } = res.data;
+    setToken(access_token);
+    setUser(registeredUser);
+    localStorage.setItem('yurae_token', access_token);
+    localStorage.setItem('yurae_user', JSON.stringify(registeredUser));
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -73,6 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin: !!user && user.role === 'ADMIN',
         login,
         register,
+        sendRegistrationOtp,
+        verifyRegistrationOtp,
         logout,
         loading,
       }}

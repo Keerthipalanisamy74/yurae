@@ -636,5 +636,16 @@ class EmailLog(Base):
     user = relationship("User")
 
 
+class EmailVerification(Base):
+    __tablename__ = "email_verifications"
 
-
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), index=True, nullable=False)
+    otp_code = Column(String(10), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    phone = Column(String(50), nullable=True)
+    password_hash = Column(String(255), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    is_verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

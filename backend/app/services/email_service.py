@@ -169,11 +169,11 @@ class EmailService:
         sender_map = {
             "support": (config["from_support"], f"{brand_name} Support"),
             "orders": (config["from_orders"], f"{brand_name} Orders"),
-            "noreply": (config["from_noreply"], f"{brand_name} Security"),
+            "noreply": ("noreply@yuraebeauty.com", f"{brand_name}"),
             "admin": (config["from_admin"], f"{brand_name} System"),
             "marketing": (config["from_marketing"], f"{brand_name} Concierge"),
         }
-        sender_email, display_name = sender_map.get(sender_role, (config["from_orders"], brand_name))
+        sender_email, display_name = sender_map.get(sender_role, ("noreply@yuraebeauty.com", brand_name))
 
         # Check simulation mode or missing password
         if config["mode"] == "console" or not config["password"]:
@@ -193,22 +193,25 @@ class EmailService:
             msg["Subject"] = clean_subject
             msg["From"] = formataddr((display_name, sender_email))
             msg["To"] = clean_to
+            msg["Reply-To"] = config.get("from_support", "support@yuraebeauty.com")
             msg["Date"] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
 
             if text_content:
                 msg.attach(MIMEText(text_content, "plain", "utf-8"))
             msg.attach(MIMEText(html_content, "html", "utf-8"))
 
+            envelope_sender = config["username"] if ("@" in config.get("username", "") and "gmail" in config.get("host", "").lower()) else sender_email
+
             if config["use_ssl"]:
                 with smtplib.SMTP_SSL(config["host"], config["port"], timeout=config["timeout"]) as server:
                     server.login(config["username"], config["password"])
-                    server.sendmail(sender_email, [clean_to], msg.as_string())
+                    server.sendmail(envelope_sender, [clean_to], msg.as_string())
             else:
                 with smtplib.SMTP(config["host"], config["port"], timeout=config["timeout"]) as server:
                     if config["use_tls"]:
                         server.starttls()
                     server.login(config["username"], config["password"])
-                    server.sendmail(sender_email, [clean_to], msg.as_string())
+                    server.sendmail(envelope_sender, [clean_to], msg.as_string())
 
             logger.info(f"[EMAIL SUCCESS] Delivered to {clean_to} from {sender_email} (Template: {template_name})")
             cls._persist_email_log(clean_to, sender_email, display_name, clean_subject, template_name, "SENT", None, related_order_id, related_user_id, html_content)

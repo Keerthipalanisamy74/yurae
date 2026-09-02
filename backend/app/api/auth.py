@@ -1,9 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+import re
+import socket
+from datetime import datetime, timedelta
+import random
+
 from app.database.session import get_db
-from app.models.models import User, Address, Cart, Order
+from app.models.models import User, Address, Cart, Order, EmailVerification
 from app.schemas.schemas import (
     UserRegister, UserLogin, UserResponse, Token,
+    SendRegistrationOtpRequest, VerifyRegistrationOtpRequest,
     ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest, ChangePasswordRequest,
     AddressCreate, AddressUpdate, AddressResponse
 )
@@ -13,9 +19,242 @@ from typing import List
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+def verify_email_deliverability(email: str) -> tuple[bool, str]:
+    """
+    Validates email format and verifies that the domain really exists with active MX mail exchangers.
+    """
+    clean_email = email.strip().lower()
+    if not clean_email or "@" not in clean_email:
+        return False, "Please enter a valid email address."
+    
+    # 1. Strict regex format check
+    pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    if not re.match(pattern, clean_email):
+        return False, "The email address format is invalid."
+    
+    parts = clean_email.split("@")
+    if len(parts) != 2:
+        return False, "The email address format is invalid."
+    
+    local_part, domain = parts
+    if not local_part or not domain or "." not in domain or len(domain) < 4:
+        return False, "The email address does not exist. Please check your email."
+    
+    tld = domain.split(".")[-1]
+    if len(tld) < 2 or not tld.isalpha():
+        return False, "The email address does not exist. Please check your email."
+
+    # Common domain typo detection
+    common_typos = {
+        "gmaill.com": "gmail.com",
+        "gamil.com": "gmail.com",
+        "gmial.com": "gmail.com",
+        "gmailll.com": "gmail.com",
+        "hotmial.com": "hotmail.com",
+        "yaho.com": "yahoo.com",
+        "outlok.com": "outlook.com",
+        "gmaill.con": "gmail.com",
+        "gmail.con": "gmail.com",
+        "yahoo.con": "yahoo.com",
+    }
+    if domain in common_typos:
+        return False, f"The email address does not exist. Did you mean @{common_typos[domain]}?"
+
+    # 2. Strict MX (Mail Exchanger) DNS Resolution Check
+    try:
+        import dns.resolver
+        resolver = dns.resolver.Resolver()
+        resolver.timeout = 3.0
+        resolver.lifetime = 3.0
+        mx_records = resolver.resolve(domain, 'MX')
+        if not mx_records or len(mx_records) == 0:
+            return False, f"The email address does not exist. The domain '@{domain}' has no active mail server."
+    except Exception as dns_err:
+        err_str = str(dns_err)
+        # Check NXDOMAIN or NoAnswer
+        if "does not exist" in err_str or "NXDOMAIN" in err_str or "NoAnswer" in err_str or "NoNameservers" in err_str:
+            return False, f"The email address does not exist. The domain '@{domain}' was not found."
+        # Fallback socket lookup
+        try:
+            socket.gethostbyname(domain)
+        except socket.gaierror:
+            return False, f"The email address does not exist. The domain '@{domain}' was not found."
+        except Exception:
+            pass
+
+    return True, ""
+
+@router.post("/validate-email")
+def validate_email_endpoint(data: dict, db: Session = Depends(get_db)):
+    raw_email = (data.get("email") or "").strip().lower()
+    if not raw_email:
+        return {"valid": False, "message": "Please enter an email address."}
+    
+    is_valid, err_msg = verify_email_deliverability(raw_email)
+    if not is_valid:
+        return {"valid": False, "message": err_msg}
+    
+    existing_user = db.query(User).filter(User.email == raw_email).first()
+    if existing_user:
+        return {"valid": False, "message": "An account with this email address already exists. Please sign in."}
+    
+    return {"valid": True, "message": "Email is valid."}
+
+@router.post("/send-registration-otp")
+def send_registration_otp(req: SendRegistrationOtpRequest, db: Session = Depends(get_db)):
+    clean_email = req.email.strip().lower()
+    
+    # 1. Deliverability & real domain existence verification
+    is_valid, err_msg = verify_email_deliverability(clean_email)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=err_msg
+        )
+    
+    # 2. Check if user already exists
+    existing_user = db.query(User).filter(User.email == clean_email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists. Please sign in."
+        )
+    
+    # 3. Password validation
+    if len(req.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters."
+        )
+    
+    from app.services.email_service import EmailService
+    
+    otp = f"{random.randint(100000, 999999)}"
+    hashed_pwd = get_password_hash(req.password)
+    expires_at = datetime.utcnow() + timedelta(minutes=15)
+    
+    # Check if pending verification exists
+    existing_verif = db.query(EmailVerification).filter(
+        EmailVerification.email == clean_email,
+        EmailVerification.is_verified == False
+    ).first()
+    
+    if existing_verif:
+        existing_verif.otp_code = otp
+        existing_verif.first_name = req.first_name.strip()
+        existing_verif.last_name = req.last_name.strip()
+        existing_verif.phone = req.phone.strip() if req.phone else None
+        existing_verif.password_hash = hashed_pwd
+        existing_verif.expires_at = expires_at
+    else:
+        new_verif = EmailVerification(
+            email=clean_email,
+            otp_code=otp,
+            first_name=req.first_name.strip(),
+            last_name=req.last_name.strip(),
+            phone=req.phone.strip() if req.phone else None,
+            password_hash=hashed_pwd,
+            expires_at=expires_at,
+            is_verified=False
+        )
+        db.add(new_verif)
+    
+    db.commit()
+    
+    # Dispatch real-time branded verification email
+    try:
+        EmailService.send_otp_email(
+            to_email=clean_email,
+            first_name=req.first_name.strip(),
+            otp=otp,
+            purpose="Account Creation Verification",
+            expires_minutes=15
+        )
+    except Exception as e:
+        print(f"[EMAIL SEND ERROR] {e}")
+    
+    return {
+        "success": True,
+        "message": f"Verification code has been sent to your email ({clean_email}). Please check your inbox.",
+        "expires_in_minutes": 15
+    }
+
+@router.post("/verify-registration-otp", response_model=Token, status_code=status.HTTP_201_CREATED)
+def verify_registration_otp(req: VerifyRegistrationOtpRequest, db: Session = Depends(get_db)):
+    clean_email = req.email.strip().lower()
+    clean_otp = req.otp.strip()
+    
+    # Find matching verification record
+    verif = db.query(EmailVerification).filter(
+        EmailVerification.email == clean_email,
+        EmailVerification.is_verified == False
+    ).order_by(EmailVerification.created_at.desc()).first()
+    
+    if not verif or verif.otp_code != clean_otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code. Please check your email or request a new code."
+        )
+    
+    if verif.expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired. Please request a new code."
+        )
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == clean_email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists. Please sign in."
+        )
+    
+    # Mark verification as used
+    verif.is_verified = True
+    
+    # Create the User
+    new_user = User(
+        first_name=verif.first_name,
+        last_name=verif.last_name,
+        email=verif.email,
+        phone=verif.phone,
+        password_hash=verif.password_hash,
+        role="CUSTOMER",
+        is_active=True
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # Create associated cart
+    cart = Cart(user_id=new_user.id)
+    db.add(cart)
+    db.commit()
+    
+    # Dispatch welcome email asynchronously
+    try:
+        from app.services.email_service import EmailService
+        EmailService.send_welcome_email(new_user)
+    except Exception:
+        pass
+    
+    token = create_access_token(subject=new_user.id, role=new_user.role)
+    return Token(access_token=token, token_type="bearer", user=new_user)
+
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user_in.email.lower()).first()
+    clean_email = user_in.email.strip().lower()
+    
+    # 1. Deliverability verification
+    is_valid, err_msg = verify_email_deliverability(clean_email)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=err_msg
+        )
+        
+    existing_user = db.query(User).filter(User.email == clean_email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -26,7 +265,7 @@ def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
     new_user = User(
         first_name=user_in.first_name,
         last_name=user_in.last_name,
-        email=user_in.email.lower(),
+        email=clean_email,
         phone=user_in.phone,
         password_hash=hashed_pwd,
         role="CUSTOMER"
@@ -113,8 +352,7 @@ def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
 
     return {
         "message": "Verification code has been sent to your email address.",
-        "expires_in_minutes": 15,
-        "dev_otp": otp  # Included for seamless testing in dev environments
+        "expires_in_minutes": 15
     }
 
 @router.post("/verify-reset-otp")

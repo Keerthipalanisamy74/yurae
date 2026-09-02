@@ -10,6 +10,17 @@ class UserRegister(BaseModel):
     phone: Optional[str] = None
     password: str
 
+class SendRegistrationOtpRequest(BaseModel):
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    password: str
+
+class VerifyRegistrationOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str

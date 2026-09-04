@@ -66,6 +66,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
       : (rawSortParam || 'featured')
   );
   const [isFilterMobileOpen, setIsFilterMobileOpen] = useState(false);
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (isBestsellersParam || rawSortParam === 'bestsellers' || rawSortParam === 'best_selling') {
@@ -877,14 +878,33 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8">
         
-        {/* Mobile Filter Toggle & Sort Bar */}
+        {/* Filter Toggle & Sort Bar */}
         <div className="flex items-center justify-between gap-3 pb-4 sm:pb-6 border-b border-[#F1BCCE]">
           <button
-            onClick={() => setIsFilterMobileOpen(true)}
-            className="lg:hidden flex items-center gap-2 px-4 py-2 border border-[#F1BCCE] bg-[#FFF8FA] rounded-full text-xs font-bold uppercase tracking-wider text-[#111111] cursor-pointer shadow-xs touch-target min-h-[40px] active:scale-95"
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setIsFilterMobileOpen(true);
+              } else {
+                setIsFilterSidebarOpen((prev) => !prev);
+              }
+            }}
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-xs touch-target min-h-[40px] active:scale-95 ${
+              isFilterSidebarOpen || activeFilters.length > 0
+                ? 'bg-[#D84B7E] text-white border-[#D84B7E] shadow-sm'
+                : 'bg-[#FFF8FA] text-[#111111] border-[#F1BCCE] hover:border-[#D84B7E]'
+            }`}
           >
-            <Filter className="w-4 h-4 text-[#D84B7E]" />
-            Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
+            <Filter className={`w-4 h-4 ${isFilterSidebarOpen || activeFilters.length > 0 ? 'text-white' : 'text-[#D84B7E]'}`} />
+            <span>{isFilterSidebarOpen ? 'Hide Filters' : 'Filters'}</span>
+            {activeFilters.length > 0 && (
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  isFilterSidebarOpen ? 'bg-white text-[#D84B7E]' : 'bg-[#D84B7E] text-white'
+                }`}
+              >
+                {activeFilters.length}
+              </span>
+            )}
           </button>
 
           {/* Sort Dropdown */}
@@ -932,51 +952,63 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8 pt-6 sm:pt-8">
+        <div className="pt-6 sm:pt-8 flex flex-col lg:flex-row gap-6 sm:gap-8 items-start">
           
-          {/* SIDEBAR FILTERS (Desktop) */}
-          <aside className="hidden lg:block space-y-6 bg-[#FFF8FA] p-6 rounded-3xl border border-[#F1BCCE] h-fit sticky top-24">
-            
-            {/* Header & Reset */}
-            <div className="flex items-center justify-between pb-4 border-b border-[#F1BCCE]">
-              <h3 className="font-serif text-lg font-bold text-[#111111] flex items-center gap-2">
-                <Filter className="w-4 h-4 text-[#D84B7E]" />
-                Filter {currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)}
-              </h3>
-              <button
-                onClick={handleResetFilters}
-                className="text-xs text-gray-500 hover:text-[#D84B7E] flex items-center gap-1 cursor-pointer font-bold"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Reset
-              </button>
-            </div>
-
-            {/* Strictly Category-Specific Filters */}
-            {renderCategoryFilters()}
-
-            {/* Price Range Slider */}
-            <div className="space-y-3 pt-4 border-t border-[#F1BCCE]">
-              <div className="flex justify-between items-center text-xs">
-                <h4 className="uppercase tracking-widest font-bold text-[#111111]">Max Price</h4>
-                <span className="font-bold text-[#D84B7E]">{formatPrice(maxPrice)}</span>
+          {/* SIDEBAR FILTERS (Desktop - Collapsible & Toggleable) */}
+          {isFilterSidebarOpen && (
+            <aside className="hidden lg:block w-72 lg:w-80 shrink-0 space-y-6 bg-[#FFF8FA] p-6 rounded-3xl border border-[#F1BCCE] h-fit sticky top-24 shadow-sm animate-in fade-in slide-in-from-left-4 duration-300">
+              
+              {/* Header & Reset / Close */}
+              <div className="flex items-center justify-between pb-4 border-b border-[#F1BCCE]">
+                <h3 className="font-serif text-lg font-bold text-[#111111] flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-[#D84B7E]" />
+                  Filter {currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleResetFilters}
+                    className="text-xs text-gray-500 hover:text-[#D84B7E] flex items-center gap-1 cursor-pointer font-bold"
+                    title="Reset all filters"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setIsFilterSidebarOpen(false)}
+                    className="p-1 hover:bg-[#F8D7E3] rounded-full text-gray-500 hover:text-[#111111] transition-colors cursor-pointer"
+                    title="Hide filters"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <input
-                type="range"
-                min="500"
-                max="10000"
-                step="250"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(Number(e.target.value))}
-                className="w-full accent-[#D84B7E] cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-gray-500 font-bold">
-                <span>{formatPrice(500)}</span>
-                <span>{formatPrice(10000)}</span>
-              </div>
-            </div>
 
-          </aside>
+              {/* Strictly Category-Specific Filters */}
+              {renderCategoryFilters()}
+
+              {/* Price Range Slider */}
+              <div className="space-y-3 pt-4 border-t border-[#F1BCCE]">
+                <div className="flex justify-between items-center text-xs">
+                  <h4 className="uppercase tracking-widest font-bold text-[#111111]">Max Price</h4>
+                  <span className="font-bold text-[#D84B7E]">{formatPrice(maxPrice)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="500"
+                  max="10000"
+                  step="250"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(Number(e.target.value))}
+                  className="w-full accent-[#D84B7E] cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-gray-500 font-bold">
+                  <span>{formatPrice(500)}</span>
+                  <span>{formatPrice(10000)}</span>
+                </div>
+              </div>
+
+            </aside>
+          )}
 
           {/* MOBILE SLIDE-OVER FILTER DRAWER */}
           {isFilterMobileOpen && (
@@ -1047,10 +1079,10 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
           )}
 
           {/* Product Grid */}
-          <main className="lg:col-span-3">
+          <main className="flex-1 min-w-0 w-full">
             {loading ? (
-              <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div className={`grid grid-cols-1 min-[390px]:grid-cols-2 ${isFilterSidebarOpen ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-4 sm:gap-6`}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                   <div key={i} className="h-80 sm:h-96 bg-[#FCE7F0] rounded-2xl animate-pulse" />
                 ))}
               </div>
@@ -1080,7 +1112,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className={`grid grid-cols-1 min-[390px]:grid-cols-2 ${isFilterSidebarOpen ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-4 sm:gap-6`}>
                 {sortedAndFilteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}

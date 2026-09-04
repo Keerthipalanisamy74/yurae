@@ -46,7 +46,7 @@ export const WishlistPage: React.FC = () => {
           </h1>
         </div>
 
-        <div className="grid grid-cols-1 min-[390px]:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {wishlist.map((item) => (
             <div key={item.id} className="p-3 sm:p-4 bg-[#FFF8FA] border border-[#F1BCCE] rounded-2xl flex flex-col justify-between space-y-3 sm:space-y-4 shadow-xs">
               <div className="space-y-2.5">

@@ -1081,7 +1081,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
           {/* Product Grid */}
           <main className="flex-1 min-w-0 w-full">
             {loading ? (
-              <div className={`grid grid-cols-1 min-[390px]:grid-cols-2 ${isFilterSidebarOpen ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-4 sm:gap-6`}>
+              <div className={`grid grid-cols-2 ${isFilterSidebarOpen ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-3 sm:gap-6`}>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                   <div key={i} className="h-80 sm:h-96 bg-[#FCE7F0] rounded-2xl animate-pulse" />
                 ))}
@@ -1112,7 +1112,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
                 </div>
               </div>
             ) : (
-              <div className={`grid grid-cols-1 min-[390px]:grid-cols-2 ${isFilterSidebarOpen ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-4 sm:gap-6`}>
+              <div className={`grid grid-cols-2 ${isFilterSidebarOpen ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3 lg:grid-cols-4'} gap-3 sm:gap-6`}>
                 {sortedAndFilteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}

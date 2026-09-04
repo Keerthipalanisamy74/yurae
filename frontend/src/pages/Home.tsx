@@ -214,7 +214,7 @@ export const Home: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-72 sm:h-80 bg-[#FCE7F0] rounded-2xl animate-pulse" />
             ))}
@@ -246,7 +246,7 @@ export const Home: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
             {products.map((product) => (
               <ProductCard
                 key={product.id}

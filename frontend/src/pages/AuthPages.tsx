@@ -7,21 +7,28 @@ import { api } from '../services/api';
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const redirectPath = searchParams.get('redirect') || '/account';
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-      await login(email.trim(), password.trim());
+      const loggedUser = await login(email.trim(), password.trim());
       showToast('Welcome back to Yurae Beauty', 'success');
-      navigate(redirectPath);
+      
+      const customRedirect = searchParams.get('redirect');
+      if (customRedirect) {
+        navigate(customRedirect);
+      } else if (loggedUser?.role === 'ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/account');
+      }
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Invalid email or password';
       showToast(msg, 'error');
@@ -78,7 +85,8 @@ export const Login: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
+              placeholder="admin@yuraebeauty.com"
+              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px] text-[#111111]"
             />
           </div>
 
@@ -87,19 +95,30 @@ export const Login: React.FC = () => {
               <label className="text-xs uppercase tracking-widest text-gray-600 font-bold">Password</label>
               <Link to="/forgot-password" className="text-xs text-[#D84B7E] font-bold hover:underline">Forgot?</Link>
             </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 text-sm outline-none focus:border-[#D84B7E] min-h-[44px]"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Enter password (e.g. Admin@123)"
+                className="w-full bg-[#FDF4F7] border border-[#F1BCCE] rounded-xl p-3 pr-10 text-sm outline-none focus:border-[#D84B7E] min-h-[44px] text-[#111111]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs font-semibold cursor-pointer p-1"
+                tabIndex={-1}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98"
+            className="w-full py-3.5 bg-[#D84B7E] text-[#FDF4F7] text-xs uppercase tracking-widest font-bold rounded-full hover:bg-[#4A0E2E] transition-all shadow-md cursor-pointer touch-target min-h-[44px] active:scale-98 disabled:opacity-50"
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
@@ -187,7 +206,7 @@ export const Register: React.FC = () => {
         password: password,
       });
 
-      showToast(res.message || `Verification code has been sent in real time to ${cleanEmail}`, 'success');
+      showToast(res?.message || `Verification code has been dispatched to ${cleanEmail}`, 'success');
       setStep('verify');
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'The email address does not exist or cannot receive emails. Please check your email.';
@@ -229,7 +248,7 @@ export const Register: React.FC = () => {
         phone: phone.trim() || undefined,
         password: password,
       });
-      showToast(res.message || `New verification code sent in real time to ${email.trim()}`, 'success');
+      showToast(res?.message || `New verification code sent in real time to ${email.trim()}`, 'success');
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Could not resend verification code';
       showToast(msg, 'error');

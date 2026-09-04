@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useRealtime } from '../hooks/useRealtime';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { AdminTab } from '../components/admin/types/admin';
 import { DashboardOverview } from '../components/admin/views/DashboardOverview';
@@ -27,9 +28,31 @@ import { ProductFormModal } from '../components/common/ProductFormModal';
 import { Product, Order, User as CustomerUser, Category, Coupon, ContactMessage, ReturnRequest, AdminDashboardStats } from '../types';
 import { api } from '../services/api';
 
+const playChime = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+    osc.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.1); // A5
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.4);
+  } catch {
+    // Ignore audio autoplay restrictions
+  }
+};
+
 export const AdminDashboard: React.FC = () => {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, loading, logout } = useAuth();
   const { showToast } = useToast();
+  const { on: onRealtimeEvent, isConnected: isRealtimeConnected } = useRealtime();
   const navigate = useNavigate();
 
   // Active Tab State (with URL hash or query persistence)
@@ -54,10 +77,10 @@ export const AdminDashboard: React.FC = () => {
 
   // Check Admin Authorization
   useEffect(() => {
-    if (!isAdmin) {
-      navigate('/auth');
+    if (!loading && !isAdmin) {
+      navigate('/login?redirect=/admin');
     }
-  }, [isAdmin, navigate]);
+  }, [isAdmin, loading, navigate]);
 
   // Fetch all initial data
   const fetchData = useCallback(async () => {
@@ -98,18 +121,45 @@ export const AdminDashboard: React.FC = () => {
     }
   }, []);
 
-  // Global Auto-refresh every 10 seconds for live orders, inquiries, inventory & metrics
+  // Realtime WebSocket event listeners for instantaneous synchronization
   useEffect(() => {
     if (!isAdmin) return;
 
     fetchData(); // initial fetch
 
-    const interval = setInterval(() => {
+    const unsubOrderCreated = onRealtimeEvent('ORDER_CREATED', (data) => {
+      playChime();
+      showToast(`🌟 Realtime New Order: #${data.order_number} (${data.currency} ${data.total_amount})`, 'success');
       fetchData();
-    }, 10000);
+    });
 
-    return () => clearInterval(interval);
-  }, [isAdmin, fetchData]);
+    const unsubStatusChanged = onRealtimeEvent('ORDER_STATUS_CHANGED', (data) => {
+      showToast(`📦 Order #${data.order_number} status updated to ${data.order_status || data.fulfillment_status}`, 'info');
+      fetchData();
+    });
+
+    const unsubLowStock = onRealtimeEvent('LOW_STOCK', (data) => {
+      showToast(`⚠️ Low Stock Alert: ${data.product_name} (${data.remaining_stock} left)`, 'warning');
+      api.get('/products').then((res) => {
+        const prodData = res.data;
+        setProducts(Array.isArray(prodData) ? prodData : prodData.products || []);
+      }).catch(() => {});
+    });
+
+    const unsubInventory = onRealtimeEvent('INVENTORY_UPDATED', () => {
+      api.get('/products').then((res) => {
+        const prodData = res.data;
+        setProducts(Array.isArray(prodData) ? prodData : prodData.products || []);
+      }).catch(() => {});
+    });
+
+    return () => {
+      unsubOrderCreated();
+      unsubStatusChanged();
+      unsubLowStock();
+      unsubInventory();
+    };
+  }, [isAdmin, onRealtimeEvent, fetchData, showToast]);
 
   // Master Global Refresh Handler with feedback
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);

@@ -445,6 +445,11 @@ class OrderStatusUpdate(BaseModel):
     payment_status: Optional[str] = None
     fulfillment_status: Optional[str] = None
     notes: Optional[str] = None
+    priority: Optional[str] = None
+    assigned_staff: Optional[str] = None
+    courier_name: Optional[str] = None
+    awb_code: Optional[str] = None
+    tracking_url: Optional[str] = None
 
 class SummaryCardMetric(BaseModel):
     key: str
@@ -470,8 +475,11 @@ class OrderAnalyticsSummary(BaseModel):
 
 class OrderBulkActionRequest(BaseModel):
     order_ids: List[int]
-    action: str  # MARK_PACKED, MARK_SHIPPED, MARK_PROCESSING, MARK_DELIVERED, CANCEL, PRINT_INVOICES, PRINT_PACKING_SLIPS, PRINT_LABELS, EXPORT_CSV, EXPORT_EXCEL
+    action: str  # MARK_CONFIRMED, MARK_PROCESSING, MARK_PACKED, MARK_SHIPPED, MARK_OUT_FOR_DELIVERY, MARK_DELIVERED, CANCEL, ASSIGN_STAFF, ASSIGN_COURIER, SET_PRIORITY, PRINT_INVOICES, PRINT_PACKING_SLIPS, PRINT_LABELS, EXPORT_CSV, EXPORT_EXCEL
     notes: Optional[str] = None
+    assigned_staff: Optional[str] = None
+    courier_name: Optional[str] = None
+    priority: Optional[str] = None
 
 class PackingChecklistUpdate(BaseModel):
     items_checked: Dict[str, bool] = {}

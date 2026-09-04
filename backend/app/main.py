@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.database.session import engine, Base
 import app.models.models  # Register all models with Base.metadata
-from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo, webhooks, fulfillment, marketing, newsletter
+from app.api import auth, products, categories, cart, wishlist, orders, coupons, reviews, admin, currency, contact, shipping, seo, webhooks, fulfillment, marketing, newsletter, websocket
 
 # Create tables and sync schema automatically on startup
 try:
@@ -38,6 +38,8 @@ app.add_middleware(
 )
 
 # Include Routers
+app.include_router(websocket.router, prefix=settings.API_V1_STR)
+app.include_router(websocket.router)  # Allow connecting to /ws/admin and /ws/customer directly as well
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(products.router, prefix=settings.API_V1_STR)
 app.include_router(categories.router, prefix=settings.API_V1_STR)

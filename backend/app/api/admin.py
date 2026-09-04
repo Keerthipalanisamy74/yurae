@@ -901,7 +901,21 @@ def execute_bulk_order_action(
     action = req_in.action.upper()
     actor_name = f"{current_admin.first_name} {current_admin.last_name}"
 
-    if action == "MARK_PACKED":
+    if action == "MARK_CONFIRMED":
+        for o in orders:
+            o.order_status = "Confirmed"
+            o.fulfillment_status = "ORDER_CONFIRMED"
+        db.commit()
+        return {"message": f"Successfully marked {len(orders)} orders as Confirmed"}
+
+    elif action == "MARK_PROCESSING":
+        for o in orders:
+            o.order_status = "Processing"
+            o.fulfillment_status = "ORDER_CONFIRMED"
+        db.commit()
+        return {"message": f"Successfully marked {len(orders)} orders as Processing"}
+
+    elif action == "MARK_PACKED":
         for o in orders:
             o.order_status = "Packed"
             o.fulfillment_status = "PACKED"
@@ -923,12 +937,13 @@ def execute_bulk_order_action(
         db.commit()
         return {"message": f"Successfully marked {len(orders)} orders as Shipped with carrier logistics"}
 
-    elif action == "MARK_PROCESSING":
+    elif action == "MARK_OUT_FOR_DELIVERY":
         for o in orders:
-            o.order_status = "Processing"
-            o.fulfillment_status = "ORDER_CONFIRMED"
+            o.order_status = "Out for Delivery"
+            o.fulfillment_status = "OUT_FOR_DELIVERY"
+            o.shipping_status = "OUT_FOR_DELIVERY"
         db.commit()
-        return {"message": f"Successfully marked {len(orders)} orders as Processing"}
+        return {"message": f"Successfully marked {len(orders)} orders as Out for Delivery"}
 
     elif action == "MARK_DELIVERED":
         for o in orders:
@@ -940,6 +955,24 @@ def execute_bulk_order_action(
                 o.payment_status = "Paid"
         db.commit()
         return {"message": f"Successfully marked {len(orders)} orders as Delivered"}
+
+    elif action == "ASSIGN_STAFF" and req_in.assigned_staff:
+        for o in orders:
+            o.assigned_staff = req_in.assigned_staff
+        db.commit()
+        return {"message": f"Successfully assigned {len(orders)} orders to {req_in.assigned_staff}"}
+
+    elif action == "ASSIGN_COURIER" and req_in.courier_name:
+        for o in orders:
+            o.courier_name = req_in.courier_name
+        db.commit()
+        return {"message": f"Successfully assigned courier {req_in.courier_name} to {len(orders)} orders"}
+
+    elif action == "SET_PRIORITY" and req_in.priority:
+        for o in orders:
+            o.priority = req_in.priority
+        db.commit()
+        return {"message": f"Successfully updated priority to {req_in.priority} for {len(orders)} orders"}
 
     elif action == "CANCEL":
         for o in orders:
@@ -2372,3 +2405,4 @@ def update_staff_role(
     user.role = req.role.upper()
     db.commit()
     return {"message": f"Updated role for {user.email} to {user.role}"}
+

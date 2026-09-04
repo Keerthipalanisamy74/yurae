@@ -43,28 +43,63 @@ class EmailService:
     @classmethod
     def get_smtp_config(cls) -> Dict[str, Any]:
         """
-        Dynamically reads freshest SMTP credentials and domain sender configuration from disk.
+        Dynamically reads freshest SMTP credentials and domain sender configuration from disk,
+        with intelligent provider auto-detection (e.g. Brevo vs Gmail).
         """
         env_file = Path(__file__).resolve().parent.parent.parent / ".env"
-        file_cfg = dotenv_values(env_file) if env_file.exists() else {}
+        file_cfg = {}
+        if env_file.exists():
+            try:
+                from dotenv import dotenv_values
+                file_cfg = dotenv_values(env_file)
+            except Exception:
+                pass
 
-        mode = file_cfg.get("EMAIL_SERVICE_MODE") or os.getenv("EMAIL_SERVICE_MODE", getattr(settings, "EMAIL_SERVICE_MODE", "smtp")).lower()
-        host = file_cfg.get("SMTP_HOST") or os.getenv("SMTP_HOST", getattr(settings, "SMTP_HOST", "smtp.gmail.com"))
-        port = int(file_cfg.get("SMTP_PORT") or os.getenv("SMTP_PORT", getattr(settings, "SMTP_PORT", 587)))
-        username = file_cfg.get("SMTP_USERNAME") or file_cfg.get("SMTP_USER") or os.getenv("SMTP_USERNAME", os.getenv("SMTP_USER", "orders@yuraebeauty.com"))
-        password = file_cfg.get("SMTP_PASSWORD") or os.getenv("SMTP_PASSWORD", getattr(settings, "SMTP_PASSWORD", ""))
+        def get_val(key: str, default: str = "") -> str:
+            raw = file_cfg.get(key) or os.getenv(key, getattr(settings, key, default))
+            if raw is None:
+                return default
+            val = str(raw).strip()
+            # Strip enclosing quotes if present
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1].strip()
+            return val
+
+        mode = get_val("EMAIL_SERVICE_MODE", "smtp").lower()
+        host = get_val("SMTP_HOST", "smtp.gmail.com")
+        port_raw = get_val("SMTP_PORT", "587")
+        try:
+            port = int(port_raw)
+        except ValueError:
+            port = 587
+            
+        username = get_val("SMTP_USERNAME") or get_val("SMTP_USER") or "orders@yuraebeauty.com"
+        password = get_val("SMTP_PASSWORD", "")
         
-        use_tls = str(file_cfg.get("SMTP_USE_TLS") or os.getenv("SMTP_USE_TLS", "true")).lower() in ("true", "1", "yes")
-        use_ssl = str(file_cfg.get("SMTP_USE_SSL") or os.getenv("SMTP_USE_SSL", "false")).lower() in ("true", "1", "yes") or port == 465
-        timeout = int(file_cfg.get("SMTP_TIMEOUT_SECONDS") or os.getenv("SMTP_TIMEOUT_SECONDS", 15))
+        # Smart Auto-Detection: Detect Brevo SMTP Master Key
+        if password.startswith("xsmtpsib-") and host in ("smtp.gmail.com", "localhost", "127.0.0.1", ""):
+            host = "smtp-relay.brevo.com"
+            port = 587
 
-        brand_name = file_cfg.get("EMAIL_FROM_NAME") or os.getenv("EMAIL_FROM_NAME", "Yurae Beauty")
-        from_support = file_cfg.get("EMAIL_FROM_SUPPORT") or os.getenv("EMAIL_FROM_SUPPORT", "support@yuraebeauty.com")
-        from_orders = file_cfg.get("EMAIL_FROM_ORDERS") or os.getenv("EMAIL_FROM_ORDERS", "orders@yuraebeauty.com")
-        from_noreply = file_cfg.get("EMAIL_FROM_NOREPLY") or os.getenv("EMAIL_FROM_NOREPLY", "noreply@yuraebeauty.com")
-        from_admin = file_cfg.get("EMAIL_FROM_ADMIN") or os.getenv("EMAIL_FROM_ADMIN", "admin@yuraebeauty.com")
-        from_marketing = file_cfg.get("EMAIL_FROM_MARKETING") or os.getenv("EMAIL_FROM_MARKETING", "marketing@yuraebeauty.com")
-        frontend_url = file_cfg.get("FRONTEND_URL") or os.getenv("FRONTEND_URL", "https://yuraebeauty.com")
+        use_tls = get_val("SMTP_USE_TLS", "true").lower() in ("true", "1", "yes")
+        use_ssl = get_val("SMTP_USE_SSL", "false").lower() in ("true", "1", "yes") or port == 465
+        if port == 465:
+            use_ssl = True
+            use_tls = False
+        elif port == 587:
+            use_tls = True
+            use_ssl = False
+
+        timeout = int(get_val("SMTP_TIMEOUT_SECONDS", "15") or 15)
+
+        brand_name = get_val("EMAIL_FROM_NAME", "Yurae Beauty")
+        sender_email = get_val("SMTP_SENDER_EMAIL") or get_val("EMAIL_SENDER_EMAIL") or get_val("VERIFIED_SENDER_EMAIL") or "pkiruthika101@gmail.com"
+        from_support = get_val("EMAIL_FROM_SUPPORT", "support@yuraebeauty.com")
+        from_orders = get_val("EMAIL_FROM_ORDERS", "orders@yuraebeauty.com")
+        from_noreply = get_val("EMAIL_FROM_NOREPLY", "noreply@yuraebeauty.com")
+        from_admin = get_val("EMAIL_FROM_ADMIN", "admin@yuraebeauty.com")
+        from_marketing = get_val("EMAIL_FROM_MARKETING", "marketing@yuraebeauty.com")
+        frontend_url = get_val("FRONTEND_URL", "https://yuraebeauty.com")
 
         return {
             "mode": mode,
@@ -72,6 +107,7 @@ class EmailService:
             "port": port,
             "username": username,
             "password": password,
+            "sender_email": sender_email,
             "use_tls": use_tls,
             "use_ssl": use_ssl,
             "timeout": timeout,
@@ -152,7 +188,7 @@ class EmailService:
         related_user_id: Optional[int] = None
     ) -> bool:
         """
-        Executes synchronous SMTP transmission with delivery logging.
+        Executes synchronous SMTP transmission with delivery logging and robust provider compliance.
         """
         clean_to = cls.sanitize_header(to_email).lower()
         clean_subject = cls.sanitize_header(subject)
@@ -169,58 +205,75 @@ class EmailService:
         sender_map = {
             "support": (config["from_support"], f"{brand_name} Support"),
             "orders": (config["from_orders"], f"{brand_name} Orders"),
-            "noreply": ("noreply@yuraebeauty.com", f"{brand_name}"),
+            "noreply": (config["from_noreply"], f"{brand_name}"),
             "admin": (config["from_admin"], f"{brand_name} System"),
             "marketing": (config["from_marketing"], f"{brand_name} Concierge"),
         }
-        sender_email, display_name = sender_map.get(sender_role, ("noreply@yuraebeauty.com", brand_name))
+        role_email, display_name = sender_map.get(sender_role, (config["from_noreply"], brand_name))
 
         # Check simulation mode or missing password
         if config["mode"] == "console" or not config["password"]:
             clean_preview = (text_content or clean_subject).encode('ascii', 'ignore').decode('ascii')
             print(f"\n[EMAIL DISPATCH - SIMULATION MODE ({sender_role.upper()})]")
             print(f"  To: {clean_to}")
-            print(f"  From: {display_name} <{sender_email}>")
+            print(f"  From: {display_name} <{role_email}>")
             print(f"  Subject: {clean_subject}")
             print(f"  Preview: {clean_preview[:160]}...")
             print("  -----------------------------------------------\n")
-            cls._persist_email_log(clean_to, sender_email, display_name, clean_subject, template_name, "SIMULATED", None, related_order_id, related_user_id, html_content)
+            cls._persist_email_log(clean_to, role_email, display_name, clean_subject, template_name, "SIMULATED", None, related_order_id, related_user_id, html_content)
             return True
 
-        # Real-time SMTP Network Dispatch
         try:
+            from email.header import Header
             msg = MIMEMultipart("alternative")
-            msg["Subject"] = clean_subject
-            msg["From"] = formataddr((display_name, sender_email))
+            msg["Subject"] = Header(clean_subject, "utf-8")
+            
+            # Determine effective physical sender for SMTP envelope and From header
+            # For Brevo / Gmail: Brevo's username (b6e888001@smtp-brevo.com) is NOT an inbox.
+            # Brevo requires a verified sender email address on the account (e.g. pkiruthika101@gmail.com).
+            verified_sender = config.get("sender_email") or "pkiruthika101@gmail.com"
+            auth_user = config.get("username", "")
+            
+            if "brevo" in config.get("host", "").lower() or "sendinblue" in config.get("host", "").lower():
+                from_addr = verified_sender
+                envelope_sender = verified_sender
+            elif "gmail" in config.get("host", "").lower():
+                from_addr = auth_user if ("@" in auth_user and not auth_user.endswith("@smtp-brevo.com")) else verified_sender
+                envelope_sender = from_addr
+            else:
+                from_addr = role_email if ("@" in role_email) else verified_sender
+                envelope_sender = from_addr
+
+            msg["From"] = formataddr((display_name, from_addr))
             msg["To"] = clean_to
-            msg["Reply-To"] = config.get("from_support", "support@yuraebeauty.com")
+            msg["Reply-To"] = role_email if ("@" in role_email and role_email != from_addr) else config.get("from_support", "support@yuraebeauty.com")
             msg["Date"] = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
 
             if text_content:
                 msg.attach(MIMEText(text_content, "plain", "utf-8"))
             msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-            envelope_sender = config["username"] if ("@" in config.get("username", "") and "gmail" in config.get("host", "").lower()) else sender_email
-
             if config["use_ssl"]:
                 with smtplib.SMTP_SSL(config["host"], config["port"], timeout=config["timeout"]) as server:
                     server.login(config["username"], config["password"])
-                    server.sendmail(envelope_sender, [clean_to], msg.as_string())
+                    server.send_message(msg, from_addr=envelope_sender, to_addrs=[clean_to])
             else:
                 with smtplib.SMTP(config["host"], config["port"], timeout=config["timeout"]) as server:
                     if config["use_tls"]:
                         server.starttls()
                     server.login(config["username"], config["password"])
-                    server.sendmail(envelope_sender, [clean_to], msg.as_string())
+                    server.send_message(msg, from_addr=envelope_sender, to_addrs=[clean_to])
 
-            logger.info(f"[EMAIL SUCCESS] Delivered to {clean_to} from {sender_email} (Template: {template_name})")
-            cls._persist_email_log(clean_to, sender_email, display_name, clean_subject, template_name, "SENT", None, related_order_id, related_user_id, html_content)
+            logger.info(f"[EMAIL SUCCESS] Delivered to {clean_to} via {config['host']} (Template: {template_name})")
+            print(f"[EMAIL SUCCESS] Real-time email dispatched to {clean_to} (From: {display_name} <{from_addr}>)")
+            cls._persist_email_log(clean_to, from_addr, display_name, clean_subject, template_name, "SENT", None, related_order_id, related_user_id, html_content)
             return True
 
         except Exception as exc:
             err_msg = str(exc)
-            logger.error(f"[EMAIL FAILED] Could not dispatch to {clean_to} from {sender_email}: {err_msg}")
-            cls._persist_email_log(clean_to, sender_email, display_name, clean_subject, template_name, "FAILED", err_msg, related_order_id, related_user_id, html_content)
+            logger.error(f"[EMAIL FAILED] Could not dispatch to {clean_to}: {err_msg}")
+            print(f"[EMAIL ERROR] Failed to send email to {clean_to}: {err_msg}")
+            cls._persist_email_log(clean_to, role_email, display_name, clean_subject, template_name, "FAILED", err_msg, related_order_id, related_user_id, html_content)
             return False
 
     @classmethod

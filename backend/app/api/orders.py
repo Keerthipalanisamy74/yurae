@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.models import Order, OrderItem, Cart, CartItem, Product, Address, Payment, Coupon, User
@@ -12,6 +12,7 @@ from app.schemas.schemas import (
 from app.api.deps import get_current_user, get_current_admin
 from app.api.cart import get_or_create_user_cart
 from app.core.config import settings
+from app.core.events import YuraeEventBus
 from app.services.exchange_rate_service import ExchangeRateService, CURRENCY_METADATA
 from app.services.shipping_service import ShippingService
 from app.services.payment_service import PaymentService
@@ -111,6 +112,7 @@ def initiate_payment(
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 def create_order(
     order_in: OrderCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -166,12 +168,17 @@ def create_order(
     exchange_rate = float(rates.get(target_currency, 1.0))
     decimals = CURRENCY_METADATA.get(target_currency, {}).get("decimal_digits", 2)
 
-    # 3. Calculate authoritative base price subtotal in INR and check stock
+    # 3. Calculate authoritative base price subtotal in INR and check stock with concurrency protection
     inr_subtotal = 0.0
     items_to_create = []
 
     for item in cart.items:
-        product = db.query(Product).filter(Product.id == item.product_id).first()
+        # Query product with atomic row lock if supported
+        try:
+            product = db.query(Product).filter(Product.id == item.product_id).with_for_update().first()
+        except Exception:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+
         if not product or product.status != "ACTIVE":
             raise HTTPException(status_code=400, detail=f"Product {item.product_id} is no longer available.")
         if product.stock_quantity < item.quantity:
@@ -358,24 +365,55 @@ def create_order(
     db.commit()
     db.refresh(new_order)
 
-    # 12. Automatic Indian Shipping & Order Fulfillment (Shiprocket)
-    # Trigger shipment pipeline for paid prepaid orders and COD orders
-    # 12. Automatic Indian Shipping & Order Fulfillment (Shiprocket)
+    # 12. Realtime Event Broadcasting (WebSocket)
+    try:
+        order_event_payload = {
+            "order_id": new_order.id,
+            "order_number": new_order.order_number,
+            "customer_name": f"{current_user.first_name} {current_user.last_name}",
+            "customer_email": current_user.email,
+            "total_amount": new_order.total_amount,
+            "currency": new_order.currency,
+            "payment_method": order_in.payment_method,
+            "payment_status": new_order.payment_status,
+            "order_status": new_order.order_status,
+            "shipping_status": new_order.shipping_status,
+            "items_count": len(new_order.items),
+            "created_at": new_order.created_at.isoformat() if new_order.created_at else datetime.utcnow().isoformat()
+        }
+        YuraeEventBus.publish("ORDER_CREATED", order_event_payload, target_user_id=current_user.id)
+
+        # Check for low stock broadcast
+        for item_data in items_to_create:
+            prod = item_data["product"]
+            if prod.stock_quantity <= 10:
+                YuraeEventBus.publish("LOW_STOCK", {
+                    "product_id": prod.id,
+                    "product_name": prod.name,
+                    "sku": prod.sku,
+                    "remaining_stock": prod.stock_quantity
+                })
+    except Exception as ev_err:
+        print(f"[EVENT BUS] Broadcast warning: {ev_err}")
+
+    # 13. Automatic Indian Shipping & Order Fulfillment (Shiprocket)
     if is_cod or order_payment_status.upper() == "PAID":
         try:
             ShippingService.execute_automated_shipping_flow(new_order.id, db)
             db.refresh(new_order)
         except Exception as e:
-            # Crucial: Order is already safely created in DB. Do not fail the checkout response if shipping provider encounters network latency.
             print(f"Warning: Async shipping pipeline deferred for Order #{new_order.order_number}: {e}")
 
-    # 13. Dispatch Luxury Order Confirmation Email & Admin Alert
-    try:
-        from app.services.email_service import EmailService
-        EmailService.send_order_confirmation_email(new_order, current_user)
-        EmailService.send_admin_new_order_alert_email(new_order, current_user)
-    except Exception as email_err:
-        print(f"Warning: Could not send order notification emails: {email_err}")
+    # 14. Dispatch Luxury Order Confirmation Email & Admin Alert via background tasks
+    def dispatch_order_emails(order_obj: Order, user_obj: User):
+        try:
+            from app.services.email_service import EmailService
+            EmailService.send_order_confirmation_email(order_obj, user_obj)
+            EmailService.send_admin_new_order_alert_email(order_obj, user_obj)
+        except Exception as email_err:
+            print(f"Warning: Could not send order notification emails: {email_err}")
+
+    background_tasks.add_task(dispatch_order_emails, new_order, current_user)
 
     return new_order
 
@@ -540,6 +578,7 @@ def download_order_invoice_pdf(
 def update_order_status(
     order_id: int,
     status_in: OrderStatusUpdate,
+    background_tasks: BackgroundTasks,
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -556,20 +595,77 @@ def update_order_status(
             prod = db.query(Product).filter(Product.id == o_item.product_id).first()
             if prod:
                 prod.stock_quantity += o_item.quantity
+                YuraeEventBus.publish("INVENTORY_UPDATED", {
+                    "product_id": prod.id,
+                    "sku": prod.sku,
+                    "new_stock": prod.stock_quantity
+                })
 
     if status_in.order_status:
         order.order_status = status_in.order_status
-        # If order is delivered, automatically mark COD / pending payment as Paid
-        if new_status == "DELIVERED" and (not status_in.payment_status or order.payment_status in ["Pending", "PENDING"]):
-            order.payment_status = "Paid"
-            if not order.shipping_status or order.shipping_status != "DELIVERED":
-                order.shipping_status = "DELIVERED"
+        if new_status == "CONFIRMED":
+            order.fulfillment_status = "ORDER_CONFIRMED"
+        elif new_status == "PROCESSING":
+            order.fulfillment_status = "ORDER_CONFIRMED"
+        elif new_status == "PACKED":
+            order.fulfillment_status = "PACKED"
+            order.packed_at = order.packed_at or datetime.utcnow()
+        elif new_status in ["SHIPPED", "IN_TRANSIT"]:
+            order.fulfillment_status = "SHIPPED"
+            order.shipping_status = "IN_TRANSIT"
+            order.shipped_at = order.shipped_at or datetime.utcnow()
+        elif new_status in ["OUT_FOR_DELIVERY", "OUT FOR DELIVERY"]:
+            order.fulfillment_status = "OUT_FOR_DELIVERY"
+            order.shipping_status = "OUT_FOR_DELIVERY"
+        elif new_status == "DELIVERED":
+            order.fulfillment_status = "DELIVERED"
+            order.shipping_status = "DELIVERED"
+            order.delivered_at = order.delivered_at or datetime.utcnow()
+            if not status_in.payment_status or order.payment_status in ["Pending", "PENDING"]:
+                order.payment_status = "Paid"
+        elif new_status in ["CANCELLED", "CANCELED"]:
+            order.fulfillment_status = "CANCELLED"
+            order.cancelled_at = order.cancelled_at or datetime.utcnow()
 
     if status_in.payment_status:
         order.payment_status = status_in.payment_status
 
+    if status_in.priority:
+        order.priority = status_in.priority
+    if status_in.assigned_staff is not None:
+        order.assigned_staff = status_in.assigned_staff
+    if status_in.courier_name:
+        order.courier_name = status_in.courier_name
+    if status_in.awb_code:
+        order.awb_code = status_in.awb_code
+    if status_in.tracking_url:
+        order.tracking_url = status_in.tracking_url
+    if status_in.fulfillment_status:
+        order.fulfillment_status = status_in.fulfillment_status
+
     db.commit()
     db.refresh(order)
+
+    # Broadcast Realtime Status Change Event
+    try:
+        status_event_payload = {
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "customer_name": f"{order.user.first_name} {order.user.last_name}" if order.user else "Valued Patron",
+            "old_status": old_status,
+            "order_status": order.order_status,
+            "payment_status": order.payment_status,
+            "shipping_status": order.shipping_status,
+            "tracking_url": order.tracking_url,
+            "awb_code": order.awb_code,
+            "courier_name": order.courier_name,
+            "assigned_staff": order.assigned_staff,
+            "priority": order.priority,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        YuraeEventBus.publish("ORDER_STATUS_CHANGED", status_event_payload, target_user_id=order.user_id)
+    except Exception as ev_err:
+        print(f"[EVENT BUS] Status update broadcast error: {ev_err}")
 
     # Automatic AWB Generation on transition to Processing
     if new_status == "PROCESSING" and not order.awb_code:
@@ -579,21 +675,24 @@ def update_order_status(
         except Exception as e:
             print(f"Warning: Could not auto-generate shipment on status change to Processing for Order #{order.order_number}: {e}")
 
-    # Milestone Transactional Customer Email Notifications (orders@yuraebeauty.com)
+    # Milestone Transactional Customer Email Notifications (orders@yuraebeauty.com) via background task
     if new_status and new_status != old_status:
-        try:
-            from app.services.email_service import EmailService
-            if new_status in ["PROCESSING", "PACKED"]:
-                EmailService.send_order_packed(order)
-            elif new_status in ["SHIPPED", "IN_TRANSIT"]:
-                EmailService.send_shipping_notification(order)
-            elif new_status in ["OUT_FOR_DELIVERY"]:
-                EmailService.send_out_for_delivery(order)
-            elif new_status in ["DELIVERED"]:
-                EmailService.send_delivery_notification(order)
-            elif new_status in ["CANCELLED", "CANCELED"]:
-                EmailService.send_cancellation_email(order, "Order cancelled by store administrator")
-        except Exception as email_err:
-            print(f"Warning: Could not send status update email for Order #{order.order_number}: {email_err}")
+        def dispatch_status_email(order_obj: Order, n_status: str):
+            try:
+                from app.services.email_service import EmailService
+                if n_status in ["PROCESSING", "PACKED"]:
+                    EmailService.send_order_packed(order_obj)
+                elif n_status in ["SHIPPED", "IN_TRANSIT"]:
+                    EmailService.send_shipping_notification(order_obj)
+                elif n_status in ["OUT_FOR_DELIVERY"]:
+                    EmailService.send_out_for_delivery(order_obj)
+                elif n_status in ["DELIVERED"]:
+                    EmailService.send_delivery_notification(order_obj)
+                elif n_status in ["CANCELLED", "CANCELED"]:
+                    EmailService.send_cancellation_email(order_obj, "Order cancelled by store administrator")
+            except Exception as email_err:
+                print(f"Warning: Could not send status update email for Order #{order_obj.order_number}: {email_err}")
+
+        background_tasks.add_task(dispatch_status_email, order, new_status)
 
     return order

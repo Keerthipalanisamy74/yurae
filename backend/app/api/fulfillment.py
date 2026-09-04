@@ -21,6 +21,7 @@ from app.schemas.schemas import (
     WarehouseCreate, WarehouseResponse, ProductInventoryLocationResponse, ProductInventoryLocationCreate
 )
 from app.api.deps import get_current_user, get_current_admin
+from app.core.events import YuraeEventBus
 from app.services.fulfillment_orchestrator import FulfillmentOrchestrator
 from app.services.warehouse_service import WarehouseService
 from app.services.qc_service import QCService
@@ -69,7 +70,7 @@ def advance_order_fulfillment_status(
         raise HTTPException(status_code=404, detail="Order not found.")
 
     actor_name = req_in.actor_name or f"{current_admin.first_name} {current_admin.last_name}"
-    return FulfillmentOrchestrator.advance_order_status(
+    updated_order = FulfillmentOrchestrator.advance_order_status(
         order=order,
         target_status=req_in.target_status,
         notes=req_in.notes,
@@ -77,6 +78,22 @@ def advance_order_fulfillment_status(
         actor_role=req_in.actor_role or "ADMIN",
         db=db
     )
+
+    # Broadcast Realtime Event
+    try:
+        YuraeEventBus.publish("ORDER_STATUS_CHANGED", {
+            "order_id": updated_order.id,
+            "order_number": updated_order.order_number,
+            "fulfillment_status": updated_order.fulfillment_status,
+            "order_status": updated_order.order_status,
+            "shipping_status": updated_order.shipping_status,
+            "actor_name": actor_name,
+            "notes": req_in.notes
+        }, target_user_id=updated_order.user_id)
+    except Exception as ev_err:
+        logger.warning(f"Failed to broadcast fulfillment advancement: {ev_err}")
+
+    return updated_order
 
 
 # ==========================================

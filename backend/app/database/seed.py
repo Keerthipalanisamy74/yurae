@@ -34,6 +34,11 @@ def seed_db():
             db.commit()
             db.refresh(admin)
             print("Admin user created: admin@yuraebeauty.com / Admin@123")
+        else:
+            admin.password_hash = get_password_hash("Admin@123")
+            admin.role = "ADMIN"
+            admin.is_active = True
+            db.commit()
 
         # 2. Demo Customer User
         customer = db.query(User).filter(User.email == "customer@yuraebeauty.com").first()

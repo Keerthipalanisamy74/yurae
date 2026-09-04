@@ -591,7 +591,7 @@ class ShippingService:
         """
         awb = payload.get("awb") or payload.get("awb_code") or payload.get("tracking_number") or payload.get("waybill")
         current_status = (payload.get("current_status") or payload.get("status") or "").upper().strip()
-        event_id = payload.get("event_id") or f"{awb}_{current_status}_{datetime.utcnow().strftime('%Y%m%d%H%M')}"
+        event_id = payload.get("event_id") or f"{awb or payload.get('order_id', 'EVT')}_{current_status}_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}"
         provider_name = payload.get("provider", "shiprocket")
 
         # Deduplication check
@@ -625,10 +625,18 @@ class ShippingService:
 
         # Map courier status to YURAE Order & Shipping Lifecycle
         status_mapping = {
-            "PICKED UP": ("PICKED_UP", "Processing"),
-            "PICKED_UP": ("PICKED_UP", "Processing"),
+            "PICKED UP": ("IN_TRANSIT", "Shipped"),
+            "PICKED_UP": ("IN_TRANSIT", "Shipped"),
+            "PICKUP COMPLETED": ("IN_TRANSIT", "Shipped"),
+            "PICKUP_COMPLETED": ("IN_TRANSIT", "Shipped"),
+            "PICKED": ("IN_TRANSIT", "Shipped"),
+            "DISPATCHED": ("IN_TRANSIT", "Shipped"),
+            "MANIFEST GENERATED": ("AWB_ASSIGNED", "Packed"),
+            "MANIFEST_GENERATED": ("AWB_ASSIGNED", "Packed"),
             "IN TRANSIT": ("IN_TRANSIT", "Shipped"),
             "IN_TRANSIT": ("IN_TRANSIT", "Shipped"),
+            "SHIPPED": ("IN_TRANSIT", "Shipped"),
+            "REACHED AT DESTINATION": ("IN_TRANSIT", "Shipped"),
             "OUT FOR DELIVERY": ("OUT_FOR_DELIVERY", "Out for Delivery"),
             "OUT_FOR_DELIVERY": ("OUT_FOR_DELIVERY", "Out for Delivery"),
             "DELIVERED": ("DELIVERED", "Delivered"),
@@ -636,8 +644,12 @@ class ShippingService:
             "CANCELLED": ("CANCELLED", "Cancelled"),
             "RTO INITIATED": ("RTO", "Cancelled"),
             "RTO DELIVERED": ("RTO", "Cancelled"),
+            "RTO_INITIATED": ("RTO", "Cancelled"),
+            "RTO_DELIVERED": ("RTO", "Cancelled"),
         }
 
+        old_order_status = order.order_status
+        old_shipping_status = order.shipping_status
         mapped_shipping_status, mapped_order_status = status_mapping.get(current_status, (current_status, order.order_status))
 
         order.shipping_status = mapped_shipping_status
@@ -661,6 +673,45 @@ class ShippingService:
         )
         db.add(tracking_event)
         db.commit()
+        db.refresh(order)
+
+        # Real-time WebSocket Broadcast to Admin Dashboard & Customer Session
+        try:
+            from app.core.events import YuraeEventBus
+            status_event_payload = {
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "old_status": old_order_status,
+                "order_status": order.order_status,
+                "payment_status": order.payment_status,
+                "shipping_status": order.shipping_status,
+                "tracking_url": order.tracking_url,
+                "awb_code": order.awb_code,
+                "courier_name": order.courier_name,
+                "assigned_staff": order.assigned_staff,
+                "priority": order.priority,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            YuraeEventBus.publish("ORDER_STATUS_CHANGED", status_event_payload, target_user_id=order.user_id)
+        except Exception as bus_ex:
+            logger.warning(f"Could not broadcast status event: {bus_ex}")
+
+        # Dispatch Transactional Milestone Emails on status progression
+        if mapped_order_status != old_order_status:
+            try:
+                from app.services.email_service import EmailService
+                if mapped_order_status.upper() == "SHIPPED":
+                    EmailService.send_shipment_dispatched_email(order, {
+                        "awb_code": order.awb_code,
+                        "courier_name": order.courier_name,
+                        "tracking_url": order.tracking_url
+                    })
+                elif mapped_order_status.upper() == "OUT FOR DELIVERY":
+                    EmailService.send_out_for_delivery(order)
+                elif mapped_order_status.upper() == "DELIVERED":
+                    EmailService.send_delivery_notification(order)
+            except Exception as email_ex:
+                logger.warning(f"Could not send automated status email for Order #{order.order_number}: {email_ex}")
 
         logger.info(f"Webhook updated Order #{order.order_number} to {mapped_shipping_status} / {mapped_order_status}")
         return {"success": True, "message": f"Order #{order.order_number} updated to {mapped_shipping_status}"}

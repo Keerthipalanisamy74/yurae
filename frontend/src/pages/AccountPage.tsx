@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useRealtime } from '../hooks/useRealtime';
 import { api } from '../services/api';
 import { Order, Address, TrackingResponse, ReturnRequest } from '../types';
 import { useToast } from '../context/ToastContext';
@@ -17,6 +18,7 @@ import { ReturnRequestModal } from '../components/common/ReturnRequestModal';
 export const AccountPage: React.FC = () => {
   const { user, logout, isAdmin } = useAuth();
   const { showToast } = useToast();
+  const { on: onRealtimeEvent } = useRealtime();
   const { formatRawPrice } = useCurrency();
   const [searchParams] = useSearchParams();
 
@@ -67,6 +69,22 @@ export const AccountPage: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Realtime customer order status updates
+  useEffect(() => {
+    if (isAdmin) return;
+
+    const unsub = onRealtimeEvent('ORDER_STATUS_CHANGED', (data) => {
+      showToast(`📦 Your Order #${data.order_number} is now ${data.order_status || data.fulfillment_status}!`, 'info');
+      api.get('/orders')
+        .then((res) => setOrders(res.data))
+        .catch(() => {});
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [isAdmin, onRealtimeEvent, showToast]);
 
   useEffect(() => {
     if (isAdmin) {

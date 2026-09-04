@@ -7,13 +7,7 @@ import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { CategoryProvider } from './context/CategoryContext';
 
-import { Navbar } from './components/common/Navbar';
-import { MobileNav } from './components/common/MobileNav';
-import { CartDrawer } from './components/common/CartDrawer';
-import { Footer } from './components/common/Footer';
-import { InstallAppPrompt } from './components/common/InstallAppPrompt';
-import { MarketingBannerHub } from './components/common/MarketingBannerHub';
-import { WelcomeSplashIntro } from './components/common/WelcomeSplashIntro';
+import { CustomerLayout } from './components/layouts/CustomerLayout';
 import { ScrollToTop } from './components/common/ScrollToTop';
 
 import { Home } from './pages/Home';
@@ -42,54 +36,50 @@ export const App: React.FC = () => {
               <WishlistProvider>
                 <CategoryProvider>
                   <ScrollToTop />
-                  <div className="min-h-screen flex flex-col bg-[#F8B4CB] text-[#111111]">
-                    <WelcomeSplashIntro />
-                    <Navbar />
-                    <MarketingBannerHub />
-                    <CartDrawer />
-                    <main className="flex-1">
-                      <Routes>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/shop" element={<Shop />} />
-                        <Route path="/new-arrivals" element={<Shop />} />
-                        <Route path="/bestsellers" element={<Shop />} />
-                        <Route path="/category/:categorySlug" element={<Shop />} />
-                        <Route path="/skincare" element={<Shop categorySlug="skincare" />} />
-                        <Route path="/fashion" element={<Shop categorySlug="fashion" />} />
-                        <Route path="/accessories" element={<Shop categorySlug="accessories" />} />
-                        <Route path="/product/:slug" element={<ProductDetails />} />
-                        <Route path="/cart" element={<CartPage />} />
-                        <Route path="/checkout" element={<CheckoutPage />} />
-                        <Route path="/wishlist" element={<WishlistPage />} />
-                        <Route path="/account" element={<AccountPage />} />
-                        <Route path="/track" element={<TrackingPage />} />
-                        <Route path="/track/:orderNumber" element={<TrackingPage />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
-                        <Route path="/forgot-password" element={<ForgotPassword />} />
-                        <Route path="/admin" element={<AdminDashboard />} />
-                        <Route path="/about" element={<AboutPage />} />
-                        <Route path="/contact" element={<ContactPage />} />
-                        <Route path="/faq" element={<FAQHelpPage />} />
-                        <Route path="/help" element={<FAQHelpPage />} />
-                        <Route path="/policies" element={<PoliciesHubPage />} />
-                        <Route path="/legal" element={<PoliciesHubPage />} />
-                        <Route path="/shipping" element={<ShippingPolicyPage />} />
-                        <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
-                        <Route path="/returns" element={<ReturnRefundPolicyPage />} />
-                        <Route path="/return-policy" element={<ReturnRefundPolicyPage />} />
-                        <Route path="/refund-policy" element={<ReturnRefundPolicyPage />} />
-                        <Route path="/privacy" element={<PrivacyPolicyPage />} />
-                        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-                        <Route path="/terms" element={<TermsConditionsPage />} />
-                        <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
-                        <Route path="*" element={<Home />} />
-                      </Routes>
-                    </main>
-                    <Footer />
-                    <MobileNav />
-                    <InstallAppPrompt />
-                  </div>
+                  <Routes>
+                    {/* Isolated Enterprise Admin Portal (No Customer Navbar/Footer/Cart) */}
+                    <Route path="/admin/*" element={<AdminDashboard />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
+
+                    {/* Customer-facing Storefront Layout */}
+                    <Route element={<CustomerLayout />}>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/shop" element={<Shop />} />
+                      <Route path="/new-arrivals" element={<Shop />} />
+                      <Route path="/bestsellers" element={<Shop />} />
+                      <Route path="/category/:categorySlug" element={<Shop />} />
+                      <Route path="/skincare" element={<Shop categorySlug="skincare" />} />
+                      <Route path="/fashion" element={<Shop categorySlug="fashion" />} />
+                      <Route path="/accessories" element={<Shop categorySlug="accessories" />} />
+                      <Route path="/footwear" element={<Shop categorySlug="footwear" />} />
+                      <Route path="/product/:slug" element={<ProductDetails />} />
+                      <Route path="/cart" element={<CartPage />} />
+                      <Route path="/checkout" element={<CheckoutPage />} />
+                      <Route path="/wishlist" element={<WishlistPage />} />
+                      <Route path="/account" element={<AccountPage />} />
+                      <Route path="/track" element={<TrackingPage />} />
+                      <Route path="/track/:orderNumber" element={<TrackingPage />} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/about" element={<AboutPage />} />
+                      <Route path="/contact" element={<ContactPage />} />
+                      <Route path="/faq" element={<FAQHelpPage />} />
+                      <Route path="/help" element={<FAQHelpPage />} />
+                      <Route path="/policies" element={<PoliciesHubPage />} />
+                      <Route path="/legal" element={<PoliciesHubPage />} />
+                      <Route path="/shipping" element={<ShippingPolicyPage />} />
+                      <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+                      <Route path="/returns" element={<ReturnRefundPolicyPage />} />
+                      <Route path="/return-policy" element={<ReturnRefundPolicyPage />} />
+                      <Route path="/refund-policy" element={<ReturnRefundPolicyPage />} />
+                      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/terms" element={<TermsConditionsPage />} />
+                      <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
+                      <Route path="*" element={<Home />} />
+                    </Route>
+                  </Routes>
                 </CategoryProvider>
               </WishlistProvider>
             </CartProvider>

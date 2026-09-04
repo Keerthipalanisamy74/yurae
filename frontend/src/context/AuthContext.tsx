@@ -7,9 +7,9 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (data: { first_name: string; last_name: string; email: string; phone?: string; password: string }) => Promise<void>;
-  sendRegistrationOtp: (data: { first_name: string; last_name: string; email: string; phone?: string; password: string }) => Promise<{ message: string; dev_otp?: string }>;
+  sendRegistrationOtp: (data: { first_name: string; last_name: string; email: string; phone?: string; password: string }) => Promise<{ message: string }>;
   verifyRegistrationOtp: (email: string, otp: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -41,13 +41,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const res = await api.post('/auth/login', { email, password });
     const { access_token, user: loggedUser } = res.data;
     setToken(access_token);
     setUser(loggedUser);
     localStorage.setItem('yurae_token', access_token);
     localStorage.setItem('yurae_user', JSON.stringify(loggedUser));
+    return loggedUser;
   };
 
   const register = async (data: { first_name: string; last_name: string; email: string; phone?: string; password: string }) => {

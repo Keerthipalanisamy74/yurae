@@ -78,7 +78,36 @@ type AdminRole =
   | 'Customer Support'
   | 'Finance';
 
-type ViewMode = 'standard' | 'warehouse';
+type ViewMode = 'standard' | 'pipeline' | 'warehouse';
+
+const STAFF_MEMBERS = [
+  'Unassigned',
+  'Ananya (Packer)',
+  'Rajesh (QC Specialist)',
+  'Priya (Logistics)',
+  'Arun (Fulfillment Lead)',
+  'Store Admin',
+];
+
+const COURIER_OPTIONS = [
+  'Blue Dart Express Air',
+  'Delhivery Express Air',
+  'Shiprocket Surface/Air',
+  'DTDC Express Premium',
+  'DHL Express Worldwide',
+  'Local Express / Same Day',
+];
+
+const LIFECYCLE_STAGES = [
+  { key: 'ALL', label: 'All Orders', icon: Layers },
+  { key: 'CONFIRMED', label: 'Confirmed', icon: Sparkles },
+  { key: 'PROCESSING', label: 'Processing', icon: Cpu },
+  { key: 'PACKED', label: 'Packed & QC', icon: Boxes },
+  { key: 'SHIPPED', label: 'Shipped', icon: Truck },
+  { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: Navigation },
+  { key: 'DELIVERED', label: 'Delivered', icon: CheckCircle2 },
+  { key: 'CANCELLED', label: 'Cancelled', icon: XCircle },
+];
 
 export const OrderManagement: React.FC<OrderManagementProps> = ({
   orders,
@@ -451,6 +480,61 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
     return sortedOrders.slice(start, start + itemsPerPage);
   }, [sortedOrders, currentPage, itemsPerPage]);
 
+  // --- Dynamic Lifecycle Stage Counts ---
+  const stageCounts = useMemo(() => {
+    const counts = {
+      ALL: orders.length,
+      CONFIRMED: 0,
+      PROCESSING: 0,
+      PACKED: 0,
+      SHIPPED: 0,
+      OUT_FOR_DELIVERY: 0,
+      DELIVERED: 0,
+      CANCELLED: 0,
+    };
+    orders.forEach((o) => {
+      const st = (o.order_status || '').toUpperCase();
+      if (st === 'CONFIRMED' || st === 'PENDING' || st === 'NEW') counts.CONFIRMED++;
+      else if (st === 'PROCESSING') counts.PROCESSING++;
+      else if (st === 'PACKED') counts.PACKED++;
+      else if (st === 'SHIPPED' || st === 'IN_TRANSIT') counts.SHIPPED++;
+      else if (st === 'OUT_FOR_DELIVERY' || st === 'OUT FOR DELIVERY') counts.OUT_FOR_DELIVERY++;
+      else if (st === 'DELIVERED') counts.DELIVERED++;
+      else if (st === 'CANCELLED' || st === 'CANCELED' || st === 'RETURNED') counts.CANCELLED++;
+    });
+    return counts;
+  }, [orders]);
+
+  // --- Kanban Pipeline Grouping ---
+  const pipelineColumns = useMemo(() => {
+    const cols = {
+      confirmed: [] as Order[],
+      processing: [] as Order[],
+      packed: [] as Order[],
+      shipped: [] as Order[],
+      delivered: [] as Order[],
+    };
+
+    filteredOrders.forEach((o) => {
+      const st = (o.order_status || '').toUpperCase();
+      if (st === 'CONFIRMED' || st === 'PENDING' || st === 'NEW') {
+        cols.confirmed.push(o);
+      } else if (st === 'PROCESSING') {
+        cols.processing.push(o);
+      } else if (st === 'PACKED') {
+        cols.packed.push(o);
+      } else if (st === 'SHIPPED' || st === 'IN_TRANSIT' || st === 'OUT_FOR_DELIVERY' || st === 'OUT FOR DELIVERY') {
+        cols.shipped.push(o);
+      } else if (st === 'DELIVERED') {
+        cols.delivered.push(o);
+      } else {
+        cols.confirmed.push(o);
+      }
+    });
+
+    return cols;
+  }, [filteredOrders]);
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -477,7 +561,10 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
     }
   };
 
-  const handleBulkAction = async (action: string) => {
+  const handleBulkAction = async (
+    action: string,
+    extras?: { assigned_staff?: string; courier_name?: string; priority?: string }
+  ) => {
     if (!selectedOrderIds.length) {
       showToast('Please select at least one order.', 'warning');
       return;
@@ -511,6 +598,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
       const res = await api.post('/admin/orders/bulk-action', {
         order_ids: selectedOrderIds,
         action,
+        ...extras,
       });
       showToast(res.data.message || 'Bulk operation completed', 'success');
       setSelectedOrderIds([]);
@@ -523,10 +611,14 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
     }
   };
 
-  // --- Status Update Handler ---
-  const handleUpdateOrderStatus = async (orderId: number, targetStatus: string) => {
+  // --- Fast Status & Assignment Handlers ---
+  const handleUpdateOrderStatus = async (
+    orderId: number,
+    targetStatus: string,
+    extras?: { assigned_staff?: string; courier_name?: string; priority?: string }
+  ) => {
     try {
-      await api.put(`/orders/${orderId}/status`, { order_status: targetStatus });
+      await api.put(`/orders/${orderId}/status`, { order_status: targetStatus, ...extras });
       showToast(`Order status updated to "${targetStatus}"`, 'success');
       onRefreshOrders();
       fetchAnalytics();
@@ -536,6 +628,101 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
     } catch (err: any) {
       showToast(err?.response?.data?.detail || 'Failed to update order status', 'error');
     }
+  };
+
+  const handleAssignStaff = async (orderId: number, staff: string) => {
+    try {
+      await api.put(`/orders/${orderId}/status`, { assigned_staff: staff === 'Unassigned' ? '' : staff });
+      showToast(`Assigned to ${staff}`, 'success');
+      onRefreshOrders();
+      if (inspectedOrderId === orderId) {
+        fetch360Detail(orderId);
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to assign staff', 'error');
+    }
+  };
+
+  const handleAssignCourier = async (orderId: number, courier: string) => {
+    try {
+      await api.put(`/orders/${orderId}/status`, { courier_name: courier });
+      showToast(`Courier set to "${courier}"`, 'success');
+      onRefreshOrders();
+      if (inspectedOrderId === orderId) {
+        fetch360Detail(orderId);
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to assign courier', 'error');
+    }
+  };
+
+  const handleUpdatePriority = async (orderId: number, priority: string) => {
+    try {
+      await api.put(`/orders/${orderId}/status`, { priority });
+      showToast(`Priority updated to "${priority}"`, 'success');
+      onRefreshOrders();
+      if (inspectedOrderId === orderId) {
+        fetch360Detail(orderId);
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to update priority', 'error');
+    }
+  };
+
+  // --- Next & Previous Stage Helpers ---
+  const getNextStage = (currentStatus: string) => {
+    const s = (currentStatus || '').toUpperCase();
+    if (s === 'PENDING' || s === 'CONFIRMED' || s === 'NEW') {
+      return {
+        nextStatus: 'Processing',
+        label: 'Process',
+        icon: Cpu,
+        color: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+      };
+    }
+    if (s === 'PROCESSING') {
+      return {
+        nextStatus: 'Packed',
+        label: 'Pack',
+        icon: Boxes,
+        color: 'bg-purple-600 hover:bg-purple-700 text-white',
+      };
+    }
+    if (s === 'PACKED') {
+      return {
+        nextStatus: 'Shipped',
+        label: 'Ship',
+        icon: Truck,
+        color: 'bg-blue-600 hover:bg-blue-700 text-white',
+      };
+    }
+    if (s === 'SHIPPED' || s === 'IN_TRANSIT') {
+      return {
+        nextStatus: 'Out for Delivery',
+        label: 'Out for Del',
+        icon: Navigation,
+        color: 'bg-amber-600 hover:bg-amber-700 text-white',
+      };
+    }
+    if (s === 'OUT_FOR_DELIVERY' || s === 'OUT FOR DELIVERY') {
+      return {
+        nextStatus: 'Delivered',
+        label: 'Deliver',
+        icon: CheckCircle2,
+        color: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+      };
+    }
+    return null;
+  };
+
+  const getPrevStage = (currentStatus: string) => {
+    const s = (currentStatus || '').toUpperCase();
+    if (s === 'PROCESSING') return 'Confirmed';
+    if (s === 'PACKED') return 'Processing';
+    if (s === 'SHIPPED' || s === 'IN_TRANSIT') return 'Packed';
+    if (s === 'OUT_FOR_DELIVERY' || s === 'OUT FOR DELIVERY') return 'Shipped';
+    if (s === 'DELIVERED') return 'Out for Delivery';
+    return null;
   };
 
   // --- Save Packing Checklist & Complete Packing ---
@@ -724,6 +911,165 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
 
   const selectedCardMeta = summaryCardsList.find((c) => c.key === selectedCardKey);
 
+  // --- Render Individual Kanban Card for Pipeline Board ---
+  const renderKanbanCard = (order: Order, stage: string) => {
+    const nextStage = getNextStage(order.order_status || stage);
+    const prevStage = getPrevStage(order.order_status || stage);
+    const pst = order.payment_status || 'Pending';
+    const priority = order.priority || 'NORMAL';
+
+    return (
+      <div
+        key={order.id}
+        className="bg-white rounded-2xl p-3.5 border border-[#F1BCCE]/80 hover:border-[#D84B7E] shadow-2xs hover:shadow-md transition-all space-y-3"
+      >
+        {/* Top Bar: Order Number & Priority */}
+        <div className="flex items-start justify-between gap-1">
+          <div>
+            <button
+              onClick={() => setInspectedOrderId(order.id)}
+              className="font-serif font-bold text-xs text-gray-900 hover:text-[#D84B7E] cursor-pointer text-left block"
+            >
+              #{order.order_number}
+            </button>
+            <span className="text-[10px] text-gray-400 block font-sans">
+              {order.created_at
+                ? new Date(order.created_at).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                  })
+                : 'Recent'}
+            </span>
+          </div>
+
+          <button
+            onClick={() => {
+              const nextPrio = priority === 'NORMAL' ? 'HIGH' : priority === 'HIGH' ? 'URGENT' : 'NORMAL';
+              handleUpdatePriority(order.id, nextPrio);
+            }}
+            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all cursor-pointer ${
+              priority === 'URGENT'
+                ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
+                : priority === 'HIGH'
+                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Click to toggle priority"
+          >
+            {priority === 'URGENT' && <Flame className="w-2.5 h-2.5 text-rose-600" />}
+            <span>{priority}</span>
+          </button>
+        </div>
+
+        {/* Customer & Location */}
+        <div className="bg-gray-50/80 p-2 rounded-xl text-[11px] space-y-0.5">
+          <p className="font-semibold text-gray-900 truncate">
+            {order.user ? `${order.user.first_name} ${order.user.last_name}` : order.address?.name || 'Patron'}
+          </p>
+          <p className="text-[10px] text-gray-500 truncate">
+            {order.address?.city || 'India'}, {order.address?.state || ''}
+          </p>
+        </div>
+
+        {/* Items preview & Total */}
+        <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
+          <span className="font-bold text-gray-700 text-[11px]">
+            {order.items?.length || 1} item{(order.items?.length || 1) > 1 ? 's' : ''}
+          </span>
+          <div className="text-right">
+            <span className="font-serif font-bold text-gray-900 text-xs">
+              {order.currency || 'INR'} {order.total_amount?.toLocaleString('en-IN')}
+            </span>
+            <span
+              className={`block text-[8px] font-bold uppercase px-1 rounded ${
+                pst === 'Paid' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'
+              }`}
+            >
+              {pst} {order.is_cod ? '• COD' : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Staff & Courier Assignments */}
+        <div className="space-y-1.5 pt-1 border-t border-gray-100">
+          {/* Staff Assign */}
+          <div className="flex items-center gap-1 text-[10px]">
+            <span className="text-gray-400 font-semibold w-11">Staff:</span>
+            <select
+              value={order.assigned_staff || 'Unassigned'}
+              onChange={(e) => handleAssignStaff(order.id, e.target.value)}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-gray-800 cursor-pointer focus:outline-none focus:border-[#D84B7E]"
+            >
+              {STAFF_MEMBERS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Courier Assign */}
+          <div className="flex items-center gap-1 text-[10px]">
+            <span className="text-gray-400 font-semibold w-11">Courier:</span>
+            <select
+              value={order.courier_name || 'Blue Dart Express Air'}
+              onChange={(e) => handleAssignCourier(order.id, e.target.value)}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-gray-800 cursor-pointer focus:outline-none focus:border-[#D84B7E]"
+            >
+              {COURIER_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Card Action Buttons: Advance / Revert & Tools */}
+        <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setInspectedOrderId(order.id)}
+              className="p-1.5 rounded-lg bg-gray-100 hover:bg-[#FAF0F4] text-gray-600 hover:text-[#D84B7E] cursor-pointer"
+              title="Inspect 360° Details"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setInvoiceModalOrderId(order.id)}
+              className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 cursor-pointer"
+              title="GST Tax Invoice"
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {prevStage && (
+              <button
+                onClick={() => handleUpdateOrderStatus(order.id, prevStage)}
+                className="px-2 py-1 rounded-xl text-[10px] font-bold text-gray-500 hover:bg-gray-200 bg-gray-100 cursor-pointer"
+                title={`Move back to ${prevStage}`}
+              >
+                ← Back
+              </button>
+            )}
+            {nextStage && (
+              <button
+                onClick={() => handleUpdateOrderStatus(order.id, nextStage.nextStatus)}
+                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-2xs cursor-pointer ${nextStage.color}`}
+                title={`Advance to ${nextStage.nextStatus}`}
+              >
+                <nextStage.icon className="w-3 h-3" />
+                <span>{nextStage.label} →</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
       {/* ========================================================================= */}
@@ -762,20 +1108,44 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
           </p>
         </div>
 
-        {/* Global Action Tools */}
+        {/* Global Action Tools & View Mode Switcher */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Warehouse Mode Toggle */}
-          <button
-            onClick={() => setViewMode((prev) => (prev === 'standard' ? 'warehouse' : 'standard'))}
-            className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
-              viewMode === 'warehouse'
-                ? 'bg-[#111111] text-white ring-2 ring-[#D84B7E]'
-                : 'bg-[#FAF0F4] text-[#D84B7E] border border-[#F1BCCE] hover:bg-[#FCE7F0]'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            <span>{viewMode === 'warehouse' ? 'Exit Warehouse Mode' : 'Warehouse Station Mode'}</span>
-          </button>
+          {/* Workspace View Mode Switcher */}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-2xl border border-gray-200">
+            <button
+              onClick={() => setViewMode('standard')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'standard'
+                  ? 'bg-white text-[#D84B7E] shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>Table View</span>
+            </button>
+            <button
+              onClick={() => setViewMode('pipeline')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'pipeline'
+                  ? 'bg-[#D84B7E] text-white shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Pipeline Board</span>
+            </button>
+            <button
+              onClick={() => setViewMode('warehouse')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'warehouse'
+                  ? 'bg-[#111111] text-white shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Boxes className="w-3.5 h-3.5" />
+              <span>Pack Bench</span>
+            </button>
+          </div>
 
           {/* Analytics Reports Modal Button */}
           <button
@@ -783,7 +1153,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
             className="px-3.5 py-2 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
           >
             <History className="w-4 h-4 text-[#D84B7E]" />
-            <span>Analytics Reports</span>
+            <span>Analytics</span>
           </button>
 
           {/* Refresh Button */}
@@ -920,6 +1290,55 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
           </button>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* HORIZONTAL LIFECYCLE STAGES QUICK ASSIGN & FILTER BAR */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-3xl p-3 sm:p-4 border border-[#F1BCCE]/60 shadow-xs">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 touch-scroll scrollbar-none">
+          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider pl-2 whitespace-nowrap">
+            Fulfillment Stage:
+          </span>
+          {LIFECYCLE_STAGES.map((stage) => {
+            const count = stageCounts[stage.key as keyof typeof stageCounts] || 0;
+            const isActive =
+              (stage.key === 'ALL' && statusFilter === 'ALL' && selectedCardKey === 'TOTAL_ORDERS') ||
+              (stage.key !== 'ALL' && (statusFilter === stage.key || selectedCardKey === `${stage.key}_ORDERS`));
+            const StageIcon = stage.icon;
+
+            return (
+              <button
+                key={stage.key}
+                onClick={() => {
+                  if (stage.key === 'ALL') {
+                    setStatusFilter('ALL');
+                    setSelectedCardKey('TOTAL_ORDERS');
+                  } else {
+                    setStatusFilter(stage.key);
+                    setSelectedCardKey('TOTAL_ORDERS');
+                  }
+                  setCurrentPage(1);
+                }}
+                className={`px-3.5 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'bg-[#111111] text-white shadow-md ring-2 ring-[#D84B7E]'
+                    : 'bg-gray-50 hover:bg-[#FAF0F4] text-gray-700 hover:text-[#D84B7E] border border-gray-200/80'
+                }`}
+              >
+                <StageIcon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D84B7E]' : 'text-gray-500'}`} />
+                <span>{stage.label}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                    isActive ? 'bg-[#D84B7E] text-white' : 'bg-gray-200 text-gray-800'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* ========================================================================= */}
       {/* STICKY FILTER & SEARCH CONTROL CONSOLE */}
@@ -1141,25 +1560,81 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {canPerform('PACK') && (
-              <button
-                onClick={() => handleBulkAction('MARK_PACKED')}
-                disabled={isProcessingBulk}
-                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Mark Packed
-              </button>
-            )}
+            {/* Quick Bulk Stage Advance Buttons */}
+            <button
+              onClick={() => handleBulkAction('MARK_CONFIRMED')}
+              disabled={isProcessingBulk}
+              className="px-2.5 py-1.5 bg-sky-600/80 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Confirmed
+            </button>
+            <button
+              onClick={() => handleBulkAction('MARK_PROCESSING')}
+              disabled={isProcessingBulk}
+              className="px-2.5 py-1.5 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Processing
+            </button>
+            <button
+              onClick={() => handleBulkAction('MARK_PACKED')}
+              disabled={isProcessingBulk}
+              className="px-2.5 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Packed
+            </button>
+            <button
+              onClick={() => handleBulkAction('MARK_SHIPPED')}
+              disabled={isProcessingBulk}
+              className="px-2.5 py-1.5 bg-blue-600/80 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Shipped
+            </button>
+            <button
+              onClick={() => handleBulkAction('MARK_OUT_FOR_DELIVERY')}
+              disabled={isProcessingBulk}
+              className="px-2.5 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Out for Del
+            </button>
+            <button
+              onClick={() => handleBulkAction('MARK_DELIVERED')}
+              disabled={isProcessingBulk}
+              className="px-2.5 py-1.5 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Delivered
+            </button>
 
-            {canPerform('DISPATCH') && (
-              <button
-                onClick={() => handleBulkAction('MARK_SHIPPED')}
-                disabled={isProcessingBulk}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Mark Shipped
-              </button>
-            )}
+            {/* Quick Bulk Staff Assign */}
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleBulkAction('ASSIGN_STAFF', { assigned_staff: e.target.value === 'Unassigned' ? '' : e.target.value });
+                }
+              }}
+              defaultValue=""
+              className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer focus:outline-none"
+            >
+              <option value="" disabled className="text-gray-900">Bulk Assign Staff...</option>
+              {STAFF_MEMBERS.map((s) => (
+                <option key={s} value={s} className="text-gray-900">{s}</option>
+              ))}
+            </select>
+
+            {/* Quick Bulk Courier Assign */}
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleBulkAction('ASSIGN_COURIER', { courier_name: e.target.value });
+                }
+              }}
+              defaultValue=""
+              className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer focus:outline-none"
+            >
+              <option value="" disabled className="text-gray-900">Bulk Assign Courier...</option>
+              {COURIER_OPTIONS.map((c) => (
+                <option key={c} value={c} className="text-gray-900">{c}</option>
+              ))}
+            </select>
 
             <button
               onClick={() => handleBulkAction('EXPORT_CSV')}
@@ -1190,9 +1665,173 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* WAREHOUSE STATION MODE (TABLET & TOUCH OPTIMIZED) */}
+      {/* 1. PIPELINE KANBAN BOARD VIEW */}
       {/* ========================================================================= */}
-      {viewMode === 'warehouse' ? (
+      {viewMode === 'pipeline' ? (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-[#111111] via-[#202020] to-[#111111] text-white rounded-3xl p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#D84B7E] flex items-center justify-center shadow-xs">
+                <Sliders className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold">Fulfillment Pipeline Board</h3>
+                <p className="text-xs text-gray-400">
+                  Visual stage progression, staff assignment, and courier management across lifecycle columns.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold bg-white/10 px-3 py-1.5 rounded-xl border border-white/20">
+                {filteredOrders.length} Pipeline Orders
+              </span>
+            </div>
+          </div>
+
+          {/* 5 Column Workflow Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-start">
+            {/* 1. Confirmed Column */}
+            <div className="bg-[#FAF0F4]/60 rounded-3xl p-4 border border-[#F1BCCE]/80 flex flex-col min-h-[500px]">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1BCCE]/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">Confirmed</h4>
+                    <p className="text-[10px] text-gray-500">Ready to Process</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                  {pipelineColumns.confirmed.length}
+                </span>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[75vh] pr-1">
+                {pipelineColumns.confirmed.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400 text-xs italic">
+                    No orders waiting in Confirmed
+                  </div>
+                ) : (
+                  pipelineColumns.confirmed.map((order) => renderKanbanCard(order, 'Confirmed'))
+                )}
+              </div>
+            </div>
+
+            {/* 2. Processing Column */}
+            <div className="bg-[#FAF0F4]/60 rounded-3xl p-4 border border-[#F1BCCE]/80 flex flex-col min-h-[500px]">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1BCCE]/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                    <Cpu className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">Processing</h4>
+                    <p className="text-[10px] text-gray-500">Picking &amp; Verification</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                  {pipelineColumns.processing.length}
+                </span>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[75vh] pr-1">
+                {pipelineColumns.processing.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400 text-xs italic">
+                    No orders in Processing
+                  </div>
+                ) : (
+                  pipelineColumns.processing.map((order) => renderKanbanCard(order, 'Processing'))
+                )}
+              </div>
+            </div>
+
+            {/* 3. Packed Column */}
+            <div className="bg-[#FAF0F4]/60 rounded-3xl p-4 border border-[#F1BCCE]/80 flex flex-col min-h-[500px]">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1BCCE]/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                    <Boxes className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">Packed &amp; QC</h4>
+                    <p className="text-[10px] text-gray-500">Ready for Courier</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                  {pipelineColumns.packed.length}
+                </span>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[75vh] pr-1">
+                {pipelineColumns.packed.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400 text-xs italic">
+                    No orders packed waiting dispatch
+                  </div>
+                ) : (
+                  pipelineColumns.packed.map((order) => renderKanbanCard(order, 'Packed'))
+                )}
+              </div>
+            </div>
+
+            {/* 4. Shipped Column */}
+            <div className="bg-[#FAF0F4]/60 rounded-3xl p-4 border border-[#F1BCCE]/80 flex flex-col min-h-[500px]">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1BCCE]/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                    <Truck className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">Shipped</h4>
+                    <p className="text-[10px] text-gray-500">In Transit with Carrier</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                  {pipelineColumns.shipped.length}
+                </span>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[75vh] pr-1">
+                {pipelineColumns.shipped.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400 text-xs italic">
+                    No shipments in transit
+                  </div>
+                ) : (
+                  pipelineColumns.shipped.map((order) => renderKanbanCard(order, 'Shipped'))
+                )}
+              </div>
+            </div>
+
+            {/* 5. Delivered Column */}
+            <div className="bg-[#FAF0F4]/60 rounded-3xl p-4 border border-[#F1BCCE]/80 flex flex-col min-h-[500px]">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F1BCCE]/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">Delivered</h4>
+                    <p className="text-[10px] text-gray-500">Fulfilled &amp; Received</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {pipelineColumns.delivered.length}
+                </span>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[75vh] pr-1">
+                {pipelineColumns.delivered.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400 text-xs italic">
+                    No delivered orders in this range
+                  </div>
+                ) : (
+                  pipelineColumns.delivered.map((order) => renderKanbanCard(order, 'Delivered'))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : viewMode === 'warehouse' ? (
         <div className="space-y-4 animate-in fade-in duration-200">
           <div className="bg-[#111111] text-white rounded-3xl p-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1281,7 +1920,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
         </div>
       ) : (
         /* ========================================================================= */
-        /* STANDARD ORDERS DATA TABLE */
+        /* MASTER ORDERS DATA TABLE */
         /* ========================================================================= */
         <div className="bg-white rounded-3xl border border-[#F1BCCE]/60 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
@@ -1365,6 +2004,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
                     const st = order.order_status;
                     const pst = order.payment_status || 'Pending';
                     const priority = order.priority || 'NORMAL';
+                    const nextStage = getNextStage(st);
 
                     return (
                       <tr
@@ -1458,74 +2098,127 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
                           </div>
                         </td>
 
-                        {/* Fulfillment Status */}
+                        {/* Fulfillment Status: Interactive Select + Fast Stage Advance */}
                         <td className="p-3.5">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              st === 'Delivered'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : st === 'Shipped'
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : st === 'Packed'
-                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                : st === 'Cancelled'
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                : st === 'Returned'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                st === 'Delivered'
-                                  ? 'bg-emerald-500'
-                                  : st === 'Shipped'
-                                  ? 'bg-blue-500'
-                                  : st === 'Packed'
-                                  ? 'bg-purple-500'
-                                  : st === 'Cancelled'
-                                  ? 'bg-rose-500'
-                                  : 'bg-indigo-500'
-                              }`}
-                            />
-                            <span>{st}</span>
-                          </span>
-                        </td>
+                          <div className="flex flex-col gap-1.5 min-w-[140px]">
+                            <div className="relative">
+                              <select
+                                value={st}
+                                onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                className={`w-full appearance-none pl-2.5 pr-7 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border cursor-pointer focus:outline-none transition-all ${
+                                  st === 'Delivered'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                    : st === 'Shipped'
+                                    ? 'bg-blue-50 text-blue-800 border-blue-300'
+                                    : st === 'Out for Delivery'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                    : st === 'Packed'
+                                    ? 'bg-purple-50 text-purple-800 border-purple-300'
+                                    : st === 'Processing'
+                                    ? 'bg-indigo-50 text-indigo-800 border-indigo-300'
+                                    : st === 'Cancelled'
+                                    ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                    : 'bg-sky-50 text-sky-800 border-sky-300'
+                                }`}
+                              >
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Processing">Processing</option>
+                                <option value="Packed">Packed</option>
+                                <option value="Shipped">Shipped</option>
+                                <option value="Out for Delivery">Out for Delivery</option>
+                                <option value="Delivered">Delivered</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                              <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
+                            </div>
 
-                        {/* Courier & AWB */}
-                        <td className="p-3.5">
-                          <div className="space-y-0.5 min-w-[130px]">
-                            <p className="font-semibold text-gray-900 text-[11px]">
-                              {order.courier_name || 'Standard Express'}
-                            </p>
-                            {order.awb_code ? (
-                              <span className="font-mono text-[10px] font-bold text-[#D84B7E] bg-[#FAF0F4] px-1.5 py-0.5 rounded border border-[#F1BCCE] block truncate">
-                                AWB: {order.awb_code}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-gray-400 italic">No AWB Assigned</span>
+                            {/* Quick Next Stage Action Button */}
+                            {nextStage && (
+                              <button
+                                onClick={() => handleUpdateOrderStatus(order.id, nextStage.nextStatus)}
+                                className={`px-2 py-1 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer ${nextStage.color}`}
+                                title={`Advance to ${nextStage.nextStatus}`}
+                              >
+                                <nextStage.icon className="w-3 h-3" />
+                                <span>{nextStage.label} →</span>
+                              </button>
                             )}
                           </div>
                         </td>
 
-                        {/* Staff & Priority */}
+                        {/* Courier & AWB: Interactive Courier Select + Copy AWB */}
                         <td className="p-3.5">
-                          <div className="space-y-1">
-                            <span
-                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                priority === 'URGENT'
-                                  ? 'bg-rose-100 text-rose-800'
-                                  : priority === 'HIGH'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              {priority === 'URGENT' && <Flame className="w-2.5 h-2.5 text-rose-600" />}
-                              <span>{priority}</span>
-                            </span>
-                            <p className="text-[10px] text-gray-500 truncate">
-                              {order.assigned_staff || 'Unassigned'}
-                            </p>
+                          <div className="space-y-1 min-w-[140px]">
+                            <div className="relative">
+                              <select
+                                value={order.courier_name || 'Blue Dart Express Air'}
+                                onChange={(e) => handleAssignCourier(order.id, e.target.value)}
+                                className="w-full appearance-none pl-2 pr-6 py-1 bg-gray-50 hover:bg-white border border-gray-200 hover:border-[#D84B7E] rounded-xl text-[11px] font-semibold text-gray-900 cursor-pointer focus:outline-none transition-colors"
+                              >
+                                {COURIER_OPTIONS.map((c) => (
+                                  <option key={c} value={c}>{c}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                            </div>
+
+                            {order.awb_code ? (
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono text-[10px] font-bold text-[#D84B7E] bg-[#FAF0F4] px-1.5 py-0.5 rounded border border-[#F1BCCE] truncate flex-1">
+                                  AWB: {order.awb_code}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(order.awb_code || '');
+                                    showToast('AWB copied to clipboard', 'info');
+                                  }}
+                                  className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-900 cursor-pointer"
+                                  title="Copy AWB"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-gray-400 italic block">AWB Pending</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Staff & Priority: Interactive Staff Select + Toggle Priority */}
+                        <td className="p-3.5">
+                          <div className="space-y-1 min-w-[130px]">
+                            <div className="relative">
+                              <select
+                                value={order.assigned_staff || 'Unassigned'}
+                                onChange={(e) => handleAssignStaff(order.id, e.target.value)}
+                                className="w-full appearance-none pl-2 pr-6 py-1 bg-gray-50 hover:bg-white border border-gray-200 hover:border-[#D84B7E] rounded-xl text-[11px] font-semibold text-gray-900 cursor-pointer focus:outline-none transition-colors"
+                              >
+                                {STAFF_MEMBERS.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  const nextPrio = priority === 'NORMAL' ? 'HIGH' : priority === 'HIGH' ? 'URGENT' : 'NORMAL';
+                                  handleUpdatePriority(order.id, nextPrio);
+                                }}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold uppercase transition-all cursor-pointer ${
+                                  priority === 'URGENT'
+                                    ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
+                                    : priority === 'HIGH'
+                                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                                title="Click to cycle priority: Normal -> High -> Urgent"
+                              >
+                                {priority === 'URGENT' && <Flame className="w-2.5 h-2.5 text-rose-600" />}
+                                <span>{priority}</span>
+                              </button>
+                            </div>
                           </div>
                         </td>
 

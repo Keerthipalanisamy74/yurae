@@ -223,32 +223,25 @@ export const MarketingBannerHub: React.FC = () => {
   // =========================================================================
   if (config.popup_style === 'TOP_TICKER') {
     return (
-      <aside aria-label="Announcement" style={dynamicBgStyle} className="relative z-40 py-2 overflow-hidden text-xs font-medium tracking-wide shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1 overflow-hidden relative">
-            <div className="flex w-max animate-marquee-ltr select-none py-0.5">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="flex items-center gap-6 px-6 shrink-0">
-                  <span className="font-semibold tracking-wide">{config.announcement_text || config.headline}</span>
-                  {config.coupon_code && (
-                    <button
-                      type="button"
-                      onClick={() => handleCopyCoupon(config.coupon_code!)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-black text-white border border-black hover:bg-black/85 transition-all cursor-pointer shadow-xs"
-                      title="Click to copy promo code"
-                    >
-                      <Tag className="w-3 h-3 text-amber-300" />
-                      <span className="font-mono text-white">{config.coupon_code}</span>
-                      {isCopied ? <Check className="w-3 h-3 text-emerald-300" /> : <Copy className="w-3 h-3 text-white/70" />}
-                    </button>
-                  )}
-                  <span className="text-white/40 text-xs select-none">✦</span>
-                </div>
-              ))}
-            </div>
+      <aside aria-label="Announcement" style={dynamicBgStyle} className="relative z-40 py-2 px-4 text-xs font-medium tracking-wide shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex-1 flex items-center justify-center gap-3 text-center">
+            <span className="font-medium truncate">{config.announcement_text || config.headline}</span>
+            {config.coupon_code && (
+              <button
+                type="button"
+                onClick={() => handleCopyCoupon(config.coupon_code!)}
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-black text-white border border-black hover:bg-black/85 transition-all cursor-pointer shadow-xs shrink-0"
+                title="Click to copy promo code"
+              >
+                <Tag className="w-3 h-3 text-amber-300" />
+                <span className="font-mono text-white">{config.coupon_code}</span>
+                {isCopied ? <Check className="w-3 h-3 text-emerald-300" /> : <Copy className="w-3 h-3 text-white/70" />}
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 pr-4 z-10 bg-inherit shadow-[-10px_0_15px_rgba(0,0,0,0.15)]">
+          <div className="flex items-center gap-2 shrink-0">
             {config.cta_url && (
               <button
                 type="button"

@@ -32,17 +32,28 @@ export const AnnouncementBar: React.FC = () => {
 
   const text =
     config?.announcement_text ||
-    'Complimentary Korean Gel Cleanser Sample on Orders Over ₹2,000 • Free Express Shipping Over ₹1,500';
+    '✨ Complimentary Discovery Trio on all orders above ₹2,499 | Free Express Shipping across India';
 
   return (
     <aside
       aria-label="Announcement"
       style={bgStyle}
-      className={`py-1.5 sm:py-2 px-3 sm:px-4 text-center text-[10px] sm:text-xs tracking-wider sm:tracking-widest uppercase font-semibold border-b border-white/20 shadow-xs leading-snug transition-colors ${
+      className={`py-2 overflow-hidden whitespace-nowrap text-[10px] sm:text-xs tracking-wider sm:tracking-widest uppercase font-semibold border-b border-white/20 shadow-xs leading-snug transition-colors relative z-40 ${
         !bgStyle ? 'bg-[#D84B7E] text-[#FDF4F7]' : ''
       }`}
     >
-      <span className="block truncate sm:inline">{text}</span>
+      <div className="flex w-max animate-marquee-ltr select-none">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="flex items-center gap-8 px-8 shrink-0">
+            <span className="font-bold tracking-wider">{text}</span>
+            <span className="text-white/40 text-xs select-none">✦</span>
+            <span className="text-amber-300 font-extrabold tracking-widest text-[9px] sm:text-[10px] bg-black/25 px-2.5 py-0.5 rounded-full border border-amber-300/30">
+              LIMITED TIME LUXURY PRIVILEGE
+            </span>
+            <span className="text-white/40 text-xs select-none">✦</span>
+          </div>
+        ))}
+      </div>
     </aside>
   );
 };

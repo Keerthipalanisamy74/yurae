@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Category } from '../types';
+import { Category, Subcategory } from '../types';
 import { api } from '../services/api';
 
 export type CategoryLike = {
@@ -11,11 +11,45 @@ export type CategoryLike = {
   created_at?: string;
 };
 
+export const getSubcategoryIconHelper = (sub?: Subcategory | string): string => {
+  if (!sub) return '✨';
+  const text = typeof sub === 'string'
+    ? sub.toLowerCase()
+    : `${sub.name} ${sub.slug || ''}`.toLowerCase();
+
+  if (text.includes('skincare') || text.includes('facial')) return '🌸';
+  if (text.includes('bodycare') || text.includes('body wash') || text.includes('body lotion') || text.includes('body scrub') || text.includes('body oil')) return '🧴';
+  if (text.includes('haircare') || text.includes('scalp') || text.includes('shampoo') || text.includes('conditioner')) return '💇‍♀️';
+  if (text.includes('ring')) return '💍';
+  if (text.includes('neck') || text.includes('pendant') || text.includes('chain') || text.includes('choker')) return '📿';
+  if (text.includes('bag') || text.includes('pouch') || text.includes('clutch') || text.includes('tote')) return '👜';
+  if (text.includes('watch') || text.includes('time')) return '⌚';
+  if (text.includes('ear') || text.includes('stud') || text.includes('hoop')) return '💎';
+  if (text.includes('brace') || text.includes('bangle') || text.includes('cuff')) return '💫';
+  if (text.includes('hair') || text.includes('scrunchie') || text.includes('pin') || text.includes('clip')) return '🎀';
+  if (text.includes('cleanse') || text.includes('wash') || text.includes('foam')) return '🫧';
+  if (text.includes('toner') || text.includes('essence') || text.includes('mist')) return '💧';
+  if (text.includes('serum') || text.includes('ampoule') || text.includes('elixir')) return '🧪';
+  if (text.includes('cream') || text.includes('moistur') || text.includes('lotion')) return '🧴';
+  if (text.includes('sun') || text.includes('spf')) return '☀️';
+  if (text.includes('mask') || text.includes('peel')) return '🧖‍♀️';
+  if (text.includes('lip') || text.includes('balm')) return '💄';
+  if (text.includes('eye')) return '👁️';
+  if (text.includes('hand') || text.includes('foot')) return '✨';
+  if (text.includes('dress') || text.includes('gown')) return '👗';
+  if (text.includes('kurti') || text.includes('tunic') || text.includes('ethnic')) return '🥻';
+  if (text.includes('top') || text.includes('blouse') || text.includes('shirt')) return '👚';
+  if (text.includes('skirt') || text.includes('pant') || text.includes('trouser')) return '👖';
+  if (text.includes('silk') || text.includes('lounge') || text.includes('robe') || text.includes('sleep') || text.includes('kimono')) return '👘';
+  return '✨';
+};
+
 interface CategoryContextType {
   categories: Category[];
   loading: boolean;
   refreshCategories: () => Promise<void>;
   getCategoryIcon: (category?: CategoryLike | string) => string;
+  getSubcategoryIcon: (sub?: Subcategory | string) => string;
 }
 
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
@@ -85,6 +119,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         loading,
         refreshCategories,
         getCategoryIcon: getCategoryIconHelper,
+        getSubcategoryIcon: getSubcategoryIconHelper,
       }}
     >
       {children}

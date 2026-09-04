@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, text
 from app.database.session import get_db
 from datetime import datetime
-from app.models.models import Product, ProductImage, ProductVariant, Category, Review, User, CartItem, Wishlist, OrderItem, StockNotification
+from app.models.models import Product, ProductImage, ProductVariant, Category, Subcategory, Review, User, CartItem, Wishlist, OrderItem, StockNotification
 from app.schemas.schemas import ProductResponse, ProductCreate, ProductUpdate, RestockRequest, StockNotificationCreate, StockNotificationResponse
 from app.services.email_service import EmailService
 from app.api.deps import get_current_admin
@@ -64,6 +64,8 @@ def format_product_response(product: Product, db: Session) -> dict:
     p_dict = {
         "id": product.id,
         "category_id": product.category_id,
+        "subcategory_id": product.subcategory_id,
+        "subcategory": product.subcategory,
         "name": product.name,
         "slug": product.slug,
         "description": product.description,
@@ -120,6 +122,36 @@ def get_products(
             query = query.filter(Product.category_id == category.id)
         else:
             return []
+
+    # Subcategory filter (supports parent group or specific nested subcategory)
+    if subcategory and subcategory != "all":
+        sub_term = subcategory.strip().lower()
+        if sub_term.isdigit():
+            target_sub_id = int(sub_term)
+            child_sub_ids = [r[0] for r in db.query(Subcategory.id).filter(Subcategory.parent_id == target_sub_id).all()]
+            all_target_ids = [target_sub_id] + child_sub_ids
+            query = query.filter(Product.subcategory_id.in_(all_target_ids))
+        else:
+            matching_subs = db.query(Subcategory).filter(
+                or_(
+                    Subcategory.slug == sub_term,
+                    Subcategory.name.ilike(sub_term)
+                )
+            ).all()
+            if matching_subs:
+                matching_ids = []
+                for ms in matching_subs:
+                    matching_ids.append(ms.id)
+                    child_sub_ids = [r[0] for r in db.query(Subcategory.id).filter(Subcategory.parent_id == ms.id).all()]
+                    matching_ids.extend(child_sub_ids)
+                query = query.filter(Product.subcategory_id.in_(list(set(matching_ids))))
+            else:
+                query = query.join(Product.subcategory).filter(
+                    or_(
+                        Subcategory.slug == sub_term,
+                        Subcategory.name.ilike(sub_term)
+                    )
+                )
 
     # Skin type filter (Skincare specific)
     if skin_type and skin_type != "All":
@@ -283,6 +315,7 @@ def get_complementary_products(
                 Product.name.ilike("%dress%"),
                 Product.name.ilike("%kurti%"),
                 Product.name.ilike("%top%"),
+                Product.name.ilike("%silk%"),
                 Product.name.ilike("%skirt%")
             )
         ).all()
@@ -380,6 +413,7 @@ def create_product(
 
     new_prod = Product(
         category_id=cat_id,
+        subcategory_id=prod_in.subcategory_id,
         name=prod_in.name,
         slug=final_slug,
         description=prod_in.description,

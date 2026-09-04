@@ -28,12 +28,15 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
   const { formatPrice } = useCurrency();
-  const { categories, getCategoryIcon } = useCategories();
+  const { categories, getCategoryIcon, getSubcategoryIcon } = useCategories();
 
   const rawCategoryParam = searchParams.get('category');
   const [selectedCategory, setSelectedCategory] = useState<string>(
     effectiveCategorySlug ? effectiveCategorySlug.toLowerCase() : (rawCategoryParam ? rawCategoryParam.toLowerCase() : 'all')
   );
+
+  const rawSubcategoryParam = searchParams.get('subcategory') || '';
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(rawSubcategoryParam);
 
   useEffect(() => {
     if (effectiveCategorySlug) {
@@ -44,6 +47,10 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
       setSelectedCategory('all');
     }
   }, [effectiveCategorySlug, rawCategoryParam]);
+
+  useEffect(() => {
+    setSelectedSubcategory(searchParams.get('subcategory') || '');
+  }, [searchParams]);
 
   const currentCategory = selectedCategory;
   const searchSkinType = searchParams.get('skin_type') || '';
@@ -145,6 +152,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
   }, [fetchProducts]);
 
   const handleResetFilters = () => {
+    setSelectedSubcategory('');
     if (currentCategory === 'skincare') {
       setSelectedSkinType('');
       setSelectedSkincareRoutine('');
@@ -186,6 +194,16 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     const pIngredients = (p.ingredients || '').toLowerCase();
     const pCombined = `${pName} ${pDesc} ${pShortDesc} ${pSkinType} ${pIngredients}`;
     
+    // Subcategory Filter (Dynamic & Relational)
+    if (selectedSubcategory && selectedSubcategory !== 'all') {
+      const subSlug = selectedSubcategory.toLowerCase();
+      const subMatch =
+        (p.subcategory?.slug || '').toLowerCase() === subSlug ||
+        (p.subcategory?.name || '').toLowerCase() === subSlug ||
+        pCombined.includes(subSlug.replace(/-/g, ' '));
+      if (!subMatch) return false;
+    }
+
     // 1. Skincare Sub-filters
     if (currentCategory === 'skincare') {
       if (selectedSkinType && selectedSkinType !== 'All') {
@@ -374,6 +392,15 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
 
   // Active filter badges list
   const activeFilters = [
+    selectedSubcategory && {
+      label: `Subcategory: ${selectedSubcategory.replace(/-/g, ' ')}`,
+      onRemove: () => {
+        setSelectedSubcategory('');
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('subcategory');
+        setSearchParams(newParams);
+      },
+    },
     selectedSkinType && { label: `Skin: ${selectedSkinType}`, onRemove: () => setSelectedSkinType('') },
     selectedSkincareRoutine && { label: `Routine: ${selectedSkincareRoutine}`, onRemove: () => setSelectedSkincareRoutine('') },
     selectedSkincareConcern && { label: `Concern: ${selectedSkincareConcern}`, onRemove: () => setSelectedSkincareConcern('') },
@@ -389,6 +416,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
 
   const handleCategoryClick = (catId: string) => {
     setSelectedCategory(catId);
+    setSelectedSubcategory('');
     setSelectedSkinType('');
     setSelectedSkincareRoutine('');
     setSelectedSkincareConcern('');
@@ -406,6 +434,7 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
     } else {
       newParams.set('category', catId);
     }
+    newParams.delete('subcategory');
     setSearchParams(newParams);
   };
 
@@ -949,6 +978,67 @@ export const Shop: React.FC<ShopProps> = ({ categorySlug: propCategorySlug }) =>
             >
               Clear All
             </button>
+          </div>
+        )}
+
+        {/* Interactive Subcategory Quick Filter Pills */}
+        {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
+          <div className="pt-3 sm:pt-4 flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSubcategory('');
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('subcategory');
+                setSearchParams(newParams);
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer shadow-2xs ${
+                !selectedSubcategory
+                  ? 'bg-[#D84B7E] text-white'
+                  : 'bg-[#FFF8FA] text-gray-700 border border-[#F1BCCE] hover:border-[#D84B7E] hover:bg-[#FAF0F4]'
+              }`}
+            >
+              ✨ All {activeCategoryObj.name}
+            </button>
+            {activeCategoryObj.subcategories.map((sub) => {
+              const isSelected =
+                selectedSubcategory.toLowerCase() === sub.slug.toLowerCase() ||
+                selectedSubcategory.toLowerCase() === sub.name.toLowerCase();
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => {
+                    const nextVal = isSelected ? '' : sub.slug;
+                    setSelectedSubcategory(nextVal);
+                    const newParams = new URLSearchParams(searchParams);
+                    if (nextVal) {
+                      newParams.set('subcategory', nextVal);
+                    } else {
+                      newParams.delete('subcategory');
+                    }
+                    setSearchParams(newParams);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shadow-2xs ${
+                    isSelected
+                      ? 'bg-[#D84B7E] text-white font-bold shadow-xs'
+                      : 'bg-[#FFF8FA] text-gray-700 border border-[#F1BCCE] hover:border-[#D84B7E] hover:bg-[#FAF0F4]'
+                  }`}
+                >
+                  <span>{getSubcategoryIcon(sub)}</span>
+                  <span>{sub.name}</span>
+                  {sub.product_count !== undefined && sub.product_count > 0 && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-[#FAF0F4] text-[#D84B7E]'
+                      }`}
+                    >
+                      {sub.product_count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
 

@@ -27,6 +27,20 @@ export interface Address {
   is_default: boolean;
 }
 
+export interface Subcategory {
+  id: number;
+  category_id: number;
+  parent_id?: number;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  display_order?: number;
+  created_at: string;
+  product_count?: number;
+  children?: Subcategory[];
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -34,6 +48,8 @@ export interface Category {
   description?: string;
   image?: string;
   created_at: string;
+  product_count?: number;
+  subcategories?: Subcategory[];
 }
 
 export interface ProductImage {
@@ -70,6 +86,7 @@ export interface Review {
 export interface Product {
   id: number;
   category_id: number;
+  subcategory_id?: number;
   name: string;
   slug: string;
   description?: string;
@@ -93,6 +110,7 @@ export interface Product {
   created_at: string;
   updated_at: string;
   category?: Category;
+  subcategory?: Subcategory;
   images: ProductImage[];
   variants: ProductVariant[];
   avg_rating?: number;

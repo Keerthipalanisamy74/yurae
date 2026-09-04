@@ -9,7 +9,7 @@ if str(backend_dir) not in sys.path:
 from sqlalchemy.orm import Session
 from app.database.session import SessionLocal, engine, Base
 import app.models.models  # Register all models with Base.metadata
-from app.models.models import User, Category, Product, ProductImage, ProductVariant, Coupon, Review, Cart, Address
+from app.models.models import User, Category, Subcategory, Product, ProductImage, ProductVariant, Coupon, Review, Cart, Address
 from app.core.security import get_password_hash
 from datetime import datetime, timedelta
 
@@ -110,6 +110,10 @@ def seed_db():
         db.refresh(cat_skincare)
         db.refresh(cat_fashion)
         db.refresh(cat_accessories)
+
+        # 3b. Seed Subcategories
+        from app.database.seed_subcategories import seed_subcategories
+        seed_subcategories()
 
         # 4. Seed Products
         if db.query(Product).count() == 0:

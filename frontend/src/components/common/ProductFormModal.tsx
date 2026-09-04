@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, Upload, Plus, Trash2, CheckCircle, Image as ImageIcon, Star } from 'lucide-react';
-import { Product, Category } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Upload, Plus, Trash2, CheckCircle, Image as ImageIcon, Star, ChevronRight, ChevronDown, ChevronLeft, Check, Sparkles, Layers } from 'lucide-react';
+import { Product, Category, Subcategory } from '../../types';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { getSubcategoryIconHelper } from '../../context/CategoryContext';
 
 // Helper to compress client-side images before uploading
 const compressImageFile = (file: File): Promise<string> => {
@@ -88,12 +89,37 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [selectedSkinTypes, setSelectedSkinTypes] = useState<string[]>(['All']);
   const [customSkinTypeInput, setCustomSkinTypeInput] = useState<string>('');
   const [subCategory, setSubCategory] = useState('Maxi & Midi Dresses');
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<number | null>(null);
+  const [isSubcategoryDropdownOpen, setIsSubcategoryDropdownOpen] = useState(false);
+  const [activeParentSubcategoryId, setActiveParentSubcategoryId] = useState<number | null>(null);
+  const [mobileSubcategoryView, setMobileSubcategoryView] = useState<'parents' | 'children'>('parents');
+  const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedSizes, setSelectedSizes] = useState<string[]>(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
   const [selectedSkincareSizes, setSelectedSkincareSizes] = useState<string[]>(['50g', '100g']);
   const [customSkincareSizeInput, setCustomSkincareSizeInput] = useState<string>('');
   const [sizeStocks, setSizeStocks] = useState<Record<string, number | string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+
+  // Close dropdown on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (subcategoryDropdownRef.current && !subcategoryDropdownRef.current.contains(e.target as Node)) {
+        setIsSubcategoryDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSubcategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Sync / fetch categories if empty
   useEffect(() => {
@@ -164,6 +190,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setShortDesc(productToEdit.short_description || '');
       setIngredients(productToEdit.ingredients || '');
       setSkinType(productToEdit.skin_type || '');
+
+      // Populate subcategory
+      if (productToEdit.subcategory_id) {
+        setSelectedSubcategoryId(productToEdit.subcategory_id);
+      } else if (productToEdit.subcategory?.id) {
+        setSelectedSubcategoryId(productToEdit.subcategory.id);
+      } else {
+        setSelectedSubcategoryId(null);
+      }
 
       // Populate selected skin types
       if (productToEdit.skin_type && !productToEdit.skin_type.toLowerCase().includes('size')) {
@@ -237,6 +272,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setSkinType('');
       setSelectedSkinTypes([]);
       setCustomSkinTypeInput('');
+      setSelectedSubcategoryId(null);
       setSubCategory(initialCategorySlug === 'fashion' ? 'Maxi & Midi Dresses' : skincareCategories[0]);
       setSelectedSizes(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
       setSelectedSkincareSizes(['50g', '100g']);
@@ -441,6 +477,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       const payload = {
         category_id: catId,
+        subcategory_id: selectedSubcategoryId || undefined,
         name: name.trim(),
         description: descVal,
         short_description: shortDescVal,
@@ -472,20 +509,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       onSuccess(resProduct, !isEditMode);
       onClose();
     } catch (err: any) {
-      console.error('Product save error:', err);
-      let errorMsg = 'Failed to save product. Please verify inputs.';
-      if (err.response?.data?.detail) {
-        const detail = err.response.data.detail;
-        if (typeof detail === 'string') {
-          errorMsg = detail;
-        } else if (Array.isArray(detail)) {
-          errorMsg = detail.map((d: any) => `${d.loc?.slice(-1)[0] || 'Field'}: ${d.msg}`).join(', ');
-        } else if (typeof detail === 'object') {
-          errorMsg = JSON.stringify(detail);
-        }
-      } else if (err.message) {
-        errorMsg = err.message;
-      }
+      console.error('Error saving product:', err);
+      const detailMsg = err?.response?.data?.detail;
+      const errorMsg = typeof detailMsg === 'string'
+        ? detailMsg
+        : Array.isArray(detailMsg)
+        ? detailMsg.map((d: any) => d.msg || JSON.stringify(d)).join(', ')
+        : 'Failed to save product. Please check required fields.';
       showToast(errorMsg, 'error');
     } finally {
       setIsSubmitting(false);
@@ -494,9 +524,31 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   if (!isOpen) return null;
 
+  const activeCategoryObj = categories.find((c) => c.slug.toLowerCase() === targetCategory.toLowerCase());
+  const categorySubcategories = activeCategoryObj?.subcategories || [];
+
+  // Helper to find selected subcategory info (parent + child)
+  const getSelectedSubcategoryInfo = () => {
+    if (!selectedSubcategoryId || categorySubcategories.length === 0) return null;
+    for (const parent of categorySubcategories) {
+      if (parent.id === selectedSubcategoryId) {
+        return { parent, child: null, isParent: true };
+      }
+      if (parent.children) {
+        for (const child of parent.children) {
+          if (child.id === selectedSubcategoryId) {
+            return { parent, child, isParent: false };
+          }
+        }
+      }
+    }
+    return null;
+  };
+  const selectedInfo = getSelectedSubcategoryInfo();
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-[#FFF8FA] border border-[#F1BCCE] rounded-3xl max-w-2xl w-full p-4 sm:p-8 space-y-5 sm:space-y-6 shadow-2xl my-4 sm:my-8 max-h-[92vh] overflow-y-auto touch-scroll">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-[#FFFDFC] rounded-3xl w-full max-w-4xl p-4 sm:p-6 md:p-8 max-h-[92vh] overflow-y-auto border border-[#F1BCCE] shadow-2xl relative animate-in fade-in zoom-in duration-200">
         {/* Header */}
         <div className="flex justify-between items-center border-b border-[#F1BCCE] pb-3 sm:pb-4">
           <div>
@@ -546,6 +598,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       type="button"
                       onClick={() => {
                         setTargetCategory(cat.slug.toLowerCase());
+                        setSelectedSubcategoryId(null);
                         if (cat.slug.toLowerCase().includes('fashion') || cat.name.toLowerCase().includes('fashion')) {
                           setSubCategory(dressCategories[0]);
                           setSkinType('Standard Fit');
@@ -605,15 +658,347 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               />
             </div>
 
-            <div>
-              <label className="font-bold text-[#111111] block mb-1">
-                {targetCategory.includes('fashion')
-                  ? 'Dress & Apparel Subcategory *'
-                  : targetCategory.includes('access')
-                  ? 'Accessory Category *'
-                  : 'Subcategory / Type *'}
+            <div className="relative" ref={subcategoryDropdownRef}>
+              <label className="font-bold text-[#111111] block mb-1 flex items-center justify-between">
+                <span>
+                  {targetCategory.includes('fashion')
+                    ? 'Apparel Subcategory'
+                    : targetCategory.includes('access')
+                    ? 'Accessory Subcategory'
+                    : 'Subcategory / Type'}
+                </span>
+                {categorySubcategories.length > 0 && (
+                  <span className="text-[10px] text-[#D84B7E] font-bold bg-[#FCE7F0] px-2 py-0.5 rounded-full">
+                    {categorySubcategories.reduce((acc, p) => acc + (p.children?.length || 1), 0)} options available
+                  </span>
+                )}
               </label>
-              {targetCategory.includes('fashion') ? (
+
+              {categorySubcategories.length > 0 ? (
+                <div>
+                  {/* Dropdown Trigger Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSubcategoryDropdownOpen(!isSubcategoryDropdownOpen);
+                      setMobileSubcategoryView('parents');
+                      if (selectedInfo?.parent?.id) {
+                        setActiveParentSubcategoryId(selectedInfo.parent.id);
+                      } else if (categorySubcategories.length > 0) {
+                        setActiveParentSubcategoryId(categorySubcategories[0].id);
+                      }
+                    }}
+                    className={`w-full p-3 bg-[#FDF4F7] border rounded-xl flex items-center justify-between text-left transition-all cursor-pointer shadow-2xs ${
+                      isSubcategoryDropdownOpen
+                        ? 'border-[#D84B7E] ring-2 ring-[#D84B7E]/20 bg-white'
+                        : 'border-[#F1BCCE] hover:border-[#D84B7E]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden pr-2 min-w-0">
+                      {selectedInfo ? (
+                        <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold text-[#111111]">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#FCE7F0] text-[#D84B7E] font-bold text-[11px] border border-[#F1BCCE]">
+                            <span>{getSubcategoryIconHelper(selectedInfo.parent)}</span>
+                            <span>{selectedInfo.parent.name}</span>
+                          </span>
+                          {selectedInfo.child && (
+                            <>
+                              <ChevronRight className="w-3.5 h-3.5 text-[#D84B7E] shrink-0" />
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white text-[#111111] font-bold text-[11px] border border-[#F1BCCE] shadow-2xs">
+                                <span>{getSubcategoryIconHelper(selectedInfo.child)}</span>
+                                <span>{selectedInfo.child.name}</span>
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-500 font-medium text-xs flex items-center gap-1.5 truncate">
+                          <span>🌸</span>
+                          <span>-- Choose Subcategory (e.g. Skincare ▶ Face Wash) --</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      {selectedSubcategoryId && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedSubcategoryId(null);
+                            setSubCategory('');
+                          }}
+                          className="p-1 hover:bg-gray-200 rounded-full text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                          title="Clear subcategory"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                      <ChevronDown
+                        className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                          isSubcategoryDropdownOpen ? 'rotate-180 text-[#D84B7E]' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Cascading Flyout Menu Dropdown */}
+                  {isSubcategoryDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-[#FFFDFC] border border-[#F1BCCE] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                      {/* Desktop / Tablet 2-Column Cascading Flyout */}
+                      <div className="hidden sm:flex divide-x divide-[#F1BCCE]/60 max-h-[320px]">
+                        {/* Left Column: Parent Groups (Skincare, Bodycare, Haircare) */}
+                        <div className="w-1/2 p-2 bg-[#FFF8FA]/80 overflow-y-auto space-y-1">
+                          <div className="px-2.5 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                            <span>📁</span> Parent Groups
+                          </div>
+                          {categorySubcategories.map((parent) => {
+                            const isActive = activeParentSubcategoryId === parent.id;
+                            const hasChildren = parent.children && parent.children.length > 0;
+                            const isSelectedParent = selectedSubcategoryId === parent.id;
+
+                            return (
+                              <button
+                                key={parent.id}
+                                type="button"
+                                onMouseEnter={() => setActiveParentSubcategoryId(parent.id)}
+                                onClick={() => {
+                                  setActiveParentSubcategoryId(parent.id);
+                                  if (!hasChildren) {
+                                    setSelectedSubcategoryId(parent.id);
+                                    setSubCategory(parent.name);
+                                    setIsSubcategoryDropdownOpen(false);
+                                  }
+                                }}
+                                className={`w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between transition-all group cursor-pointer ${
+                                  isActive
+                                    ? 'bg-[#FCE7F0] text-[#D84B7E] font-bold shadow-xs border border-[#F1BCCE]'
+                                    : 'text-gray-700 hover:bg-white hover:text-gray-900'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-base shrink-0">{getSubcategoryIconHelper(parent)}</span>
+                                  <div className="truncate">
+                                    <div className="text-xs truncate font-bold">{parent.name}</div>
+                                    {hasChildren && (
+                                      <div className="text-[10px] text-gray-500 font-normal">
+                                        {parent.children?.length} types
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0 ml-1">
+                                  {isSelectedParent && <Check className="w-3.5 h-3.5 text-[#D84B7E]" />}
+                                  {hasChildren && (
+                                    <ChevronRight
+                                      className={`w-4 h-4 transition-transform ${
+                                        isActive
+                                          ? 'text-[#D84B7E] translate-x-0.5'
+                                          : 'text-gray-400 group-hover:text-gray-600'
+                                      }`}
+                                    />
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Right Column: Nested Children of the hovered/active parent group */}
+                        <div className="w-1/2 p-2 bg-white overflow-y-auto space-y-1">
+                          {(() => {
+                            const activeParent =
+                              categorySubcategories.find((p) => p.id === activeParentSubcategoryId) ||
+                              categorySubcategories[0];
+
+                            if (!activeParent) {
+                              return (
+                                <div className="p-4 text-center text-xs text-gray-400">
+                                  Hover a parent group on the left to see types
+                                </div>
+                              );
+                            }
+
+                            const childrenList = activeParent.children || [];
+
+                            return (
+                              <div>
+                                <div className="px-2.5 py-1 text-[10px] font-bold text-[#D84B7E] uppercase tracking-wider flex items-center justify-between border-b border-[#F1BCCE]/40 pb-1.5 mb-1.5">
+                                  <span className="flex items-center gap-1">
+                                    <span>{getSubcategoryIconHelper(activeParent)}</span>
+                                    <span>{activeParent.name} Types</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSubcategoryId(activeParent.id);
+                                      setSubCategory(activeParent.name);
+                                      setIsSubcategoryDropdownOpen(false);
+                                    }}
+                                    className="text-[10px] text-[#D84B7E] hover:underline font-bold cursor-pointer"
+                                  >
+                                    Select All {activeParent.name}
+                                  </button>
+                                </div>
+
+                                {childrenList.length > 0 ? (
+                                  <div className="space-y-0.5">
+                                    {childrenList.map((child) => {
+                                      const isSelected = selectedSubcategoryId === child.id;
+                                      return (
+                                        <button
+                                          key={child.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedSubcategoryId(child.id);
+                                            setSubCategory(child.name);
+                                            setIsSubcategoryDropdownOpen(false);
+                                          }}
+                                          className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
+                                            isSelected
+                                              ? 'bg-[#D84B7E] text-white font-bold shadow-xs'
+                                              : 'text-gray-700 hover:bg-[#FFF0F5] hover:text-[#D84B7E]'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="text-sm shrink-0">{getSubcategoryIconHelper(child)}</span>
+                                            <span className="text-xs truncate">{child.name}</span>
+                                          </div>
+                                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 ml-1" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="p-3 text-center text-xs text-gray-500">
+                                    No nested subcategories
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Mobile Drill-Down Accordion View */}
+                      <div className="block sm:hidden p-2 max-h-[300px] overflow-y-auto">
+                        {mobileSubcategoryView === 'parents' ? (
+                          <div className="space-y-1">
+                            <div className="px-2 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                              Select Parent Group
+                            </div>
+                            {categorySubcategories.map((parent) => {
+                              const hasChildren = parent.children && parent.children.length > 0;
+                              return (
+                                <button
+                                  key={parent.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveParentSubcategoryId(parent.id);
+                                    if (hasChildren) {
+                                      setMobileSubcategoryView('children');
+                                    } else {
+                                      setSelectedSubcategoryId(parent.id);
+                                      setSubCategory(parent.name);
+                                      setIsSubcategoryDropdownOpen(false);
+                                    }
+                                  }}
+                                  className="w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between bg-[#FFF8FA] hover:bg-[#FCE7F0] border border-[#F1BCCE]/60 rounded-xl"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base">{getSubcategoryIconHelper(parent)}</span>
+                                    <div>
+                                      <div className="text-xs font-bold text-gray-800">{parent.name}</div>
+                                      {hasChildren && (
+                                        <div className="text-[10px] text-gray-500">
+                                          {parent.children?.length} options
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            {(() => {
+                              const activeParent =
+                                categorySubcategories.find((p) => p.id === activeParentSubcategoryId) ||
+                                categorySubcategories[0];
+                              const childrenList = activeParent?.children || [];
+
+                              return (
+                                <div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setMobileSubcategoryView('parents')}
+                                    className="w-full px-2.5 py-1.5 mb-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700 flex items-center gap-1.5"
+                                  >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    <span>Back to Parent Groups</span>
+                                  </button>
+
+                                  <div className="px-2 py-1 text-[10px] font-bold text-[#D84B7E] uppercase tracking-wider flex items-center justify-between border-b border-[#F1BCCE]/40 pb-1 mb-1.5">
+                                    <span className="flex items-center gap-1">
+                                      <span>{getSubcategoryIconHelper(activeParent)}</span>
+                                      <span>{activeParent?.name}</span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (activeParent) {
+                                          setSelectedSubcategoryId(activeParent.id);
+                                          setSubCategory(activeParent.name);
+                                          setIsSubcategoryDropdownOpen(false);
+                                        }
+                                      }}
+                                      className="text-[10px] text-[#D84B7E] font-bold underline"
+                                    >
+                                      Select Whole Group
+                                    </button>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    {childrenList.map((child) => {
+                                      const isSelected = selectedSubcategoryId === child.id;
+                                      return (
+                                        <button
+                                          key={child.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedSubcategoryId(child.id);
+                                            setSubCategory(child.name);
+                                            setIsSubcategoryDropdownOpen(false);
+                                          }}
+                                          className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between ${
+                                            isSelected
+                                              ? 'bg-[#D84B7E] text-white font-bold'
+                                              : 'bg-[#FFF8FA] text-gray-800'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm">{getSubcategoryIconHelper(child)}</span>
+                                            <span className="text-xs font-medium">{child.name}</span>
+                                          </div>
+                                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : targetCategory.includes('fashion') ? (
                 <select
                   value={subCategory}
                   onChange={(e) => setSubCategory(e.target.value)}

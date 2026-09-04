@@ -98,6 +98,39 @@ class AddressResponse(AddressBase):
     class Config:
         from_attributes = True
 
+# --- Subcategory ---
+class SubcategoryBase(BaseModel):
+    name: str
+    slug: Optional[str] = None
+    description: Optional[str] = None
+    image: Optional[str] = None
+    display_order: Optional[int] = 0
+    parent_id: Optional[int] = None
+
+class SubcategoryCreate(SubcategoryBase):
+    category_id: Optional[int] = None
+    parent_id: Optional[int] = None
+
+class SubcategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    description: Optional[str] = None
+    image: Optional[str] = None
+    display_order: Optional[int] = None
+    category_id: Optional[int] = None
+    parent_id: Optional[int] = None
+
+class SubcategoryResponse(SubcategoryBase):
+    id: int
+    category_id: int
+    parent_id: Optional[int] = None
+    created_at: datetime
+    product_count: Optional[int] = 0
+    children: List['SubcategoryResponse'] = []
+
+    class Config:
+        from_attributes = True
+
 # --- Category ---
 class CategoryBase(BaseModel):
     name: str
@@ -111,6 +144,8 @@ class CategoryCreate(CategoryBase):
 class CategoryResponse(CategoryBase):
     id: int
     created_at: datetime
+    subcategories: List[SubcategoryResponse] = []
+    product_count: Optional[int] = 0
 
     class Config:
         from_attributes = True
@@ -159,6 +194,7 @@ class ReviewResponse(BaseModel):
 
 class ProductBase(BaseModel):
     category_id: int
+    subcategory_id: Optional[int] = None
     name: str
     slug: Optional[str] = None
     description: Optional[str] = None
@@ -186,6 +222,7 @@ class ProductCreate(ProductBase):
 
 class ProductUpdate(BaseModel):
     category_id: Optional[int] = None
+    subcategory_id: Optional[int] = None
     name: Optional[str] = None
     slug: Optional[str] = None
     description: Optional[str] = None
@@ -218,6 +255,7 @@ class ProductResponse(ProductBase):
     created_at: datetime
     updated_at: datetime
     category: Optional[CategoryResponse] = None
+    subcategory: Optional[SubcategoryResponse] = None
     images: List[ProductImageResponse] = []
     variants: List[ProductVariantResponse] = []
     avg_rating: Optional[float] = 5.0

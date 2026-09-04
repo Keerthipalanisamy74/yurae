@@ -60,6 +60,25 @@ class Category(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     products = relationship("Product", back_populates="category")
+    subcategories = relationship("Subcategory", back_populates="category", cascade="all, delete-orphan", order_by="Subcategory.display_order")
+
+
+class Subcategory(Base):
+    __tablename__ = "subcategories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    parent_id = Column(Integer, ForeignKey("subcategories.id", ondelete="CASCADE"), nullable=True)
+    name = Column(String(100), nullable=False)
+    slug = Column(String(100), index=True, nullable=False)
+    description = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    image = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    display_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    category = relationship("Category", back_populates="subcategories")
+    products = relationship("Product", back_populates="subcategory")
+    parent = relationship("Subcategory", remote_side=[id], backref="children")
 
 
 class Product(Base):
@@ -67,6 +86,7 @@ class Product(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
+    subcategory_id = Column(Integer, ForeignKey("subcategories.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(200), nullable=False)
     slug = Column(String(200), unique=True, index=True, nullable=False)
     description = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
@@ -91,6 +111,7 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     category = relationship("Category", back_populates="products")
+    subcategory = relationship("Subcategory", back_populates="products")
     images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
